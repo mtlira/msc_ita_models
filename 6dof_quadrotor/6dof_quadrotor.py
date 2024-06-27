@@ -1,4 +1,5 @@
 from scipy.integrate import odeint
+#from scipy.optimize import fsolve
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -30,12 +31,14 @@ I_z = 1
 #    tz (3)
 #]
 
+# f_t está no eixo do corpo
+
 def u_(t):
-    return [1.1*m*g, 0, 0, 0]
+    return [2*m*g, 0.1, 0, 0]
 
 def f(X,t):
     phi, theta, psi, p, q, r, u, v, w, x, y, z = X
-    f_t, t_x, t_y, t_z = u_(t)
+    f_t, t_x, t_y, t_z = u_(0)
     dx_dt = [
        p + r*np.cos(phi)*np.tan(theta) + q*np.sin(phi)*np.tan(theta),
        q*np.cos(phi) - r*np.sin(phi),
@@ -52,7 +55,31 @@ def f(X,t):
     ]
     return dx_dt
 
+def f_solve(X):
+    phi, theta, psi, p, q, r, u, v, w = X[0:9]
+    f_t, t_x, t_y, t_z = u_(0)
+    dx_dt = [
+       p + r*np.cos(phi)*np.tan(theta) + q*np.sin(phi)*np.tan(theta),
+       q*np.cos(phi) - r*np.sin(phi),
+       r*np.cos(phi)/np.cos(theta) + q*np.sin(phi)/np.cos(theta),
+       (I_y - I_z)/I_x * r*q + t_x/I_x,
+       (I_z - I_x)/I_y * p*r + t_y/I_y,
+       (I_x - I_y)/I_z * p*q + t_z/I_z,
+       r*v - q*w - g*np.sin(theta),
+       p*w - r*u + g*np.sin(phi)*np.cos(theta),
+       q*u - p*v + g*np.cos(theta)*np.cos(phi) - f_t/m
+    ]
+    return dx_dt
+
 X = odeint(f, y0=[0,0,0,0,0,0,0,0,0,0,0,0], t=t)
+
+# Find equilibrium points (for this case, it's trivial that eq point is for angles = 0)
+#root = fsolve(f_solve, np.zeros(9))
+#print('eq point:',root)
+
+# Linearization: https://www.youtube.com/watch?v=9jO9q4jZrSI&pp=ygUWbGluZWFyaXplZCBzdGF0ZSBzcGFjZQ%3D%3D
+
+# Graphics
 
 # Rotation
 fig, axs = plt.subplots(2, 3)
