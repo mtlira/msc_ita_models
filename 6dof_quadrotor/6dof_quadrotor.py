@@ -1,4 +1,5 @@
 from scipy.integrate import odeint
+from scipy import signal
 #from scipy.optimize import fsolve
 import numpy as np
 import matplotlib.pyplot as plt
@@ -37,6 +38,8 @@ I_z = 1
 def u_(t):
     return [m*g, 0, 0, 0]
 
+u_eq = [m*g, 0, 0, 0]
+
 def f(X,t):
     phi, theta, psi, p, q, r, u, v, w, x, y, z = X
     f_t, t_x, t_y, t_z = u_(0)
@@ -73,10 +76,10 @@ def f_solve(X):
     return dx_dt
 
 def f_sym():
-    phi, theta, psi, p, q, r, u, v, w = sp.symbols('phi theta psi p q r u v w')
-    X_symbols = sp.symbols('phi theta psi p q r u v w')
-    f_t, t_x, t_y, t_z = sp.symbols('f_t t_x t_y t_z')
+    X_symbols = sp.symbols('phi theta psi p q r u v w x y z')
+    phi, theta, psi, p, q, r, u, v, w, x, y, z = X_symbols
     U_symbols = sp.symbols('f_t t_x t_y t_z')
+    f_t, t_x, t_y, t_z = U_symbols
     
     dx_dt = [
        p + r*sp.cos(phi)*sp.tan(theta) + q*sp.sin(phi)*sp.tan(theta),
@@ -111,6 +114,7 @@ def linearize():
         for j in range(0,len(X_symbols)):
             row.append(f[i].diff(X_symbols[j]))
         A.append(row)
+    A = sp.Matrix(A)
 
     B = []
     for i in range(0,len(f)):
@@ -118,6 +122,7 @@ def linearize():
         for j in range(0,len(U_symbols)):
             row.append(f[i].diff(U_symbols[j]))
         B.append(row)
+    B = sp.Matrix(B)
 
     return A, B
 
@@ -174,6 +179,45 @@ def plot_states(X,t):
 
 #plot_states(X,t)
 A, B = linearize()
-print('A=',A)
-print('B=',B)
 
+#print('A=',A)
+#print('B=',B)
+
+'phi theta psi p q r u v w'
+A = A.subs([('phi', 0),
+            ('theta', 0),
+            ('psi', 0),
+            ('p', 0),
+            ('q', 0),
+            ('r', 0),
+            ('u', 0),
+            ('v', 0),
+            ('w', 0)])
+
+#print('A post subs=',A)
+
+B = B.subs([('f_t', u_eq[0]),
+            ('t_x', u_eq[1]),
+            ('t_y', u_eq[2]),
+            ('t_z', u_eq[3])])
+
+
+linear_sys = signal.StateSpace(A,B,np.eye(np.shape(A)[0]), np.zeros((np.shape(A)[0],np.shape(B)[1])))
+
+#U_l = [u_(0)[0]*np.ones(len(t)),
+#       u_(0)[1]*np.ones(len(t)),
+#       u_(0)[2]*np.ones(len(t)),
+#       u_(0)[3]*np.ones(len(t))]
+
+
+U_l = [(u_(0)[0] - u_eq[0])*np.ones(len(t)),
+       (u_(0)[1] - u_eq[1])*np.ones(len(t)),
+       (u_(0)[2] - u_eq[2])*np.ones(len(t)),
+       (u_(0)[3] - u_eq[3])*np.ones(len(t))]
+
+U_l = np.transpose(U_l)
+
+tout, yout, xout = signal.lsim(linear_sys, U_l, t, X0 = [0,0,0,0,0,0,0,0,0,0,0,0])
+
+plot_states(xout, t)
+#plot_states(X,t)
