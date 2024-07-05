@@ -36,7 +36,7 @@ I_z = 1
 # f_t está no eixo do corpo
 
 def u_(t):
-    return [m*g, 0, 0, 0]
+    return [m*g, 0.005, 0.005, 0]
 
 u_eq = [m*g, 0, 0, 0]
 
@@ -107,7 +107,7 @@ X = odeint(f, y0=[0,0,0,0,0,0,0,0,0,0,0,0], t=t)
 
 def linearize():
     X_symbols, U_symbols, f = f_sym()
-    # f is symbolic 
+    # f is symbolic
     A = []
     for i in range(0,len(f)):
         row = []
@@ -127,53 +127,70 @@ def linearize():
     return A, B
 
 
-def plot_states(X,t):
+def plot_states(X,t, X_lin = None):
     # Rotation
     fig, axs = plt.subplots(2, 3)
     axs[0,0].plot(t,X[:,0])
+    if X_lin is not None: axs[0,0].plot(t,X_lin[:,0])
     axs[0,0].set_title('$\\phi(t)$')
 
     axs[0,1].plot(t,X[:,1])
+    if X_lin is not None: axs[0,1].plot(t,X_lin[:,1])
     axs[0,1].set_title('$\\theta(t)$')
 
     axs[0,2].plot(t,X[:,2])
+    if X_lin is not None: axs[0,2].plot(t,X_lin[:,2])
     axs[0,2].set_title('$\\psi(t)$')
 
     axs[1,0].plot(t,X[:,3])
+    if X_lin is not None: axs[1,0].plot(t,X_lin[:,3])
     axs[1,0].set_title('p(t)')
 
     axs[1,1].plot(t,X[:,4])
+    if X_lin is not None: axs[1,1].plot(t,X_lin[:,4])
     axs[1,1].set_title('q(t)')
 
     axs[1,2].plot(t,X[:,5])
+    if X_lin is not None: axs[1,2].plot(t,X_lin[:,5])
     axs[1,2].set_title('r(t)')
+    fig.legend(['Non-linear','Linear'])
 
     # Translation
     fig, axs = plt.subplots(2, 3)
     axs[0,0].plot(t,X[:,6])
+    if X_lin is not None: axs[0,0].plot(t,X_lin[:,6])
     axs[0,0].set_title('u(t)')
 
     axs[0,1].plot(t,X[:,7])
+    if X_lin is not None: axs[0,1].plot(t,X_lin[:,7])
     axs[0,1].set_title('v(t)')
 
     axs[0,2].plot(t,X[:,8])
+    if X_lin is not None: axs[0,2].plot(t,X_lin[:,8])
     axs[0,2].set_title('w(t)')
 
     axs[1,0].plot(t,X[:,9])
+    if X_lin is not None: axs[1,0].plot(t,X_lin[:,9])
     axs[1,0].set_title('x(t)')
 
     axs[1,1].plot(t,X[:,10])
+    if X_lin is not None: axs[1,1].plot(t,X_lin[:,10])
     axs[1,1].set_title('y(t)')
 
     axs[1,2].plot(t,X[:,11])
+    if X_lin is not None: axs[1,2].plot(t,X_lin[:,11])
     axs[1,2].set_title('z(t)')
+
+    fig.legend(['Non-linear','Linear'])
 
     fig = plt.figure()
     axs = plt.axes(projection='3d')
     axs.plot3D(X[:,9], X[:,10], X[:,11]*(-1))
+    if X_lin is not None: axs.plot3D(X_lin[:,9], X_lin[:,10], X_lin[:,11]*(-1))
     axs.set_xlabel('x')
     axs.set_ylabel('y')
     axs.set_zlabel('z')
+    fig.legend(['Non-linear','Linear'])
 
     plt.show()
 
@@ -219,5 +236,5 @@ U_l = np.transpose(U_l)
 
 tout, yout, xout = signal.lsim(linear_sys, U_l, t, X0 = [0,0,0,0,0,0,0,0,0,0,0,0])
 
-plot_states(xout, t)
+plot_states(X, t, xout)
 #plot_states(X,t)
