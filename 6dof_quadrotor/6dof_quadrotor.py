@@ -7,13 +7,6 @@ import matplotlib.pylab as pylab
 import sympy as sp
 from pid import PID
 
-#params = {'legend.fontsize': 'large',
-#         'axes.labelsize': 'x-large',
-#         'axes.titlesize':'x-large',
-#        'xtick.labelsize':'large',
-#         'ytick.labelsize':'large'}
-#pylab.rcParams.update(params)
-
 m = 10
 g = 9.80665
 I_x = 0.8
@@ -63,7 +56,7 @@ def u_shm(t):
     return [m*g - m*w**2*np.cos(w*t), 0, 0, 0]
 
 def u_spiral(t):
-    return [1.2*m*g, 5*np.sin(2*np.pi/0.01/T_simulation*t), 5*np.sin(2*np.pi/0.02/T_simulation*t), 0]
+    return [1.2*m*g, 5*np.sin(2*np.pi/0.01/T_simulation*t), 5*np.cos(2*np.pi/0.01/T_simulation*t), 0]
 
 def u_torquex(t):
     return [1.2*m*g, 0.004, 0, 0]
@@ -110,10 +103,10 @@ def f(X,t):
     ]
     return dx_dt
 
-# Para achar o ponto de equilíbrio
+# Para achar o ponto de equilíbario
 def f_solve(X):
     phi, theta, psi, p, q, r, u, v, w = X[0:9]
-    f_t, t_x, t_y, t_z = u_(0)
+    f_t, t_x, t_y, t_z = u_eq(0)
     dx_dt = [
        p + r*np.cos(phi)*np.tan(theta) + q*np.sin(phi)*np.tan(theta),
        q*np.cos(phi) - r*np.sin(phi),
@@ -392,11 +385,24 @@ linear_sys = signal.StateSpace(A,B,np.eye(np.shape(A)[0]), np.zeros((np.shape(A)
 #       u_(0)[2]*np.ones(len(t)),
 #       u_(0)[3]*np.ones(len(t))]
 
+U_l = [
+    np.ones(len(t)),
+    np.ones(len(t)),
+    np.ones(len(t)),
+    np.ones(len(t)),
+]
 
-U_l = [(u_(0)[0] - u_eq[0])*np.ones(len(t)),
-       (u_(0)[1] - u_eq[1])*np.ones(len(t)),
-       (u_(0)[2] - u_eq[2])*np.ones(len(t)),
-       (u_(0)[3] - u_eq[3])*np.ones(len(t))]
+for i in range(0,len(t)):
+    U_l[0][i] = (u_sim(t[i])[0] - u_eq[0])
+    U_l[1][i] = (u_sim(t[i])[1] - u_eq[1])
+    U_l[2][i] = (u_sim(t[i])[2] - u_eq[2])
+    U_l[3][i] = (u_sim(t[i])[3] - u_eq[3])
+
+# Old
+#U_l = [(u_sim(0)[0] - u_eq[0])*np.ones(len(t)),
+#       (u_sim(0)[1] - u_eq[1])*np.ones(len(t)),
+#       (u_sim(0)[2] - u_eq[2])*np.ones(len(t)),
+#       (u_sim(0)[3] - u_eq[3])*np.ones(len(t))]
 
 U_l = np.transpose(U_l)
 
@@ -404,11 +410,11 @@ tout, yout, xout = signal.lsim(linear_sys, U_l, t, X0 = X0)
 
 
 # Open-loop simulation
-#plot_states(X, t, xout)
+plot_states(X, t, xout)
 #plot_states(X, t)
 #quali_linear(X,t,xout)
 #quali_torquex(X,t)
-quali_shm(X,t)
+#quali_shm(X,t)
 
 
 # Closed-loop
