@@ -25,7 +25,6 @@ def linearize(f_sym, X_eq, U_eq):
             row.append(f[i].diff(U_symbols[j]))
         B.append(row)
     B = sp.Matrix(B)
-
     'phi theta psi p q r u v w'
     A = A.subs([('phi', X_eq[0]),
                 ('theta', X_eq[1]),
@@ -46,7 +45,7 @@ def linearize(f_sym, X_eq, U_eq):
     
     return A,B
     
-def openloop_sim_linear(A, B, t, X0, U_eq, U_sim):
+def openloop_sim_linear(A, B, t, X0, X_eq, U_eq, U_sim):
     '''Simulates the linearized model around X0 and U_eq with the given input U_sim over time t, starting from initial condition X0'''
     # U_sim: function U_sim(t)
 
@@ -66,8 +65,11 @@ def openloop_sim_linear(A, B, t, X0, U_eq, U_sim):
         U_l[2][i] = (U_sim(t[i])[2] - U_eq[2])
         U_l[3][i] = (U_sim(t[i])[3] - U_eq[3])
 
+    delta_X_0 = X0 - X_eq
+
     U_l = np.transpose(U_l)
 
-    tout, yout, xout = signal.lsim(linear_sys, U_l, t, X0 = X0)
+    tout, yout, xout = signal.lsim(linear_sys, U_l, t, X0 = delta_X_0)
+    
 
     return tout, yout, xout

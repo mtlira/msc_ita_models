@@ -26,10 +26,11 @@ T_simulation = 10
 t = np.arange(0,T_simulation, time_step)
 
 # Initial condition
-X0 = [0,0,0,0,0,0,0,0,0,0,0,-10]
+X0 = np.array([0.2,0,0,0,0,0,0,0,0,0,0,0])
 
 # Equilibrium point (trivial)
-X_eq = np.zeros(12)
+#X_eq = np.zeros(12)
+X_eq = np.array([0,0,0,0,0,0,0,0,0,0,0,-10])
 
 # x = [  phi (0)
 #        theta (1)
@@ -162,12 +163,35 @@ X = odeint(f, y0=X0, t=t)
 
 
 A,B = linearize(f_sym, X_eq, u_eq)
-_, _, x_lin = openloop_sim_linear(A, B, t, X0, u_eq, u_sim)
+_, _, x_lin = openloop_sim_linear(A, B, t, X0, X_eq, u_eq, u_sim)
+
+print('shape A =',np.shape(A))
+print('shape B =',np.shape(B))
+
+# LQR
+
+Q = np.eye(12)
+R = 2*np.eye(4)
+
+K, S, E = ct.lqr(A, B, Q, R)
+
+linear_sys = signal.StateSpace(A - B*K,B,np.eye(np.shape(A)[0]), np.zeros((np.shape(A)[0],np.shape(B)[1])))
+_, _, delta_xout = signal.lsim(linear_sys, 0, t, X0 = X0 - X_eq)
+xout = X_eq + delta_xout
+#plot_states(xout, t)
+
+linear_sys2 = ct.StateSpace(A - B*K, B, np.eye(np.shape(A)[0]), np.zeros((np.shape(A)[0],np.shape(B)[1])))
+ct_out = ct.forced_response(linear_sys2, t, 0, X0 - X_eq, transpose=True)
+xout2 = X_eq + ct_out.states
+
+print('shape states lsim =',np.shape(xout))
+print('shape states control =',np.shape(xout2))
+
+plot_states(xout,t,xout2)
 
 # Open-loop simulation
-plot_states(X, t, x_lin)
+#plot_states(X, t, x_lin)
 #plot_states(X, t)
-
 
 # Closed-loop
 pid = PID(KP,KI,KD,phi_setpoint,time_step)
