@@ -161,8 +161,8 @@ X = odeint(f, y0=X0, t=t)
 #print('eq point:',root)
 
 
-t_lin, y_lin, x_lin = linearize(f_sym, X0, X_eq, u_eq, t, u_sim)
-
+A,B = linearize(f_sym, X_eq, u_eq)
+_, _, x_lin = openloop_sim_linear(A, B, t, X0, u_eq, u_sim)
 
 # Open-loop simulation
 plot_states(X, t, x_lin)
