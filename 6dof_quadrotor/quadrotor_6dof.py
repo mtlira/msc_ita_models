@@ -9,6 +9,7 @@ from pid import PID
 from plots import *
 from linearize import *
 import control as ct
+import lqr as lqr
 
 m = 10
 g = 9.80665
@@ -16,21 +17,22 @@ I_x = 0.8
 I_y = 0.8
 I_z = 0.8
 
-# Controller parameters
+# PID Controller parameters
 KP = 6
 KD = 3
 KI = 3
 phi_setpoint = 0
-time_step = 1e-3
-T_simulation = 10
+
+time_step = 1e-2 #5e-3 é um bom valor
+T_simulation = 100
 t = np.arange(0,T_simulation, time_step)
 
 # Initial condition
-X0 = np.array([0.2,0,0,0,0,0,0,0,0,0,0,0])
+X0 = np.array([0,0,0,0,0,0,0,0,0,0,0,0])
 
 # Equilibrium point (trivial)
 #X_eq = np.zeros(12)
-X_eq = np.array([0,0,0,0,0,0,0,0,0,0,0,-10])
+X_eq = np.array([0,0,0,0,0,0,0,0,0,1,1,-1])
 
 # x = [  phi (0)
 #        theta (1)
@@ -115,7 +117,7 @@ def f(X,t):
     ]
     return dx_dt
 
-# Para achar o ponto de equilíbario
+# Para achar o ponto de equilíbrio
 def f_solve(X):
     phi, theta, psi, p, q, r, u, v, w = X[0:9]
     f_t, t_x, t_y, t_z = u_eq(0)
@@ -158,7 +160,7 @@ def f_sym():
 X = odeint(f, y0=X0, t=t)
 
 # Find equilibrium points (for this case, it's trivial that eq point is for angles = 0)
-#root = fsolve(f_solve, np.zeros(9))
+#root = fsolve(fn_solve, p.zeros(9))
 #print('eq point:',root)
 
 
@@ -169,25 +171,157 @@ print('shape A =',np.shape(A))
 print('shape B =',np.shape(B))
 
 # LQR
+x_max = [
+    np.deg2rad(45),
+    np.deg2rad(45),
+    np.deg2rad(45),
+    np.deg2rad(120),
+    np.deg2rad(120),
+    np.deg2rad(120),
+    5/0.8,
+    5/0.8,
+    5/0.8,
+    1,
+    1,
+    1]
+
+u_max = [
+    1,
+    1+0*I_x*(x_max[0])/0.8,
+    1+0*I_y*(x_max[1])/1.5,
+    1+0*I_z*(x_max[2])/1.5
+    ]
 
 Q = np.eye(12)
-R = 2*np.eye(4)
+for i in range(len(Q)):
+    Q[i][i] = 1/(x_max[i]**2)
+
+R = np.eye(4)
+for i in range(len(R)):
+    R[i][i] = 1/(u_max[i]**2)
+
+#Q = np.eye(12)
+#R = np.eye(4)
 
 K, S, E = ct.lqr(A, B, Q, R)
+print('np.shape(K)',np.shape(K))
+print('K=',K)
 
 linear_sys = signal.StateSpace(A - B*K,B,np.eye(np.shape(A)[0]), np.zeros((np.shape(A)[0],np.shape(B)[1])))
 _, _, delta_xout = signal.lsim(linear_sys, 0, t, X0 = X0 - X_eq)
 xout = X_eq + delta_xout
 #plot_states(xout, t)
 
-linear_sys2 = ct.StateSpace(A - B*K, B, np.eye(np.shape(A)[0]), np.zeros((np.shape(A)[0],np.shape(B)[1])))
-ct_out = ct.forced_response(linear_sys2, t, 0, X0 - X_eq, transpose=True)
-xout2 = X_eq + ct_out.states
+#linear_sys2 = ct.StateSpace(A - B*K, B, np.eye(np.shape(A)[0]), np.zeros((np.shape(A)[0],np.shape(B)[1])))
+#ct_out = ct.forced_response(linear_sys2, t, 0, X0 - X_eq, transpose=True)
+#xout2 = X_eq + ct_out.states
 
-print('shape states lsim =',np.shape(xout))
-print('shape states control =',np.shape(xout2))
+#print('shape states lsim =',np.shape(xout))
+#print('shape states control =',np.shape(xout2))
 
-plot_states(xout,t,xout2)
+#plot_states(xout,t,xout2)
+
+# LQR - tracking
+########################################################################################
+#K_i = 1*np.ones((4,3))
+# K_i = np.array([[0, 0, 0.1],
+#                 [0, -0.2, 0],
+#                 [0.2, 0, 0],
+#                 [0, 0, 0]])
+K_i = np.array([[0, 0, 0.2],
+                [0, -0.3, 0],
+                [0.3, 0, 0],
+                [0, 0, 0]])
+#K_i = np.zeros((4,3))
+C = np.array([[0,0,0,0,0,0,0,0,0,1,0,0],
+              [0,0,0,0,0,0,0,0,0,0,1,0],
+              [0,0,0,0,0,0,0,0,0,0,0,1]])
+lqr = lqr.LQR(K, K_i, C, time_step)
+
+#r_tracking = -1*np.ones((len(t), 3))
+#r_tracking = np.zeros((len(t), 3))
+#r_tracking = np.array([0*np.ones(len(t)),
+#                       0*np.ones(len(t)),
+#                        -2*np.ones(len(t))]).transpose()
+w = 2*np.pi*1/30
+print('teste',np.array([1,2,3])*np.array([3,2,1]))
+r_helicoidal = np.array([5*(1 + 0.1*t)*np.sin(w*t),
+                       (5 - 5*(1 + 0.1*t)*np.cos(w*t)),
+                       -1*t]).transpose()
+
+r_circle_xy = np.array([5*np.sin(w*t),
+                       (5 - 5*np.cos(w*t)),
+                       np.zeros(len(t))]).transpose()
+
+r_circle_xz = np.array([1*np.sin(w*t),
+                       np.zeros(len(t)),
+                       (1 - 1*np.cos(w*t))]).transpose()
+
+r_shm_z = np.array([np.zeros(len(t)),
+                       np.zeros(len(t)),
+                       (-5*np.sin(w*t))]).transpose()
+
+r_point = np.array([np.ones(len(t)),
+                       np.ones(len(t)),
+                       (np.ones(len(t)))]).transpose()
+
+r_tracking = r_helicoidal
+X_vector = lqr.simulate(X0, t, r_tracking, f2, u_eq) # Não linear
+print('shape xout linear',np.shape(xout), type(xout))
+print(xout[0:2])
+print('Shape X_vector =',np.shape(X_vector), type(X_vector))
+print(X_vector[0:2])
+#plot_states(np.array(X_vector), t)
+
+#######################################################################################
+# Attempt 1 - Integrator 
+
+print('shape A-BK',np.shape(A-B*K))
+print('shape -B*K_i',np.shape(-B*K_i))
+
+A_a = np.concatenate((A - B*K, -B*K_i), axis = 1)
+A_temp = np.concatenate((-C, np.zeros((3,3))), axis = 1)
+A_a = np.concatenate((A_a, A_temp), axis = 0)
+
+#A_a = np.array([np.array([A - B*K,   -B*K_i]),
+#                np.array([-C,        np.zeros((3,3))])])
+
+G = np.concatenate((np.zeros((12,3)), np.eye(3)), axis = 0)
+
+C_a = np.array([
+                [0,0,0,0,0,0,0,0,0,1,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,1,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,0,1,0,0,0]])
+
+#G = np.array([np.zeros((12,3)), np.eye(3)])
+print('shape A_a =',np.shape(A_a))
+print('shape G =',np.shape(G))
+
+linear_sys_tracking = signal.StateSpace(A_a, G, C_a, np.zeros((3,3)))
+X0 = np.concatenate((X0, [0,0,0]), axis=0)
+X_eq= np.concatenate((X_eq, [0,0,0]), axis=0)
+
+_,_, x_tracking = signal.lsim(linear_sys_tracking,r_tracking,t, X0 = X0)
+xout_tracking = x_tracking
+print('shape xout_tracking',np.shape(xout_tracking))
+#plot_states(xout, t, xout_tracking)
+print('w =', xout_tracking[-1,12:15])
+plot_states(X_vector, t, xout_tracking)
+
+#######################################################################################
+# T = np.concatenate((A, B), axis = 1)
+# T_ = np.concatenate((C, np.zeros((3,4))), axis = 1)
+# T = np.concatenate((T,T_), axis = 0)
+# print('shape T', np.shape(T))
+
+
+# Nx_Nu = sp.Matrix(T).pinv()*np.concatenate((np.zeros((12,3)), np.eye(3)),axis = 0)
+# print('Nx_Nu',np.shape(Nx_Nu),Nx_Nu)
+# Nx = Nx_Nu[0:12,:]
+# Nu = Nx_Nu[12:15,:]
+# print('Nx',Nx)
+# print('Nu',Nu)
+
 
 # Open-loop simulation
 #plot_states(X, t, x_lin)
