@@ -167,8 +167,6 @@ X = odeint(f, y0=X0, t=t)
 A,B = linearize(f_sym, X_eq, u_eq)
 _, _, x_lin = openloop_sim_linear(A, B, t, X0, X_eq, u_eq, u_sim)
 
-print('shape A =',np.shape(A))
-print('shape B =',np.shape(B))
 
 # LQR
 x_max = [
@@ -186,10 +184,10 @@ x_max = [
     1]
 
 u_max = [
-    1,
-    1+0*I_x*(x_max[0])/0.8,
-    1+0*I_y*(x_max[1])/1.5,
-    1+0*I_z*(x_max[2])/1.5
+    0.05*m*g,
+    0.2*m*g+0*I_x*(x_max[0])/0.8,
+    0.2*m*g+0*I_y*(x_max[1])/1.5,
+    0.2*m*g+0*I_z*(x_max[2])/1.5
     ]
 
 Q = np.eye(12)
@@ -203,10 +201,9 @@ for i in range(len(R)):
 #Q = np.eye(12)
 #R = np.eye(4)
 
-K, S, E = ct.lqr(A, B, Q, R)
-print('np.shape(K)',np.shape(K))
-print('K=',K)
+K, _, _ = ct.lqr(A, B, Q, R)
 
+# LQR - state regulation only (no tracking)
 linear_sys = signal.StateSpace(A - B*K,B,np.eye(np.shape(A)[0]), np.zeros((np.shape(A)[0],np.shape(B)[1])))
 _, _, delta_xout = signal.lsim(linear_sys, 0, t, X0 = X0 - X_eq)
 xout = X_eq + delta_xout
@@ -221,30 +218,37 @@ xout = X_eq + delta_xout
 
 #plot_states(xout,t,xout2)
 
-# LQR - tracking
 ########################################################################################
-#K_i = 1*np.ones((4,3))
-# K_i = np.array([[0, 0, 0.1],
-#                 [0, -0.2, 0],
-#                 [0.2, 0, 0],
-#                 [0, 0, 0]])
-K_i = np.array([[0, 0, 0.2],
-                [0, -0.3, 0],
-                [0.3, 0, 0],
-                [0, 0, 0]])
-#K_i = np.zeros((4,3))
+# LQR - tracking
+# Attempt 1 - Integrator 
 C = np.array([[0,0,0,0,0,0,0,0,0,1,0,0],
               [0,0,0,0,0,0,0,0,0,0,1,0],
               [0,0,0,0,0,0,0,0,0,0,0,1]])
-lqr = lqr.LQR(K, K_i, C, time_step)
 
-#r_tracking = -1*np.ones((len(t), 3))
-#r_tracking = np.zeros((len(t), 3))
-#r_tracking = np.array([0*np.ones(len(t)),
-#                       0*np.ones(len(t)),
-#                        -2*np.ones(len(t))]).transpose()
-w = 2*np.pi*1/30
-print('teste',np.array([1,2,3])*np.array([3,2,1]))
+A_a = np.concatenate((A, np.zeros((12,3))), axis = 1)
+A_a2 = np.concatenate((-C, np.zeros((3,3))), axis = 1)
+A_a = np.concatenate((A_a, A_a2), axis = 0)
+A_a2 = _
+
+B_a = np.concatenate((B, np.zeros((3,4))),axis = 0)
+
+G = np.concatenate((np.zeros((12,3)), np.eye(3)), axis = 0)
+
+# LQR augmented
+x_max_aug = np.concatenate((x_max, np.array([1,1,1])), axis = 0)
+Q_aug = np.eye(15)
+for i in range(len(Q_aug)):
+    Q_aug[i][i] = 1/(x_max_aug[i]**2)
+K_a, _, _ = ct.lqr(A_a, B_a, Q_aug, R) # TODO: Talvez tenha que aumentar Q e R
+K2 = K_a[:,0:12] # LQR gain K from augmented LQR version
+K_i = K_a[:,12:] # Integrator gain
+
+C_a = np.array([
+                [0,0,0,0,0,0,0,0,0,1,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,1,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0,0,1,0,0,0]])
+
+w = 2*np.pi*1/20
 r_helicoidal = np.array([5*(1 + 0.1*t)*np.sin(w*t),
                        (5 - 5*(1 + 0.1*t)*np.cos(w*t)),
                        -1*t]).transpose()
@@ -253,9 +257,9 @@ r_circle_xy = np.array([5*np.sin(w*t),
                        (5 - 5*np.cos(w*t)),
                        np.zeros(len(t))]).transpose()
 
-r_circle_xz = np.array([1*np.sin(w*t),
+r_circle_xz = np.array([5*np.sin(w*t),
                        np.zeros(len(t)),
-                       (1 - 1*np.cos(w*t))]).transpose()
+                       (5 - 5*np.cos(w*t))]).transpose()
 
 r_shm_z = np.array([np.zeros(len(t)),
                        np.zeros(len(t)),
@@ -263,71 +267,34 @@ r_shm_z = np.array([np.zeros(len(t)),
 
 r_point = np.array([np.ones(len(t)),
                        np.ones(len(t)),
-                       (np.ones(len(t)))]).transpose()
+                       (-10*np.ones(len(t)))]).transpose()
 
-r_tracking = r_helicoidal
-X_vector = lqr.simulate(X0, t, r_tracking, f2, u_eq) # Não linear
-print('shape xout linear',np.shape(xout), type(xout))
-print(xout[0:2])
-print('Shape X_vector =',np.shape(X_vector), type(X_vector))
-print(X_vector[0:2])
-#plot_states(np.array(X_vector), t)
+r_tracking = r_circle_xy
 
-#######################################################################################
-# Attempt 1 - Integrator 
-
-print('shape A-BK',np.shape(A-B*K))
-print('shape -B*K_i',np.shape(-B*K_i))
-
-A_a = np.concatenate((A - B*K, -B*K_i), axis = 1)
-A_temp = np.concatenate((-C, np.zeros((3,3))), axis = 1)
-A_a = np.concatenate((A_a, A_temp), axis = 0)
-
-#A_a = np.array([np.array([A - B*K,   -B*K_i]),
-#                np.array([-C,        np.zeros((3,3))])])
-
-G = np.concatenate((np.zeros((12,3)), np.eye(3)), axis = 0)
-
-C_a = np.array([
-                [0,0,0,0,0,0,0,0,0,1,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0,0,0,1,0,0,0,0],
-                [0,0,0,0,0,0,0,0,0,0,0,1,0,0,0]])
-
-#G = np.array([np.zeros((12,3)), np.eye(3)])
-print('shape A_a =',np.shape(A_a))
-print('shape G =',np.shape(G))
-
-linear_sys_tracking = signal.StateSpace(A_a, G, C_a, np.zeros((3,3)))
-X0 = np.concatenate((X0, [0,0,0]), axis=0)
+linear_sys_tracking = signal.StateSpace(A_a - np.matmul(B_a,K_a), G, C_a, np.zeros((3,3)))
+X0_aug = np.concatenate((X0, [0,0,0]), axis=0)
 X_eq= np.concatenate((X_eq, [0,0,0]), axis=0)
 
-_,_, x_tracking = signal.lsim(linear_sys_tracking,r_tracking,t, X0 = X0)
+_,_, x_tracking = signal.lsim(linear_sys_tracking,r_tracking,t, X0 = X0_aug)
 xout_tracking = x_tracking
-print('shape xout_tracking',np.shape(xout_tracking))
-#plot_states(xout, t, xout_tracking)
-print('w =', xout_tracking[-1,12:15])
+
+# K_i = np.array([[0, 0, 0.1],
+#                 [0, -0.2, 0],
+#                 [0.2, 0, 0],
+#                 [0, 0, 0]])
+
+lqr = lqr.LQR(K2, K_i, C, time_step)
+
+X_vector = lqr.simulate(X0, t, r_tracking, f2, u_eq) # Não linear
+
 plot_states(X_vector, t, xout_tracking)
-
 #######################################################################################
-# T = np.concatenate((A, B), axis = 1)
-# T_ = np.concatenate((C, np.zeros((3,4))), axis = 1)
-# T = np.concatenate((T,T_), axis = 0)
-# print('shape T', np.shape(T))
 
-
-# Nx_Nu = sp.Matrix(T).pinv()*np.concatenate((np.zeros((12,3)), np.eye(3)),axis = 0)
-# print('Nx_Nu',np.shape(Nx_Nu),Nx_Nu)
-# Nx = Nx_Nu[0:12,:]
-# Nu = Nx_Nu[12:15,:]
-# print('Nx',Nx)
-# print('Nu',Nu)
-
-
-# Open-loop simulation
+# Open-loop simulation (with input = u_sim)
 #plot_states(X, t, x_lin)
 #plot_states(X, t)
 
-# Closed-loop
-pid = PID(KP,KI,KD,phi_setpoint,time_step)
-X_vector = pid.simulate(t, X0, u_, time_step, f2)
+# Closed-loop (PID controller)
+#pid = PID(KP,KI,KD,phi_setpoint,time_step)
+#X_vector = pid.simulate(t, X0, u_, time_step, f2)
 #plot_states(np.array(X_vector),t)
