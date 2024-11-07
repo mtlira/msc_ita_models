@@ -285,9 +285,10 @@ xout_tracking = x_tracking
 
 lqr = lqr.LQR(K2, K_i, C, time_step)
 
-X_vector = lqr.simulate(X0, t, r_tracking, f2, u_eq) # Não linear
+X_vector, u_vector = lqr.simulate(X0, t, r_tracking, f2, u_eq) # Não linear
 
-plot_states(X_vector, t, xout_tracking)
+plot_states(X_vector, t, xout_tracking, r_tracking)
+plot_inputs(u_vector,t[0:-1])
 #######################################################################################
 
 # Open-loop simulation (with input = u_sim)

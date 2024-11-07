@@ -22,6 +22,7 @@ class LQR(object):
         x_feedback = X0
         x_old = X0
         X_vector = [X0]
+        u_vector = []
         reference = ref_vector[0]
 
         for i in range(1, n_steps):
@@ -35,29 +36,6 @@ class LQR(object):
             reference = ref_vector[i]
             x_old = x_feedback #maybe remove x_old. Not necessary!
             X_vector.append(x_feedback)
-        return np.array(X_vector)
-    
-    def simulate_linear(self, X0, t, ref_vector, A, B):
-        n_steps = len(t)
-        x_feedback = X0
-        x_old = X0
-        X_vector = [X0]
-        reference = ref_vector[0]
-
-        for i in range(1, n_steps):
-            #t_i = i*self.time_step
-            #t_i_old = (i - 1)*self.time_step
-            #t_vector = np.linspace(t_i_old, t_i, 10)
-            print('reference', reference, 'x_feedback', x_feedback, 'integral error', self.integral_error)
-            u_i = self.compute(reference, x_feedback)
-            #f_t_i, t_x_i, t_y_i, t_z_i = u_i
-            x_feedback = np.matmul(A,x_old) + np.matmul(B,u_i)
-            #x_feedback = odeint(f, x_old, t_vector, args = (f_t_i, t_x_i, t_y_i, t_z_i))
-            #x_feedback = x_feedback[-1]
-            reference = ref_vector[i]
-            x_old = x_feedback #maybe remove x_old. Not necessary!
-            X_vector.append(x_feedback)
-        return X_vector
-
-
-
+            u_vector.append(u_i)
+            
+        return np.array(X_vector), np.array(u_vector)
