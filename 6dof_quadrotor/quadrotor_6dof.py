@@ -168,6 +168,10 @@ A,B = linearize(f_sym, X_eq, u_eq)
 _, _, x_lin = openloop_sim_linear(A, B, t, X0, X_eq, u_eq, u_sim)
 
 
+eig_A, _ = np.linalg.eig(np.array(A, dtype='float'))
+print('Eigenvalues of A (open-loop):')
+print(eig_A)
+
 # LQR
 x_max = [
     np.deg2rad(45),
@@ -207,6 +211,10 @@ K, _, _ = ct.lqr(A, B, Q, R)
 linear_sys = signal.StateSpace(A - B*K,B,np.eye(np.shape(A)[0]), np.zeros((np.shape(A)[0],np.shape(B)[1])))
 _, _, delta_xout = signal.lsim(linear_sys, 0, t, X0 = X0 - X_eq)
 xout = X_eq + delta_xout
+
+eig_Acl, _ = np.linalg.eig(np.array(A-B*K, dtype='float'))
+print('Eigenvalues of A - B*K (closed-loop):')
+print(eig_Acl)
 #plot_states(xout, t)
 
 #linear_sys2 = ct.StateSpace(A - B*K, B, np.eye(np.shape(A)[0]), np.zeros((np.shape(A)[0],np.shape(B)[1])))
@@ -274,6 +282,10 @@ r_tracking = r_circle_xy
 linear_sys_tracking = signal.StateSpace(A_a - np.matmul(B_a,K_a), G, C_a, np.zeros((3,3)))
 X0_aug = np.concatenate((X0, [0,0,0]), axis=0)
 X_eq= np.concatenate((X_eq, [0,0,0]), axis=0)
+
+eig_Acl_a, _ = np.linalg.eig(np.array(A_a - np.matmul(B_a,K_a), dtype='float'))
+print('Eigenvalues of Aa - Ba*Ka (closed-loop):')
+print(eig_Acl_a)
 
 _,_, x_tracking = signal.lsim(linear_sys_tracking,r_tracking,t, X0 = X0_aug)
 xout_tracking = x_tracking
