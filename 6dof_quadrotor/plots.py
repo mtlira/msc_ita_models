@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-def plot_states(X,t, X_lin = None):
+def plot_states(X,t, X_lin = None, trajectory = None):
     # Rotation
     fig, axs = plt.subplots(2, 3)
     axs[0,0].plot(t,X[:,0])
@@ -86,11 +86,38 @@ def plot_states(X,t, X_lin = None):
     axs = plt.axes(projection='3d')
     axs.plot3D(X[:,9], X[:,10]*(-1), X[:,11]*(-1))
     if X_lin is not None: axs.plot3D(X_lin[:,9], X_lin[:,10]*(-1), X_lin[:,11]*(-1))
+    if trajectory is not None: axs.plot3D(trajectory[:,0], -trajectory[:,1], -trajectory[:,2], 'g--')
     axs.set_xlabel('x (m)')
     axs.set_ylabel('y (m)')
     axs.set_zlabel('z (m)')
     axs.set_title('3D Plot')
-    if X_lin is not None: fig.legend(['Non-linear','Linear'])
+    legend = []
+    if X_lin is not None: legend = ['Non-linear','Linear']
+    if trajectory is not None: legend.append('Trajectory')
+    fig.legend(legend)
+    plt.show()
+
+def plot_inputs(u_vector, t):
+    fig, axs = plt.subplots(2, 2)
+    axs[0,0].plot(t,u_vector[:,0])
+    axs[0,0].set_title('f_t (t)')
+    axs[0,0].set_ylabel('f_t (N)')
+    axs[0,0].set_xlabel('t (s)')
+
+    axs[0,1].plot(t,u_vector[:,1])
+    axs[0,1].set_title('$\\tau_x (t)$')
+    axs[0,1].set_ylabel('$\\tau_x (N.m)$')
+    axs[0,1].set_xlabel('t (s)')
+
+    axs[1,0].plot(t,u_vector[:,2])
+    axs[1,0].set_title('$\\tau_y (t)$')
+    axs[1,0].set_ylabel('$\\tau_y (N.m)$')
+    axs[1,0].set_xlabel('t (s)')
+
+    axs[1,1].plot(t,u_vector[:,3])
+    axs[1,1].set_title('$\\tau_z (t)$')
+    axs[1,1].set_ylabel('$\\tau_z (N.m)$')
+    axs[1,1].set_xlabel('t (s)')
     plt.show()
 
 ################ QUALIFICATION PLOTS #################################################
