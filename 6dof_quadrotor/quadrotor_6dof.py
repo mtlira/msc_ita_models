@@ -183,15 +183,15 @@ x_max = [
     5/0.8,
     5/0.8,
     5/0.8,
-    1,
-    1,
-    1]
+    3,
+    3,
+    3]
 
 u_max = [
-    0.05*m*g,
-    0.2*m*g+0*I_x*(x_max[0])/0.8,
-    0.2*m*g+0*I_y*(x_max[1])/1.5,
-    0.2*m*g+0*I_z*(x_max[2])/1.5
+    1.5*m*g,
+    1.8*m*g+0*I_x*(x_max[0])/0.8,
+    1.8*m*g+0*I_y*(x_max[1])/1.5,
+    1.8*m*g+0*I_z*(x_max[2])/1.5
     ]
 
 Q = np.eye(12)
@@ -277,6 +277,10 @@ r_point = np.array([np.ones(len(t)),
                        np.ones(len(t)),
                        (-10*np.ones(len(t)))]).transpose()
 
+r_line = np.array([t.clip(min=0,max=50),
+                    t.clip(min=0,max=50),
+                    -t.clip(min=0,max=50)]).transpose()
+
 r_tracking = r_circle_xy
 
 linear_sys_tracking = signal.StateSpace(A_a - np.matmul(B_a,K_a), G, C_a, np.zeros((3,3)))
@@ -288,19 +292,16 @@ print('Eigenvalues of Aa - Ba*Ka (closed-loop):')
 print(eig_Acl_a)
 
 _,_, x_tracking = signal.lsim(linear_sys_tracking,r_tracking,t, X0 = X0_aug)
-xout_tracking = x_tracking
-
-# K_i = np.array([[0, 0, 0.1],
-#                 [0, -0.2, 0],
-#                 [0.2, 0, 0],
-#                 [0, 0, 0]])
+x_lqr_linear = x_tracking
 
 lqr = lqr.LQR(K2, K_i, C, time_step)
 
-X_vector, u_vector = lqr.simulate(X0, t, r_tracking, f2, u_eq) # Não linear
-
-plot_states(X_vector, t, xout_tracking, r_tracking)
+X_lqr_nonlinear, u_vector = lqr.simulate(X0, t, r_tracking, f2, u_eq) # Não linear
+plot_states(X_lqr_nonlinear, t, x_lqr_linear, r_tracking)
 plot_inputs(u_vector,t[0:-1])
+#plot_delays(X_lqr_nonlinear, r_tracking, t)
+plot_errors(X_lqr_nonlinear, r_tracking, t)
+
 #######################################################################################
 
 # Open-loop simulation (with input = u_sim)

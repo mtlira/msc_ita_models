@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 
 def plot_states(X,t, X_lin = None, trajectory = None):
     # Rotation
@@ -63,23 +64,29 @@ def plot_states(X,t, X_lin = None, trajectory = None):
 
     axs[1,0].plot(t,X[:,9])
     if X_lin is not None: axs[1,0].plot(t,X_lin[:,9])
+    if trajectory is not None: axs[1,0].plot(t,trajectory[:,0])
     axs[1,0].set_title('x(t)')
     axs[1,0].set_xlabel('t (s)')
     axs[1,0].set_ylabel('x (m)')
 
     axs[1,1].plot(t,(-1)*X[:,10])
     if X_lin is not None: axs[1,1].plot(t,(-1)*X_lin[:,10])
+    if trajectory is not None: axs[1,1].plot(t,-trajectory[:,1])
     axs[1,1].set_title('y(t)')
     axs[1,1].set_xlabel('t (s)')
     axs[1,1].set_ylabel('y (m)')
 
     axs[1,2].plot(t,(-1)*X[:,11])
     if X_lin is not None: axs[1,2].plot(t,(-1)*X_lin[:,11])
+    if trajectory is not None: axs[1,2].plot(t,-trajectory[:,2])
     axs[1,2].set_title('z(t)')
     axs[1,2].set_xlabel('t (s)')
     axs[1,2].set_ylabel('z (m)')
 
-    if X_lin is not None: fig.legend(['Non-linear','Linear'])
+    legend = []
+    if X_lin is not None: legend = ['Non-linear','Linear']
+    if trajectory is not None: legend.append('Trajectory')
+    fig.legend(legend)
     plt.subplots_adjust(left=0.083, bottom=0.083, right=0.948, top=0.914, wspace=0.23, hspace=0.31)
 
     fig = plt.figure()
@@ -118,6 +125,47 @@ def plot_inputs(u_vector, t):
     axs[1,1].set_title('$\\tau_z (t)$')
     axs[1,1].set_ylabel('$\\tau_z (N.m)$')
     axs[1,1].set_xlabel('t (s)')
+    plt.show()
+
+def plot_delays(X_nonlinear, trajectory, t, X_linear = False):
+    samples_indexes = np.rint(np.linspace(0,1,11)*(len(t)-1)).astype('int')
+    print('samples_indexes=',samples_indexes)
+    delays = []
+    samples_times = t[samples_indexes]
+    for i in samples_indexes:
+        j = i - 1
+        min_error = 1e3
+        error_j = min_error
+        while min_error >= 0.1 and j < len(t) - 1:
+            j += 1
+            error_x_j = trajectory[i,0] - X_nonlinear[j,9]
+            error_y_j = trajectory[i,1] - X_nonlinear[j,10]
+            error_z_j = trajectory[i,2] - X_nonlinear[j,11]
+            error_j = np.sqrt(error_x_j**2 + error_y_j**2 + error_z_j**2)
+            if min_error > error_j:
+                min_error = error_j
+        if j < len(t) - 1:
+            delays.append(t[j] - t[i])
+        else: print ('Erro minimo acima do limite desejado ({error})'.format(error = min_error))
+    fig = plt.figure()
+    plt.plot(samples_times,delays)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Delay (s)')
+    plt.show()
+
+def plot_errors(X_nonlinear, trajectory, t):
+    fig, axs = plt.subplots(2, 2)
+    axs[0,0].plot(t, trajectory[:,0] - X_nonlinear[:,9])
+    axs[0,0].set_xlabel('Time (s)')
+    axs[0,0].set_ylabel('Error in x (m)')
+
+    axs[0,1].plot(t, trajectory[:,1] - X_nonlinear[:,10])
+    axs[0,1].set_xlabel('Time (s)')
+    axs[0,1].set_ylabel('Error in y (m)')
+
+    axs[1,0].plot(t, trajectory[:,2] - X_nonlinear[:,11])
+    axs[1,0].set_xlabel('Time(s)')
+    axs[1,0].set_ylabel('Error in z (m)')
     plt.show()
 
 ################ QUALIFICATION PLOTS #################################################
