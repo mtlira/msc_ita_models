@@ -10,6 +10,7 @@ from plots import *
 from linearize import *
 import control as ct
 import lqr as lqr
+import mpc as mpc
 
 m = 10
 g = 9.80665
@@ -297,10 +298,10 @@ x_lqr_linear = x_tracking
 lqr = lqr.LQR(K2, K_i, C, time_step)
 
 X_lqr_nonlinear, u_vector = lqr.simulate(X0, t, r_tracking, f2, u_eq) # Não linear
-plot_states(X_lqr_nonlinear, t, x_lqr_linear, r_tracking)
-plot_inputs(u_vector,t[0:-1])
+#plot_states(X_lqr_nonlinear, t, x_lqr_linear, r_tracking)
+#plot_inputs(u_vector,t[0:-1])
 #plot_delays(X_lqr_nonlinear, r_tracking, t)
-plot_errors(X_lqr_nonlinear, r_tracking, t)
+#plot_errors(X_lqr_nonlinear, r_tracking, t)
 
 #######################################################################################
 
@@ -312,3 +313,62 @@ plot_errors(X_lqr_nonlinear, r_tracking, t)
 #pid = PID(KP,KI,KD,phi_setpoint,time_step)
 #X_vector = pid.simulate(t, X0, u_, time_step, f2)
 #plot_states(np.array(X_vector),t)
+
+#########################################################################################
+
+# MPC Implementation
+
+N = 10
+M = 7
+rho = 1
+
+# 1. Discretization of the space state
+# Ad = np.eye(np.shape(A)[0]) + A*time_step
+# Bd = B*time_step
+
+# A_tilda = np.concatenate((
+#     np.concatenate((A, B), axis = 1),
+#     np.concatenate((np.zeros((4,12)), np.eye(4)), axis = 1)
+#     ), axis = 0)
+
+# B_tilda = np.concatenate((B, np.eye(4)), axis = 0)
+
+# C_tilda = np.concatenate((C, np.zeros((3,4))), axis = 1)
+
+# phi = C_tilda @ A_tilda
+# for i in range(2, N+1):
+#     phi = np.concatenate((phi, C_tilda @ np.linalg.matrix_power(A_tilda, i)), axis = 0)
+# print('shape phi',np.shape(phi))
+
+# def initialize_G(A_tilda, B_tilda, C_tilda, N, M):
+#     # First column
+#     column = C_tilda @ B_tilda
+#     for i in range(1,N):
+#         column = np.concatenate((column, C_tilda @ np.linalg.matrix_power(A_tilda, i) @ B_tilda), axis = 0)
+
+#     # Other columns
+#     G = np.array(column)
+#     for i in range(1, M):
+#         column = np.roll(column, 1, axis = 0)
+#         column[0:3,0:4] = np.zeros((3,4))
+#         G = np.concatenate((G, column), axis = 1)
+#     return G
+
+# G = initialize_G(A_tilda, B_tilda, C_tilda, N, M)
+# print('shape G=',np.shape(G))
+
+# Hqp = 2*(np.transpose(G) @ G + rho*np.eye(np.shape(G)[1]))
+
+# Aqp = np.concatenate((
+#     np.eye(M),
+#     -np.eye(M),
+#     np.tril(np.ones((M,M))),
+#     -np.tril(np.ones((M,M))),
+#     G,
+#     -G
+# ), axis = 0)
+
+output_weights = [1,2,3]
+control_weights = [1, 2, 3, 4]
+MPC = mpc.mpc(M, N, rho, A, B, C, time_step, output_weights, control_weights)
+A_tilda, B_tilda, C_tilda, G, Q = MPC.initialize_matrices()
