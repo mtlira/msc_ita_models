@@ -25,7 +25,8 @@ KI = 3
 phi_setpoint = 0
 
 time_step = 1e-2 #5e-3 é um bom valor
-T_simulation = 100
+T_simulation = 7
+
 t = np.arange(0,T_simulation, time_step)
 
 # Initial condition
@@ -164,10 +165,8 @@ X = odeint(f, y0=X0, t=t)
 #root = fsolve(fn_solve, p.zeros(9))
 #print('eq point:',root)
 
-
 A,B = linearize(f_sym, X_eq, u_eq)
 _, _, x_lin = openloop_sim_linear(A, B, t, X0, X_eq, u_eq, u_sim)
-
 
 eig_A, _ = np.linalg.eig(np.array(A, dtype='float'))
 print('Eigenvalues of A (open-loop):')
@@ -274,15 +273,19 @@ r_shm_z = np.array([np.zeros(len(t)),
                        np.zeros(len(t)),
                        (-5*np.sin(w*t))]).transpose()
 
-r_point = np.array([np.ones(len(t)),
-                       np.ones(len(t)),
-                       (-10*np.ones(len(t)))]).transpose()
+r_point = np.array([0*np.ones(len(t)),
+                       0*np.ones(len(t)),
+                       (-0.1*np.ones(len(t)))]).transpose()
 
-r_line = np.array([t.clip(min=0,max=50),
-                    t.clip(min=0,max=50),
-                    -t.clip(min=0,max=50)]).transpose()
+r_line = np.array([t.clip(min=0,max=6),
+                    t.clip(min=0,max=6),
+                    -t.clip(min=0,max=6)]).transpose()
 
-r_tracking = r_circle_xy
+r_explode = np.array([np.zeros(len(t)),
+                       np.zeros(len(t)),
+                       (-20*np.ones(len(t)))]).transpose()
+
+r_tracking = r_line
 
 linear_sys_tracking = signal.StateSpace(A_a - np.matmul(B_a,K_a), G, C_a, np.zeros((3,3)))
 X0_aug = np.concatenate((X0, [0,0,0]), axis=0)
@@ -309,6 +312,7 @@ X_lqr_nonlinear, u_vector = lqr.simulate(X0, t, r_tracking, f2, u_eq) # Não lin
 #plot_states(X, t, x_lin)
 #plot_states(X, t)
 
+
 # Closed-loop (PID controller)
 #pid = PID(KP,KI,KD,phi_setpoint,time_step)
 #X_vector = pid.simulate(t, X0, u_, time_step, f2)
@@ -318,8 +322,8 @@ X_lqr_nonlinear, u_vector = lqr.simulate(X0, t, r_tracking, f2, u_eq) # Não lin
 
 # MPC Implementation
 
-N = 10
-M = 7
+N = 50
+M = 20
 rho = 1
 
 # 1. Discretization of the space state
@@ -368,7 +372,30 @@ rho = 1
 #     -G
 # ), axis = 0)
 
-output_weights = [1,2,3]
-control_weights = [1, 2, 3, 4]
-MPC = mpc.mpc(M, N, rho, A, B, C, time_step, output_weights, control_weights)
-A_tilda, B_tilda, C_tilda, G, Q = MPC.initialize_matrices()
+restrictions = {
+    #"delta_u_max": 1.5*m*g*time_step*np.ones(4),
+    "delta_u_max": np.array([1*m*g*time_step, 0.01*m*g*time_step, 0.01*m*g*time_step, 0.01*m*g*time_step]),
+    "delta_u_min": np.array([-1*m*g*time_step, -0.01*m*g*time_step, -0.01*m*g*time_step, -0.01*m*g*time_step]),
+    "u_max": [1.5*m*g, 0.01*m*g, 0.01*m*g, 0.01*m*g],
+    "u_min": [0, -0.01*m*g, -0.01*m*g, -0.01*m*g],
+    "y_max": 100*np.ones(3),
+    "y_min": -100*np.ones(3)
+}
+
+#teste = np.array([1,2,3])
+#print('1/teste=',1/teste)
+#print('1/teste^2=',1/(teste**2))
+
+delta_y_max = 0.1*np.ones(3)
+
+output_weights = 1 / (N*delta_y_max**2) # Deve variar a cada passo de simulação?
+control_weights = 1 / (M*restrictions['delta_u_max']**2)
+
+#output_weights = [1,1,1] # Deve variar a cada passo de simulação?
+#control_weights = [1,1,1,1]
+
+MPC = mpc.mpc(M, N, rho, A, B, C, time_step, output_weights, control_weights, restrictions)
+MPC.initialize_matrices()
+X_mpc_nonlinear, u_mpc = MPC.simulate(f2, X0, t, r_tracking, u_eq)
+plot_states(X_mpc_nonlinear, t[:np.shape(X_mpc_nonlinear)[0]], X_mpc_nonlinear, r_tracking)
+plot_inputs(u_mpc, t[0:-1])

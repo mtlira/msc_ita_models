@@ -31,7 +31,8 @@ class LQR(object):
             t_vector = np.linspace(t_i_old, t_i, 10)
             u_i = u_eq + self.compute(reference, x_feedback)
             f_t_i, t_x_i, t_y_i, t_z_i = u_i
-            x_feedback = odeint(f, x_old, t_vector, args = (f_t_i, t_x_i, t_y_i, t_z_i))
+            x_feedback = odeint(f, x_old, t_vector, args = (f_t_i, t_x_i, t_y_i, t_z_i)) # TODO: Verificar se t_vector está correto (provavelmente não)
+            #x_feedback = odeint(f, x_old, [t_i_old, t_i], args = (f_t_i, t_x_i, t_y_i, t_z_i))
             x_feedback = x_feedback[-1]
             reference = ref_vector[i]
             x_old = x_feedback #maybe remove x_old. Not necessary!
