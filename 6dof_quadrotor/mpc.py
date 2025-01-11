@@ -2,10 +2,11 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 from scipy.integrate import odeint
+from scipy.signal import StateSpace, cont2discrete
 import cvxopt
 
 class mpc(object):
-    def __init__(self, M, N, rho, A, B, C, time_step, output_weights, control_weights, restrictions):
+    def __init__(self, M, N, rho, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions):
         self.M = M
         self.N = N
         self.rho = rho
@@ -13,15 +14,22 @@ class mpc(object):
         self.B = B
         self.C = C
         self.T = time_step
+        self.T_sample = T_sample
         self.output_weights = output_weights
         self.control_weights = control_weights
         self.restrictions = restrictions
 
     def initialize_matrices(self):
         # 1. Discretization of the space state
-        Ad = np.eye(np.shape(self.A)[0]) + self.A*self.T
-        Bd = self.B*self.T
-        
+
+        # Discretização aproximada
+        #Ad = np.eye(np.shape(self.A)[0]) + self.A*self.T
+        #Bd = self.B*self.T
+
+        # Discretização exata
+        Ad, Bd, _ = self.discretize()
+
+
         # #################################### APAGAR #################################################
         #Ad = self.A
         #Bd = self.B
@@ -209,3 +217,10 @@ class mpc(object):
             u_vector.append(u_k)
             #delta_u_initial = np.tile(delta_u_k,self.M)
         return np.array(X_vector), np.array(u_vector)
+    
+    def discretize(self):
+        #sys = StateSpace(self.A,self.B,self.C, np.zeros((3,4)))
+        sys_d = cont2discrete((self.A,self.B,self.C, np.zeros((3,4))), self.T_sample, 'zoh')
+        print('sys_d',sys_d)
+        Ad, Bd, Cd, _, _ = sys_d
+        return Ad, Bd, Cd
