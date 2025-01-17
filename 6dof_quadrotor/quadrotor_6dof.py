@@ -267,6 +267,10 @@ r_circle_xy = np.array([5*np.sin(w*t),
                        (5 - 5*np.cos(w*t)),
                        np.zeros(len(t))]).transpose()
 
+r_circle_xy2 = np.array([5*np.sin(w*t_samples),
+                       (5 - 5*np.cos(w*t_samples)),
+                       np.zeros(len(t_samples))]).transpose()
+
 r_circle_xz = np.array([5*np.sin(w*t),
                        np.zeros(len(t)),
                        (5 - 5*np.cos(w*t))]).transpose()
@@ -335,7 +339,7 @@ X_lqr_nonlinear, u_vector = lqr.simulate(X0, t, r_tracking, f2, u_eq) # Não lin
 N = 100
 M = 10
 rho = 1
-r_tracking = r_line2
+r_tracking = r_circle_xy2
 # 1. Discretization of the space state
 # Ad = np.eye(np.shape(A)[0]) + A*time_step
 # Bd = B*time_step
@@ -409,9 +413,6 @@ control_weights = 1 / (M*restrictions['delta_u_max']**2)
 MPC = mpc.mpc(M, N, rho, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions)
 MPC.initialize_matrices()
 X_mpc_nonlinear, u_mpc = MPC.simulate(f2, X0, t_samples, r_tracking, u_eq)
-#X_mpc_linear, u_mpc_linear = MPC.simulate_linear(X0, t_samples, r_tracking, u_eq)
-#X_mpc_linear2, u_mpc_linear2 = MPC.simulate_linear2(X0, t_samples, r_tracking, u_eq)
-#X_mpc_linear3, u_mpc_linear3 = MPC.simulate_linear2(X0, t_samples, r_tracking, u_eq)
-plot_states(X_mpc_nonlinear, t_samples[:np.shape(X_mpc_nonlinear)[0]], X_mpc_nonlinear, r_tracking, u_mpc)
-#plot_states(X_mpc_linear, t_samples[:np.shape(X_mpc_linear)[0]], X_mpc_linear2, r_tracking, u_mpc_linear)
+X_mpc_linear, u_mpc_linear = MPC.simulate_linear(X0, t_samples, r_tracking, u_eq)
+plot_states(X_mpc_nonlinear, t_samples[:np.shape(X_mpc_nonlinear)[0]], X_mpc_linear, r_tracking, u_mpc)
 #plot_inputs(u_mpc, t_samples[0:-1])

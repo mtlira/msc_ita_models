@@ -104,7 +104,7 @@ def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None):
     fig.legend(legend)
 
     if u_vector is not None:
-        plot_inputs(u_vector, t)
+        plot_inputs2(u_vector, t)
     plt.show()
 
 def plot_inputs(u_vector, t):
@@ -126,6 +126,29 @@ def plot_inputs(u_vector, t):
     axs[1,0].set_xlabel('t (s)')
 
     axs[1,1].plot(t,u_vector[:,3])
+    axs[1,1].set_title('$\\tau_z (t)$')
+    axs[1,1].set_ylabel('$\\tau_z (N.m)$')
+    axs[1,1].set_xlabel('t (s)')
+
+def plot_inputs2(u_vector, t):
+    t = t[0:-1]
+    fig, axs = plt.subplots(2, 2)
+    axs[0,0].step(t,u_vector[:,0])
+    axs[0,0].set_title('f_t (t)')
+    axs[0,0].set_ylabel('f_t (N)')
+    axs[0,0].set_xlabel('t (s)')
+
+    axs[0,1].step(t,u_vector[:,1])
+    axs[0,1].set_title('$\\tau_x (t)$')
+    axs[0,1].set_ylabel('$\\tau_x (N.m)$')
+    axs[0,1].set_xlabel('t (s)')
+
+    axs[1,0].step(t,u_vector[:,2])
+    axs[1,0].set_title('$\\tau_y (t)$')
+    axs[1,0].set_ylabel('$\\tau_y (N.m)$')
+    axs[1,0].set_xlabel('t (s)')
+
+    axs[1,1].step(t,u_vector[:,3])
     axs[1,1].set_title('$\\tau_z (t)$')
     axs[1,1].set_ylabel('$\\tau_z (N.m)$')
     axs[1,1].set_xlabel('t (s)')

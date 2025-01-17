@@ -205,7 +205,7 @@ class mpc(object):
             u_k = u_k_minus_1 + delta_u_k # TODO: confirmar se tem esse u_eq
 
             # Apply control u_k in the multi-rotor
-            f_t_k, t_x_k, t_y_k, t_z_k = u_k + u_eq
+            f_t_k, t_x_k, t_y_k, t_z_k = u_k + u_eq # Attention for u_eq (solved the problem)
             t_simulation = np.arange(t_samples[k], t_samples[k+1], self.T)
             #t_simulation2 = np.arange(0,t_samples[1], self.T)
             #x_k = odeint(f_model, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
@@ -223,11 +223,10 @@ class mpc(object):
         return np.array(X_vector), np.array(u_vector)
     
     def simulate_linear(self, X0, t_samples, trajectory, u_eq):
-        u_minus_1 = np.array(u_eq) # TODO: Confirmar se é u_eq ou 0
-        #u_minus_1 = np.zeros(4)
+        #u_minus_1 = np.array(u_eq) # TODO: Confirmar se é u_eq ou 0
+        u_minus_1 = np.zeros(4)
         x_k = X0
         u_k_minus_1 = u_minus_1
-        delta_u_initial = 0*np.ones(4*self.M)
         X_vector = [X0]
         u_vector = []
         Hqp = self.Hqp
@@ -277,7 +276,7 @@ class mpc(object):
             u_k = u_k_minus_1 + delta_u_k # TODO: confirmar se tem esse u_eq
 
             # Apply control u_k in the multi-rotor
-            x_k = self.Ad @ x_k + self.Bd @ (u_k - u_eq)
+            x_k = self.Ad @ x_k + self.Bd @ u_k
             #if np.linalg.norm(x_k[9:12]) > 10 or np.max(np.abs(x_k[0:2])) > 1.4:
             #    print('Simulation exploded.')
             #    print('x_k =',x_k)
