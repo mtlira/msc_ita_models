@@ -24,11 +24,12 @@ KD = 3
 KI = 3
 phi_setpoint = 0
 
-time_step = 1e-2 #5e-3 é um bom valor
-T_sample = 0.05 # MPC sample time
+time_step = 1e-3 #5e-3 é um bom valor
+T_sample = 5e-2 # MP sample time
 T_simulation = 15
 
 t = np.arange(0,T_simulation, time_step)
+t_samples = np.arange(0,T_simulation, T_sample)
 
 # Initial condition
 X0 = np.array([0,0,0,0,0,0,0,0,0,0,0,0])
@@ -278,9 +279,17 @@ r_point = np.array([0*np.ones(len(t)),
                        0*np.ones(len(t)),
                        (-10*np.ones(len(t)))]).transpose()
 
+r_point2 = np.array([0*np.ones(len(t_samples)),
+                       0*np.ones(len(t_samples)),
+                       (-0*np.ones(len(t_samples)))]).transpose()
+
 r_line = np.array([t.clip(min=0,max=6),
                     t.clip(min=0,max=6),
                     -t.clip(min=0,max=6)]).transpose()
+
+r_line2 = np.array([t_samples.clip(min=0,max=8),
+                    t_samples.clip(min=0,max=8),
+                    -t_samples.clip(min=0,max=8)]).transpose()
 
 r_explode = np.array([np.zeros(len(t)),
                        np.zeros(len(t)),
@@ -326,7 +335,7 @@ X_lqr_nonlinear, u_vector = lqr.simulate(X0, t, r_tracking, f2, u_eq) # Não lin
 N = 100
 M = 10
 rho = 1
-
+r_tracking = r_line2
 # 1. Discretization of the space state
 # Ad = np.eye(np.shape(A)[0]) + A*time_step
 # Bd = B*time_step
@@ -375,28 +384,34 @@ rho = 1
 
 restrictions = {
     #"delta_u_max": 1.5*m*g*time_step*np.ones(4),
-    "delta_u_max": np.array([1.5*m*g*time_step, 0.01*m*g*time_step, 0.01*m*g*time_step, 0.01*m*g*time_step]),
-    "delta_u_min": np.array([-1.5*m*g*time_step, -0.01*m*g*time_step, -0.01*m*g*time_step, -0.01*m*g*time_step]),
-    "u_max": [1.1*m*g, 0.01*m*g, 0.01*m*g, 0.01*m*g],
-    "u_min": [0.9*m*g, -0.01*m*g, -0.01*m*g, -0.01*m*g],
-    "y_max": 200*np.ones(3),
-    "y_min": -200*np.ones(3)
+    "delta_u_max": np.array([3*m*g*T_sample, 0.05*m*g*T_sample, 0.05*m*g*T_sample, 0.05*m*g*T_sample]),
+    "delta_u_min": np.array([-3*m*g*T_sample, -0.05*m*g*T_sample, -0.05*m*g*T_sample, -0.05*m*g*T_sample]),
+    "u_max": [m*g, 0.01*m*g, 0.05*m*g, 0.05*m*g],
+    "u_min": [-1*m*g, -0.05*m*g, -0.05*m*g, -0.05*m*g],
+    "y_max": 50*np.ones(3),
+    "y_min": -50*np.ones(3)
 }
 
 #teste = np.array([1,2,3])
 #print('1/teste=',1/teste)
 #print('1/teste^2=',1/(teste**2))
 
-delta_y_max = 1*np.ones(3)
+delta_y_max = 5*T_sample*np.ones(3)
+#delta_y_max = 1e-6*np.ones(3)
 
-#output_weights = 1 / (N*delta_y_max**2) # Deve variar a cada passo de simulação?
-#control_weights = 1 / (M*restrictions['delta_u_max']**2)
 
-output_weights = [1,1,3] # Deve variar a cada passo de simulação?
-control_weights = [3,1,1,1]
+output_weights = 1 / (N*delta_y_max**2) # Deve variar a cada passo de simulação?
+control_weights = 1 / (M*restrictions['delta_u_max']**2)
+
+#output_weights = [1,1,3] # Deve variar a cada passo de simulação?
+#control_weights = [3,1,1,1]
 
 MPC = mpc.mpc(M, N, rho, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions)
 MPC.initialize_matrices()
-X_mpc_nonlinear, u_mpc = MPC.simulate(f2, X0, t, r_tracking, u_eq)
-plot_states(X_mpc_nonlinear, t[:np.shape(X_mpc_nonlinear)[0]], X_mpc_nonlinear, r_tracking)
-plot_inputs(u_mpc, t[0:-1])
+X_mpc_nonlinear, u_mpc = MPC.simulate(f2, X0, t_samples, r_tracking, u_eq)
+#X_mpc_linear, u_mpc_linear = MPC.simulate_linear(X0, t_samples, r_tracking, u_eq)
+#X_mpc_linear2, u_mpc_linear2 = MPC.simulate_linear2(X0, t_samples, r_tracking, u_eq)
+#X_mpc_linear3, u_mpc_linear3 = MPC.simulate_linear2(X0, t_samples, r_tracking, u_eq)
+plot_states(X_mpc_nonlinear, t_samples[:np.shape(X_mpc_nonlinear)[0]], X_mpc_nonlinear, r_tracking, u_mpc)
+#plot_states(X_mpc_linear, t_samples[:np.shape(X_mpc_linear)[0]], X_mpc_linear2, r_tracking, u_mpc_linear)
+#plot_inputs(u_mpc, t_samples[0:-1])

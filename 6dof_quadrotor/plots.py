@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def plot_states(X,t, X_lin = None, trajectory = None):
+def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None):
     # Rotation
     fig, axs = plt.subplots(2, 3)
     axs[0,0].plot(t,X[:,0])
@@ -102,9 +102,13 @@ def plot_states(X,t, X_lin = None, trajectory = None):
     if X_lin is not None: legend = ['Non-linear','Linear']
     if trajectory is not None: legend.append('Trajectory')
     fig.legend(legend)
+
+    if u_vector is not None:
+        plot_inputs(u_vector, t)
     plt.show()
 
 def plot_inputs(u_vector, t):
+    t = t[0:-1]
     fig, axs = plt.subplots(2, 2)
     axs[0,0].plot(t,u_vector[:,0])
     axs[0,0].set_title('f_t (t)')
@@ -125,7 +129,6 @@ def plot_inputs(u_vector, t):
     axs[1,1].set_title('$\\tau_z (t)$')
     axs[1,1].set_ylabel('$\\tau_z (N.m)$')
     axs[1,1].set_xlabel('t (s)')
-    plt.show()
 
 def plot_delays(X_nonlinear, trajectory, t, X_linear = False):
     samples_indexes = np.rint(np.linspace(0,1,11)*(len(t)-1)).astype('int')
