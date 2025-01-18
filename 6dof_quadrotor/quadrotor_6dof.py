@@ -24,9 +24,9 @@ KD = 3
 KI = 3
 phi_setpoint = 0
 
-time_step = 1e-3 #5e-3 é um bom valor
+time_step = 1e-2 #5e-3 é um bom valor
 T_sample = 5e-2 # MP sample time
-T_simulation = 15
+T_simulation = 20
 
 t = np.arange(0,T_simulation, time_step)
 t_samples = np.arange(0,T_simulation, T_sample)
@@ -190,7 +190,7 @@ x_max = [
     3]
 
 u_max = [
-    1.5*m*g,
+    1*m*g,
     1.8*m*g+0*I_x*(x_max[0])/0.8,
     1.8*m*g+0*I_y*(x_max[1])/1.5,
     1.8*m*g+0*I_z*(x_max[2])/1.5
@@ -285,7 +285,7 @@ r_point = np.array([0*np.ones(len(t)),
 
 r_point2 = np.array([0*np.ones(len(t_samples)),
                        0*np.ones(len(t_samples)),
-                       (-0*np.ones(len(t_samples)))]).transpose()
+                       (-10*np.ones(len(t_samples)))]).transpose()
 
 r_line = np.array([t.clip(min=0,max=6),
                     t.clip(min=0,max=6),
@@ -299,7 +299,7 @@ r_explode = np.array([np.zeros(len(t)),
                        np.zeros(len(t)),
                        (-20*np.ones(len(t)))]).transpose()
 
-r_tracking = r_point
+r_tracking = r_circle_xy
 
 linear_sys_tracking = signal.StateSpace(A_a - np.matmul(B_a,K_a), G, C_a, np.zeros((3,3)))
 X0_aug = np.concatenate((X0, [0,0,0]), axis=0)
@@ -312,10 +312,14 @@ print(eig_Acl_a)
 _,_, x_tracking = signal.lsim(linear_sys_tracking,r_tracking,t, X0 = X0_aug)
 x_lqr_linear = x_tracking
 
-lqr = lqr.LQR(K2, K_i, C, time_step)
+#lqr1 = lqr.LQR(K2, K_i, C, time_step, T_sample)
+#lqr2 = lqr.LQR(K2, K_i, C, time_step, T_sample)
 
-X_lqr_nonlinear, u_vector = lqr.simulate(X0, t, r_tracking, f2, u_eq) # Não linear
+#X_lqr_nonlinear, u_vector = lqr1.simulate(X0, t, r_tracking, f2, u_eq) # Não linear
+#X_lqr_nonlinear2, u_vector2 = lqr2.simulate2(X0, t_samples, r_tracking, f2, u_eq)
 #plot_states(X_lqr_nonlinear, t, x_lqr_linear, r_tracking)
+#r_tracking = r_circle_xy2
+#plot_states(X_lqr_nonlinear2, t_samples, X_lin = None, trajectory=r_tracking)
 #plot_inputs(u_vector,t[0:-1])
 #plot_delays(X_lqr_nonlinear, r_tracking, t)
 #plot_errors(X_lqr_nonlinear, r_tracking, t)
@@ -336,8 +340,8 @@ X_lqr_nonlinear, u_vector = lqr.simulate(X0, t, r_tracking, f2, u_eq) # Não lin
 
 # MPC Implementation
 
-N = 100
-M = 10
+N = 50
+M = 5
 rho = 1
 r_tracking = r_circle_xy2
 # 1. Discretization of the space state
@@ -388,10 +392,10 @@ r_tracking = r_circle_xy2
 
 restrictions = {
     #"delta_u_max": 1.5*m*g*time_step*np.ones(4),
-    "delta_u_max": np.array([3*m*g*T_sample, 0.05*m*g*T_sample, 0.05*m*g*T_sample, 0.05*m*g*T_sample]),
-    "delta_u_min": np.array([-3*m*g*T_sample, -0.05*m*g*T_sample, -0.05*m*g*T_sample, -0.05*m*g*T_sample]),
-    "u_max": [m*g, 0.01*m*g, 0.05*m*g, 0.05*m*g],
-    "u_min": [-1*m*g, -0.05*m*g, -0.05*m*g, -0.05*m*g],
+    "delta_u_max": np.array([3*m*g*T_sample, 0.1*m*g*T_sample, 0.1*m*g*T_sample, 0.1*m*g*T_sample]),
+    "delta_u_min": np.array([-3*m*g*T_sample, -0.1*m*g*T_sample, -0.1*m*g*T_sample, -0.1*m*g*T_sample]),
+    "u_max": [m*g, 0.1*m*g, 0.1*m*g, 0.1*m*g],
+    "u_min": [-1*m*g, -0.1*m*g, -0.1*m*g, -0.1*m*g],
     "y_max": 50*np.ones(3),
     "y_min": -50*np.ones(3)
 }
@@ -400,7 +404,7 @@ restrictions = {
 #print('1/teste=',1/teste)
 #print('1/teste^2=',1/(teste**2))
 
-delta_y_max = 5*T_sample*np.ones(3)
+delta_y_max = 10*T_sample*np.ones(3)
 #delta_y_max = 1e-6*np.ones(3)
 
 
@@ -413,6 +417,6 @@ control_weights = 1 / (M*restrictions['delta_u_max']**2)
 MPC = mpc.mpc(M, N, rho, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions)
 MPC.initialize_matrices()
 X_mpc_nonlinear, u_mpc = MPC.simulate(f2, X0, t_samples, r_tracking, u_eq)
-X_mpc_linear, u_mpc_linear = MPC.simulate_linear(X0, t_samples, r_tracking, u_eq)
-plot_states(X_mpc_nonlinear, t_samples[:np.shape(X_mpc_nonlinear)[0]], X_mpc_linear, r_tracking, u_mpc)
+#X_mpc_linear, u_mpc_linear = MPC.simulate_linear(X0, t_samples, r_tracking, u_eq)
+plot_states(X_mpc_nonlinear, t_samples[:np.shape(X_mpc_nonlinear)[0]], X_mpc_nonlinear, r_tracking, u_mpc)
 #plot_inputs(u_mpc, t_samples[0:-1])

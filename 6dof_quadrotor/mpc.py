@@ -13,8 +13,8 @@ class mpc(object):
         self.A = A
         self.B = B
         self.C = C
-        self.T = time_step
-        self.T_sample = T_sample
+        self.T = time_step # Simulation time step
+        self.T_sample = T_sample # Controller time sample
         self.output_weights = output_weights
         self.control_weights = control_weights
         self.restrictions = restrictions
