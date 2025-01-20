@@ -19,7 +19,19 @@ class mpc(object):
         self.control_weights = control_weights
         self.restrictions = restrictions
 
+        # p - Number of controls
+        # q - Number of outputs
+        self.p = np.shape(self.B)[1]
+        print('p =',self.p,'Controls')
+        self.q = np.shape(self.C)[0]
+        print('q =',self.q,'Outputs')
+        self.n_x = np.shape(self.A)[0]
+
     def initialize_matrices(self):
+        p = self.p
+        q = self.q
+        n_x = self.n_x
+        
         # 1. Discretization of the space state
 
         # Discretização aproximada
@@ -29,7 +41,6 @@ class mpc(object):
         # Discretização exata
         Ad, Bd, _ = self.discretize()
 
-
         # #################################### APAGAR #################################################
         #Ad = self.A
         #Bd = self.B
@@ -38,17 +49,16 @@ class mpc(object):
         # 2. Initialize A_tilda, B_tilda, C_tild and phi
         A_tilda = np.concatenate((
             np.concatenate((Ad, Bd), axis = 1), # TODO coonfirm if its really Ad and Bd or A and B
-            np.concatenate((np.zeros((4,12)), np.eye(4)), axis = 1)
+            np.concatenate((np.zeros((p, n_x)), np.eye(p)), axis = 1)
             ), axis = 0)
 
-        B_tilda = np.concatenate((Bd, np.eye(4)), axis = 0)
+        B_tilda = np.concatenate((Bd, np.eye(p)), axis = 0)
 
-        C_tilda = np.concatenate((self.C, np.zeros((3,4))), axis = 1)
+        C_tilda = np.concatenate((self.C, np.zeros((q,p))), axis = 1)
 
         phi = C_tilda @ A_tilda
         for i in range(2, self.N+1):
             phi = np.concatenate((phi, C_tilda @ np.linalg.matrix_power(A_tilda, i)), axis = 0)
-        print('shape phi',np.shape(phi))
 
         # 3. Initialize G
         # First column
@@ -59,26 +69,24 @@ class mpc(object):
         # Other columns
         G = np.array(column, copy = True)
         for i in range(1, self.M):
-            column = np.roll(column, 3, axis = 0)
-            column[0:3,0:4] = np.zeros((3,4))
+            column = np.roll(column, q, axis = 0)
+            column[0:q,0:p] = np.zeros((q,p))
             G = np.concatenate((G, column), axis = 1)
 
         # 4. Initialize Q and R
-        Q = np.diag(np.full(3, self.output_weights))
-        print('Q=',Q)
-        R = np.diag(np.full(4, self.control_weights))
-        print('R=',R)
+        Q = np.diag(np.full(q, self.output_weights))
+        R = np.diag(np.full(p, self.control_weights))
 
         # Q - First column
         column = np.array(Q, copy = True)
         for i in range(1, self.N):
-            column = np.concatenate((column, np.zeros((3,3))), axis = 0)
+            column = np.concatenate((column, np.zeros((q,q))), axis = 0)
         
         # Q - Other columns
         Q_super = np.array(column, copy = True)
         for i in range(1, self.N):
-            column = np.roll(column, 3, axis = 0)
-            column[0:3, 0:3] = np.zeros((3,3))
+            column = np.roll(column, q, axis = 0)
+            column[0:q, 0:q] = np.zeros((q,q))
             Q_super = np.concatenate((Q_super, column), axis = 1)
         #print('Q_super=\n',pd.DataFrame(Q_super))
         #print('diag Q_super =',np.diag(Q_super))
@@ -87,13 +95,13 @@ class mpc(object):
         # R - First column
         column = np.array(R, copy = True)
         for i in range(1, self.M):
-            column = np.concatenate((column, np.zeros((4,4))), axis = 0)
+            column = np.concatenate((column, np.zeros((p,p))), axis = 0)
         
         # R - Other columns
         R_super = np.array(column, copy = True)
         for i in range(1, self.M):
-            column = np.roll(column, 4, axis = 0)
-            column[0:4, 0:4] = np.zeros((4,4))
+            column = np.roll(column, p, axis = 0)
+            column[0:p, 0:p] = np.zeros((p,p))
             R_super = np.concatenate((R_super, column), axis = 1)
         #print('R_super=\n',pd.DataFrame(R_super))
         #print('diag R_super =',np.diag(R_super))
@@ -105,32 +113,25 @@ class mpc(object):
 
         # Aqp
             # T_M
-        column = np.eye(4)
+        column = np.eye(p)
         for i in range(1,self.M):
-            column = np.concatenate((column, np.eye(4)), axis = 0)
+            column = np.concatenate((column, np.eye(p)), axis = 0)
         
         T_M = np.array(column, copy = True)
         for i in range(1, self.M):
-            column = np.roll(column, 4, axis = 0)
-            column[0:4, 0:4] = np.zeros((4,4))
+            column = np.roll(column, p, axis = 0)
+            column[0:p, 0:p] = np.zeros((p,p))
             T_M = np.concatenate((T_M, column), axis = 1)
 
-        print(np.diag(T_M))
-        print('T_M =\n',pd.DataFrame(T_M))
-        print('shape T_M =',np.shape(T_M))
-
-        Aqp = np.eye(4*self.M)
+        Aqp = np.eye(p*self.M)
         Aqp = np.concatenate((
             Aqp,
-            -np.eye(4*self.M),
+            -np.eye(p*self.M),
             T_M,
             -T_M,
             G,
             -G
             ), axis = 0)
-        
-        print('Aqp =\n', pd.DataFrame(Aqp))
-        print('shape Aqp =',np.shape(Aqp))
 
         self.Ad = Ad
         self.Bd = Bd
@@ -152,8 +153,11 @@ class mpc(object):
     #    return -(Aqp @ x - bqp)
     
     def simulate(self, f_model, X0, t_samples, trajectory, u_eq):
+        p = self.p
+        q = self.q
+
         #u_minus_1 = np.array(u_eq) # TODO: Confirmar se é u_eq ou 0
-        u_minus_1 = np.zeros(4)
+        u_minus_1 = np.zeros(p)
         x_k = X0
         u_k_minus_1 = u_minus_1
         X_vector = [X0]
@@ -201,7 +205,7 @@ class mpc(object):
 
             #print('res.x',res.x)
             #print('res2.x',np.array(res2['x']).reshape((Hqp.shape[1],)))
-            delta_u_k = np.concatenate((np.eye(4), np.zeros((4, 4*(self.M - 1)))), axis = 1) @ x # optimal delta_u_k
+            delta_u_k = np.concatenate((np.eye(p), np.zeros((p, p*(self.M - 1)))), axis = 1) @ x # optimal delta_u_k
             u_k = u_k_minus_1 + delta_u_k # TODO: confirmar se tem esse u_eq
 
             # Apply control u_k in the multi-rotor
@@ -223,8 +227,11 @@ class mpc(object):
         return np.array(X_vector), np.array(u_vector)
     
     def simulate_linear(self, X0, t_samples, trajectory, u_eq):
+        p = self.p
+        q = self.q
+
         #u_minus_1 = np.array(u_eq) # TODO: Confirmar se é u_eq ou 0
-        u_minus_1 = np.zeros(4)
+        u_minus_1 = np.zeros(p)
         x_k = X0
         u_k_minus_1 = u_minus_1
         X_vector = [X0]
@@ -272,7 +279,7 @@ class mpc(object):
 
             #print('res.x',res.x)
             #print('res2.x',np.array(res2['x']).reshape((Hqp.shape[1],)))
-            delta_u_k = np.concatenate((np.eye(4), np.zeros((4, 4*(self.M - 1)))), axis = 1) @ x # optimal delta_u_k
+            delta_u_k = np.concatenate((np.eye(p), np.zeros((p, p*(self.M - 1)))), axis = 1) @ x # optimal delta_u_k
             u_k = u_k_minus_1 + delta_u_k # TODO: confirmar se tem esse u_eq
 
             # Apply control u_k in the multi-rotor
@@ -289,17 +296,19 @@ class mpc(object):
         return np.array(X_vector), np.array(u_vector)
 
     def simulate_linear2(self, X0, t_samples, trajectory, u_eq):
+        p = self.p
+        q = self.q
 
         u_minus_1 = np.array(u_eq) # TODO: Confirmar se é u_eq ou 0
-        #u_minus_1 = np.zeros(4)
+        #u_minus_1 = np.zeros(p)
         x_k = X0
         u_k_minus_1 = u_minus_1
-        delta_u_initial = 0*np.ones(4*self.M)
+        delta_u_initial = 0*np.ones(p*self.M)
         X_vector = [X0]
         u_vector = []
         Hqp = self.Hqp
         cvxopt.solvers.options['show_progress'] = False
-        linear_sys = StateSpace(self.Ad, self.Bd, self.C, np.zeros((3,4)))
+        linear_sys = StateSpace(self.Ad, self.Bd, self.C, np.zeros((q,p)))
 
         for k in range(0, len(t_samples)-1): # TODO: confirmar se é -1 mesmo:
             #ref_N = trajectory[k:k+self.N] # TODO validar se termina em k+N-1 ou em k+N
@@ -341,7 +350,7 @@ class mpc(object):
 
             #print('res.x',res.x)
             #print('res2.x',np.array(res2['x']).reshape((Hqp.shape[1],)))
-            delta_u_k = np.concatenate((np.eye(4), np.zeros((4, 4*(self.M - 1)))), axis = 1) @ x # optimal delta_u_k
+            delta_u_k = np.concatenate((np.eye(p), np.zeros((p, p*(self.M - 1)))), axis = 1) @ x # optimal delta_u_k
             u_k = u_k_minus_1 + delta_u_k # TODO: confirmar se tem esse u_eq
 
             # Apply control u_k in the multi-rotor
@@ -377,8 +386,11 @@ class mpc(object):
         return np.array(X_vector), np.array(u_vector)
     
     def simulate_linear3(self, X0, t_samples, trajectory, u_eq):
+        p = self.p
+        q = self.q
+
         u_minus_1 = np.array(u_eq) # TODO: Confirmar se é u_eq ou 0
-        #u_minus_1 = np.zeros(4)
+        #u_minus_1 = np.zeros(p)
         x_k = X0
         u_k_minus_1 = u_minus_1
         X_vector = [X0]
@@ -426,7 +438,7 @@ class mpc(object):
 
             #print('res.x',res.x)
             #print('res2.x',np.array(res2['x']).reshape((Hqp.shape[1],)))
-            delta_u_k = np.concatenate((np.eye(4), np.zeros((4, 4*(self.M - 1)))), axis = 1) @ x # optimal delta_u_k
+            delta_u_k = np.concatenate((np.eye(p), np.zeros((p, p*(self.M - 1)))), axis = 1) @ x # optimal delta_u_k
             u_k = u_k_minus_1 + delta_u_k # TODO: confirmar se tem esse u_eq
 
             # Apply control u_k in the multi-rotor
@@ -441,11 +453,9 @@ class mpc(object):
             u_vector.append(u_k)
             #delta_u_initial = np.tile(delta_u_k,self.M)
         return np.array(X_vector), np.array(u_vector)
-
     
     def discretize(self):
-        #sys = StateSpace(self.A,self.B,self.C, np.zeros((3,4)))
-        sys_d = cont2discrete((self.A,self.B,self.C, np.zeros((3,4))), self.T_sample, 'zoh')
-        print('sys_d',sys_d)
+        #sys = StateSpace(self.A,self.B,self.C, np.zeros((q,p)))
+        sys_d = cont2discrete((self.A,self.B,self.C, np.zeros((self.q,self.p))), self.T_sample, 'zoh')
         Ad, Bd, Cd, _, _ = sys_d
         return Ad, Bd, Cd
