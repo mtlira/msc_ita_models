@@ -15,46 +15,61 @@ class LQR(object):
         self.time_step = time_step # Simulation time
         self.time_sample = time_sample # Controller time sample
 
+        # p - Number of controls
+        # q - Number of outputs
+        # n_x - Number of states
+        self.p = np.shape(self.B)[1]
+        print('p =',self.p,'Controls')
+        self.q = np.shape(self.C)[0]
+        print('q =',self.q,'Outputs')
+        self.n_x = np.shape(self.A)[0]
+
     def initialize(self, x_max, u_max):
         """
         Builds weight matrices Q and R using Bryson's rule the LQR gain K and the augmented matrices and gain (K_aug) needed for integral action.
         """
-        Q = np.eye(12)
+        p = self.p
+        q = self.q
+        n_x = self.n_x
+
+        Q = np.eye(n_x)
         for i in range(len(Q)):
             Q[i][i] = 1/(x_max[i]**2)
         self.Q = Q
 
-        R = np.eye(4)
+        R = np.eye(p)
         for i in range(len(R)):
             R[i][i] = 1/(u_max[i]**2)
         self.R = R
 
-        A_a = np.concatenate((self.A, np.zeros((12,3))), axis = 1)
-        A_a2 = np.concatenate((-self.C, np.zeros((3,3))), axis = 1)
+        A_a = np.concatenate((self.A, np.zeros((n_x,q))), axis = 1)
+        A_a2 = np.concatenate((-self.C, np.zeros((q,q))), axis = 1)
         A_a = np.concatenate((A_a, A_a2), axis = 0)
         self.A_a = A_a
 
-        B_a = np.concatenate((self.B, np.zeros((3,4))),axis = 0)
+        B_a = np.concatenate((self.B, np.zeros((q,p))),axis = 0)
         self.B_a = B_a
 
-        G = np.concatenate((np.zeros((12,3)), np.eye(3)), axis = 0)
+        G = np.concatenate((np.zeros((n_x,q)), np.eye(q)), axis = 0)
         self.G = G
 
         # LQR augmented
-        x_max_aug = np.concatenate((x_max, np.array([1,1,1])), axis = 0)
-        Q_aug = np.eye(15)
+        x_max_aug = np.concatenate((x_max, np.ones((q))), axis = 0)
+        Q_aug = np.eye(n_x + q)
         for i in range(len(Q_aug)):
             Q_aug[i][i] = 1/(x_max_aug[i]**2)
 
         K_a, _, _ = lqr(A_a, B_a, Q_aug, R) # TODO: Talvez tenha que aumentar Q e R
         self.K_a = K_a
-        self.K = K_a[:,0:12] # LQR gain K from augmented LQR version
-        self.K_i = K_a[:,12:] # Integrator gain
+        self.K = K_a[:,0:n_x] # LQR gain K from augmented LQR version
+        self.K_i = K_a[:,n_x:] # Integrator gain
 
-        self.C_a = np.array([ # TODO: AUTOMATIZAR CRIAÇÃO
-                        [0,0,0,0,0,0,0,0,0,1,0,0,0,0,0],
-                        [0,0,0,0,0,0,0,0,0,0,1,0,0,0,0],
-                        [0,0,0,0,0,0,0,0,0,0,0,1,0,0,0]])  
+        #self.C_a = np.array([ # TODO: AUTOMATIZAR CRIAÇÃO
+        #                [0,0,0,0,0,0,0,0,0,1,0,0,0,0,0],
+        #                [0,0,0,0,0,0,0,0,0,0,1,0,0,0,0],
+        #                [0,0,0,0,0,0,0,0,0,0,0,1,0,0,0]])
+        
+        self.C_a = np.concatenate((self.C, np.zeros((q, q))), axis = 1)
 
 
     def compute(self, reference, x_feedback):
@@ -112,8 +127,8 @@ class LQR(object):
     def simulate_linear(self, X0, t, r_tracking):
         self.integral_error = 0
         self.output_error = 0
-        linear_sys_tracking = StateSpace(self.A_a - np.matmul(self.B_a, self.K_a), self.G, self.C_a, np.zeros((3,3)))
-        X0_aug = np.concatenate((X0, [0,0,0]), axis=0)
+        linear_sys_tracking = StateSpace(self.A_a - np.matmul(self.B_a, self.K_a), self.G, self.C_a, np.zeros((self.q,self.q)))
+        X0_aug = np.concatenate((X0, np.zeros(self.q)), axis=0)
 
         _,_, x_tracking = lsim(linear_sys_tracking, r_tracking, t, X0 = X0_aug)
         return x_tracking

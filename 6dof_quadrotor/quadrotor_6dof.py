@@ -61,7 +61,7 @@ X_eq = np.array([0,0,0,0,0,0,0,0,0,1,1,-1])
 
 # f_t está no eixo do corpo
 
-# Inputs
+# Open-loop Inputs
 def u_(t):
     return [1*m*g, 0, 0, 0]
 
