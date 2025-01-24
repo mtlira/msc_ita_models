@@ -117,6 +117,9 @@ class LQR(object):
             t_vector = np.arange(t_samples[k], t_samples[k+1], self.time_step) if self.time_step < self.time_sample else [t_samples[k], t_samples[k+1]]
             #t_vector = np.linspace(t_samples[k], t_samples[k+1], 100)
             x_k = odeint(f, x_k, t_vector, args = (f_t_i, t_x_i, t_y_i, t_z_i)) # TODO: Verificar se t_vector está correto (provavelmente não)
+            if np.linalg.norm(x_k[9:12]) > 100:
+                print('LQR simulation stopped: x exploded')
+                break
             #x_feedback = odeint(f, x_old, [t_i_old, t_i], args = (f_t_i, t_x_i, t_y_i, t_z_i))
             x_k = x_k[-1]
             X_vector.append(x_k)

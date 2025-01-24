@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None):
+def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None, equal_scales=False):
     # Rotation
     fig, axs = plt.subplots(2, 3)
     axs[0,0].plot(t,X[:,0])
@@ -102,6 +102,7 @@ def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None):
     if X_lin is not None: legend = ['Non-linear','Linear']
     if trajectory is not None: legend.append('Trajectory')
     fig.legend(legend)
+    if equal_scales: axs.set_aspect('equal', adjustable='box')
 
     if u_vector is not None:
         plot_inputs2(u_vector, t)

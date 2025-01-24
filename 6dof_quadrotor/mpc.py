@@ -209,7 +209,7 @@ class mpc(object):
             u_k = u_k_minus_1 + delta_u_k # TODO: confirmar se tem esse u_eq
 
             # Apply control u_k in the multi-rotor
-            f_t_k, t_x_k, t_y_k, t_z_k = u_k + u_eq # Attention for u_eq (solved the problem)
+            f_t_k, t_x_k, t_y_k, t_z_k = u_eq + u_k # Attention for u_eq (solved the problem)
             t_simulation = np.arange(t_samples[k], t_samples[k+1], self.T)
             #t_simulation2 = np.arange(0,t_samples[1], self.T)
             #x_k = odeint(f_model, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
@@ -222,7 +222,84 @@ class mpc(object):
             
             X_vector.append(x_k)
             u_k_minus_1 = u_k
-            u_vector.append(u_k)
+            u_vector.append(u_k + u_eq)
+            #delta_u_initial = np.tile(delta_u_k,self.M)
+        return np.array(X_vector), np.array(u_vector)
+    
+    def simulate_future(self, f_model, X0, t_samples, trajectory, u_eq):
+        p = self.p
+        q = self.q
+
+        #u_minus_1 = np.array(u_eq) # TODO: Confirmar se é u_eq ou 0
+        u_minus_1 = np.zeros(p)
+        x_k = X0
+        u_k_minus_1 = u_minus_1
+        X_vector = [X0]
+        u_vector = []
+        Hqp = self.Hqp
+        cvxopt.solvers.options['show_progress'] = False
+
+        for k in range(0, len(t_samples)-1): # TODO: confirmar se é -1 mesmo:
+            ref_N = trajectory[k:k+self.N].reshape(-1) # TODO validar se termina em k+N-1 ou em k+N
+            if np.shape(ref_N)[0] < q*self.N:
+                #print('kpi',self.N - int(np.shape(ref_N)[0]/q))
+                ref_N = np.concatenate((ref_N, np.tile(trajectory[-1].reshape(-1), self.N - int(np.shape(ref_N)[0]/q))), axis = 0) # padding de trajectory[-1] em ref_N quando trajectory[k+N] ultrapassa ultimo elemento
+            #ref_N = np.tile(trajectory[k,:], self.N)
+            epsilon_k = np.concatenate((x_k, u_k_minus_1), axis = 0)
+            f = self.phi @ epsilon_k
+            fqp = 2*np.transpose(self.Gn) @ (f - ref_N)
+            
+            # bqp
+            bqp = np.concatenate((
+                np.tile(self.restrictions['delta_u_max'], self.M), # delta_u_max_M
+                - np.tile(self.restrictions['delta_u_min'], self.M), # -delta_u_min_M
+                np.tile(self.restrictions['u_max'] - u_k_minus_1, self.M),
+                np.tile(u_k_minus_1 - self.restrictions['u_min'], self.M),
+                np.tile(self.restrictions['y_max'], self.N) - f,
+                f - np.tile(self.restrictions['y_min'], self.N)
+            ), axis = 0)
+
+            # optimization
+            #cost_function = lambda x: 0.5*np.transpose(x) @ Hqp @ x + np.transpose(fqp) @ x
+
+            #constraints_dict = {
+            #    'type': 'ineq',
+            #    'fun': lambda x: -(self.Aqp @ x - bqp)
+            #}
+            #opt = {'maxiter': 1000}
+            #res = minimize(fun= cost_function, x0=delta_u_initial, constraints=constraints_dict)#, options=opt) ######################### TODO: verificar opt ######################
+            #print('Hqp',np.max(np.abs(Hqp - Hqp.T)))
+           
+            # METODO 2 #######################################
+            Hqp = Hqp.astype(np.double)
+            fqp = fqp.astype(np.double)
+            self.Aqp = self.Aqp.astype(np.double)
+            bqp = bqp.astype(np.double)
+            res = cvxopt.solvers.qp(cvxopt.matrix(Hqp), cvxopt.matrix(fqp), cvxopt.matrix(self.Aqp), cvxopt.matrix(bqp))
+            x = np.array(res['x']).reshape((Hqp.shape[1],))
+            ##################################################
+
+
+            #print('res.x',res.x)
+            #print('res2.x',np.array(res2['x']).reshape((Hqp.shape[1],)))
+            delta_u_k = np.concatenate((np.eye(p), np.zeros((p, p*(self.M - 1)))), axis = 1) @ x # optimal delta_u_k
+            u_k = u_k_minus_1 + delta_u_k # TODO: confirmar se tem esse u_eq
+
+            # Apply control u_k in the multi-rotor
+            f_t_k, t_x_k, t_y_k, t_z_k = u_eq + u_k # Attention for u_eq (solved the problem)
+            t_simulation = np.arange(t_samples[k], t_samples[k+1], self.T)
+            #t_simulation2 = np.arange(0,t_samples[1], self.T)
+            #x_k = odeint(f_model, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
+            x_k = odeint(f_model, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
+            x_k = x_k[-1]
+            #if np.linalg.norm(x_k[9:12]) > 10 or np.max(np.abs(x_k[0:2])) > 1.4:
+            #    print('Simulation exploded.')
+            #    print('x_k =',x_k)
+            #    break
+            
+            X_vector.append(x_k)
+            u_k_minus_1 = u_k
+            u_vector.append(u_k + u_eq)
             #delta_u_initial = np.tile(delta_u_k,self.M)
         return np.array(X_vector), np.array(u_vector)
     
