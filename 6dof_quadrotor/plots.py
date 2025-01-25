@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None, equal_scales=False):
+def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None, omega_vector = None, equal_scales=False):
     # Rotation
     fig, axs = plt.subplots(2, 3)
     axs[0,0].plot(t,X[:,0])
@@ -104,34 +104,14 @@ def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None, equal_sca
     fig.legend(legend)
     if equal_scales: axs.set_aspect('equal', adjustable='box')
 
-    if u_vector is not None:
-        plot_inputs2(u_vector, t)
+    if u_vector is not None and omega_vector is not None:
+        plot_inputs(u_vector, t, omega_vector)
+    if u_vector is not None and omega_vector is None:
+        plot_inputs(u_vector, t)
     plt.show()
 
-def plot_inputs(u_vector, t):
-    t = t[0:-1]
-    fig, axs = plt.subplots(2, 2)
-    axs[0,0].plot(t,u_vector[:,0])
-    axs[0,0].set_title('f_t (t)')
-    axs[0,0].set_ylabel('f_t (N)')
-    axs[0,0].set_xlabel('t (s)')
 
-    axs[0,1].plot(t,u_vector[:,1])
-    axs[0,1].set_title('$\\tau_x (t)$')
-    axs[0,1].set_ylabel('$\\tau_x (N.m)$')
-    axs[0,1].set_xlabel('t (s)')
-
-    axs[1,0].plot(t,u_vector[:,2])
-    axs[1,0].set_title('$\\tau_y (t)$')
-    axs[1,0].set_ylabel('$\\tau_y (N.m)$')
-    axs[1,0].set_xlabel('t (s)')
-
-    axs[1,1].plot(t,u_vector[:,3])
-    axs[1,1].set_title('$\\tau_z (t)$')
-    axs[1,1].set_ylabel('$\\tau_z (N.m)$')
-    axs[1,1].set_xlabel('t (s)')
-
-def plot_inputs2(u_vector, t):
+def plot_inputs(u_vector, t, omega_vector = None):
     t = t[0:-1]
     fig, axs = plt.subplots(2, 2)
     axs[0,0].step(t,u_vector[:,0])
@@ -153,6 +133,28 @@ def plot_inputs2(u_vector, t):
     axs[1,1].set_title('$\\tau_z (t)$')
     axs[1,1].set_ylabel('$\\tau_z (N.m)$')
     axs[1,1].set_xlabel('t (s)')
+
+    if omega_vector is not None:
+        fig, axs = plt.subplots(2, 2)
+        axs[0,0].step(t,omega_vector[:,0])
+        axs[0,0].set_title('$\omega_1 (t)$')
+        axs[0,0].set_ylabel('$\omega_1 (rad/s)$')
+        axs[0,0].set_xlabel('t (s)')
+
+        axs[0,1].step(t,omega_vector[:,1])
+        axs[0,1].set_title('$\omega_2 (t)$')
+        axs[0,1].set_ylabel('$\omega_2 (rad/s)$')
+        axs[0,1].set_xlabel('t (s)')
+
+        axs[1,0].step(t,omega_vector[:,2])
+        axs[1,0].set_title('$\omega_3 (t)$')
+        axs[1,0].set_ylabel('$\omega_3 (rad/s)$')
+        axs[1,0].set_xlabel('t (s)')
+
+        axs[1,1].step(t,omega_vector[:,3])
+        axs[1,1].set_title('$\omega_4 (t)$')
+        axs[1,1].set_ylabel('$\omega_4 (rad/s)$')
+        axs[1,1].set_xlabel('t (s)')
 
 def plot_delays(X_nonlinear, trajectory, t, X_linear = False):
     samples_indexes = np.rint(np.linspace(0,1,11)*(len(t)-1)).astype('int')

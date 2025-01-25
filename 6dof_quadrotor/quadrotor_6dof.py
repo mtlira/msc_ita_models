@@ -12,12 +12,20 @@ import control as ct
 import lqr as lqr
 import mpc as mpc
 import multirotor
+import trajectory
 
 m = 10
 g = 9.80665
 I_x = 0.8
 I_y = 0.8
 I_z = 0.8
+
+# Control allocation parameters
+l = 1 # multirotor's arm (distance from the center to the propeller)
+b = m*g/(200**2) # f_i = b*w^2, f_i is force of propeller and w is angular speed
+torque = (m*g/4)*l
+k_t = 0.01 # Torque = k_t * Tração, entre 0.01 e 0.03
+d = b*k_t # Torque = d * w^2
 
 # PID Controller parameters
 KP = 6
@@ -26,8 +34,8 @@ KI = 3
 phi_setpoint = 0
 
 time_step = 1e-3 #5e-3 é um bom valor
-T_sample = 2e-2 # MP sample time
-T_simulation = 15
+T_sample = 5e-2 # MP sample time
+T_simulation = 20
 
 t = np.arange(0,T_simulation, time_step)
 t_samples = np.arange(0,T_simulation, T_sample)
@@ -66,7 +74,12 @@ u_eq = [m*g, 0, 0, 0]
 #root = fsolve(fn_solve, p.zeros(9))
 #print('eq point:',root)
 
-model = multirotor.multirotor(m, g, I_x, I_y, I_z)
+model = multirotor.multirotor(m, g, I_x, I_y, I_z, b, l, d)
+
+# deletar #################################3
+omega_eq = model.get_omegas(u_eq)
+print('omegas_eq',omega_eq)
+#############################################
 
 A, B = linearize(model.f_sym, X_eq, u_eq)
 C = np.array([[0,0,0,0,0,0,0,0,0,1,0,0],
@@ -105,47 +118,11 @@ u_max = [
 # LQR - tracking
 
 w = 2*np.pi*1/20
-r_helicoidal = np.array([5*(1 + 0.1*t)*np.sin(w*t),
-                       (5 - 5*(1 + 0.1*t)*np.cos(w*t)),
-                       -1*t]).transpose()
-
-r_circle_xy = np.array([5*np.sin(w*t),
-                       (5 - 5*np.cos(w*t)),
-                       np.zeros(len(t))]).transpose()
-
-r_circle_xy2 = np.array([5*np.sin(w*t_samples),
-                       (5 - 5*np.cos(w*t_samples)),
-                       np.zeros(len(t_samples))]).transpose()
-
-r_circle_xz = np.array([5*np.sin(w*t),
-                       np.zeros(len(t)),
-                       (5 - 5*np.cos(w*t))]).transpose()
-
-r_shm_z = np.array([np.zeros(len(t)),
-                       np.zeros(len(t)),
-                       (-5*np.sin(w*t))]).transpose()
-
-r_point = np.array([0*np.ones(len(t)),
-                       0*np.ones(len(t)),
-                       (-10*np.ones(len(t)))]).transpose()
-
-r_point2 = np.array([0*np.ones(len(t_samples)),
-                       0*np.ones(len(t_samples)),
-                       (-10*np.ones(len(t_samples)))]).transpose()
-
-r_line = np.array([t.clip(min=0,max=6),
-                    t.clip(min=0,max=6),
-                    -t.clip(min=0,max=6)]).transpose()
-
-r_line2 = np.array([t_samples.clip(min=0,max=8),
-                    t_samples.clip(min=0,max=8),
-                    -t_samples.clip(min=0,max=8)]).transpose()
-
-r_explode = np.array([np.zeros(len(t)),
-                       np.zeros(len(t)),
-                       (-20*np.ones(len(t)))]).transpose()
-
-r_tracking = r_line2
+tr = trajectory.Trajectory()
+#r_tracking = tr.point(0, 0, -1, t_samples)
+#r_tracking = tr.circle_xy(w, 5, t_samples)
+#r_tracking = tr.helicoidal(w,t_samples)
+r_tracking = tr.line(1, 1, 1, t_samples, 10)
 
 LQR = lqr.LQR(A, B, C, time_step, T_sample)
 LQR.initialize(x_max, u_max)
@@ -182,8 +159,8 @@ x_lqr_linear = LQR.simulate_linear(X0, t_samples, r_tracking)
 
 # MPC Implementation
 
-N = 100
-M = 15
+N = 200
+M = 20
 rho = 1
 
 restrictions = {
@@ -200,7 +177,7 @@ restrictions = {
 #print('1/teste=',1/teste)
 #print('1/teste^2=',1/(teste**2))
 
-delta_y_max = 10*T_sample*np.ones(3)
+delta_y_max = 20*T_sample*np.ones(3)
 #delta_y_max = 1e-6*np.ones(3)
 
 
@@ -212,9 +189,41 @@ control_weights = 1 / (M*restrictions['delta_u_max']**2)
 
 MPC = mpc.mpc(M, N, rho, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions)
 MPC.initialize_matrices()
-#X_mpc_nonlinear, u_mpc = MPC.simulate(model.f2, X0, t_samples, r_tracking, u_eq)
+X_mpc_nonlinear, u_mpc = MPC.simulate(model.f2, X0, t_samples, r_tracking, u_eq)
 X_mpc_nonlinear_future, u_mpc_future = MPC.simulate_future(model.f2, X0, t_samples, r_tracking, u_eq)
 #X_mpc_linear, u_mpc_linear = MPC.simulate_linear(X0, t_samples, r_tracking, u_eq)
-#plot_states(X_mpc_nonlinear, t_samples[:np.shape(X_mpc_nonlinear)[0]], X_mpc_nonlinear_future, r_tracking, u_mpc, equal_scales=True)
-plot_states(X_mpc_nonlinear_future, t_samples[:np.shape(X_mpc_nonlinear_future)[0]], X_mpc_nonlinear_future, r_tracking, u_mpc_future, equal_scales=True)
+plot_states(X_mpc_nonlinear, t_samples[:np.shape(X_mpc_nonlinear)[0]], X_mpc_nonlinear_future, r_tracking, u_mpc, equal_scales=True)
+#plot_states(X_mpc_nonlinear, t_samples[:np.shape(X_mpc_nonlinear_future)[0]], X_mpc_nonlinear_future, r_tracking, u_mpc_future, equal_scales=True)
 #plot_inputs(u_mpc, t_samples[0:-1])
+
+# MPC with actuators
+restrictions2 = {
+    #"delta_u_max": 1.5*m*g*time_step*np.ones(4),
+    "delta_u_max": np.linalg.pinv(model.Gama) @ [10*m*g*T_sample, 0, 0, 0],
+    "delta_u_min": np.linalg.pinv(model.Gama) @ [-10*m*g*T_sample, 0, 0, 0],
+    "u_max": np.linalg.pinv(model.Gama) @ [m*g, 0, 0, 0],
+    "u_min": np.linalg.pinv(model.Gama) @ [-m*g, 0, 0, 0],
+    "y_max": 100*np.ones(3),
+    "y_min": -100*np.ones(3)
+}
+
+output_weights2 = 1 / (N*delta_y_max**2) # Deve variar a cada passo de simulação?
+control_weights2 = 1 / (M*restrictions2['delta_u_max']**2)
+
+print(np.sqrt(np.linalg.pinv(model.Gama) @ [2*m*g, 0, 0, 0]))
+print(np.sqrt(np.linalg.pinv(model.Gama) @ [m*g, 0.1*m*g, 0.1*m*g, 0*m*g]))
+print(np.sqrt(np.linalg.pinv(model.Gama) @ [m*g, -0.1*m*g, -0.1*m*g, -0.1*m*g]))
+print(np.sqrt(np.linalg.pinv(model.Gama) @ [1.5*m*g, 0, 0, 0]))
+
+print(np.linalg.pinv(model.Gama) @ [-m*g, 0, 0, 0])
+print(np.linalg.pinv(model.Gama) @ [m*g, 0, 0, 0])
+print(np.linalg.pinv(model.Gama) @ [m*g, 0.1*m*g, 0.1*m*g, 0.1*m*g])
+print(np.linalg.pinv(model.Gama) @ [m*g, -0.1*m*g, -0.1*m*g, -0.1*m*g])
+print(np.linalg.pinv(model.Gama) @ [1.5*m*g, 0, 0, 0])
+
+
+Bw = B @ model.Gama
+MPC2 = mpc.mpc(M, N, rho, A, Bw, C, time_step, T_sample, output_weights2, control_weights2, restrictions2)
+MPC2.initialize_matrices()
+x_mpc_rotors, u_rotors, omega_vector = MPC2.simulate_future_rotors(model, X0, t_samples, r_tracking, omega_eq**2)
+plot_states(X_mpc_nonlinear_future, t_samples[:np.shape(x_mpc_rotors)[0]], x_mpc_rotors, r_tracking, u_rotors, omega_vector, equal_scales=True)

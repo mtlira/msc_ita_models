@@ -23,12 +23,20 @@ import sympy as sp
 #]
 
 class multirotor(object):
-    def __init__(self, m, g, I_x, I_y, I_z):
+    def __init__(self, m, g, I_x, I_y, I_z, b, l, d):
         self.m = m
         self.g = g
         self.I_x = I_x
         self.I_y = I_y
         self.I_z = I_z
+        self.b = b
+        self.l = l
+        self.d = d
+        # [u] = Gama * [w]
+        self.Gama = np.array([[b, b, b, b],
+                         [-b*l, 0, b*l, 0],
+                         [0, b*l, 0, -b*l],
+                         [d, -d, d, -d]])
 
     # State-space model functions
 
@@ -133,3 +141,12 @@ class multirotor(object):
         w*(sp.cos(phi)*sp.cos(theta)) - u*(sp.sin(theta)) + v*(sp.cos(theta)*sp.sin(phi))
         ]
         return X_symbols, U_symbols, dx_dt
+    
+    def get_controls(self, w_vector):
+        # [u] = Gama * [w] 
+        u = self.Gama @ w_vector**2
+        return u
+    
+    def get_omegas(self, u):
+        w_vector = np.sqrt(np.linalg.inv(self.Gama) @ u)
+        return w_vector
