@@ -39,4 +39,13 @@ class Trajectory(object):
                        (5 - 5*(1 + 0.1*t)*np.cos(w*t)),
                        -1*t]).transpose()
         return r_helicoidal
-        
+    
+    def speed_reference(trajectory, t):
+        '''
+        Calculates the speed components in the Earth reference by derivating the trajectory [x(t) y(t) z(t)] vector
+        '''
+        speed_ref = [(trajectory[1] - trajectory[0])/(t[1] - t[0])]
+        for i in range(1, len(trajectory) - 1):
+            drdt = (trajectory[i+1] - trajectory[i-1])/(t[i+1] - t[i-1])
+            speed_ref.append(drdt)
+        return np.array(speed_ref)

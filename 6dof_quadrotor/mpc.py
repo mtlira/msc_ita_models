@@ -227,6 +227,9 @@ class mpc(object):
         return np.array(X_vector), np.array(u_vector)
     
     def simulate_future(self, f_model, X0, t_samples, trajectory, u_eq):
+        """
+        Takes into account future trajectory reference from trajectory[k] until trajectory[k+N-1]
+        """
         p = self.p
         q = self.q
 
