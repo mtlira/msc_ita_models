@@ -4,6 +4,7 @@ from scipy.optimize import minimize
 from scipy.integrate import odeint
 from scipy.signal import StateSpace, cont2discrete, lsim
 import cvxopt
+from linearize import discretize
 
 class mpc(object):
     def __init__(self, M, N, rho, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions):
@@ -39,7 +40,7 @@ class mpc(object):
         #Bd = self.B*self.T
 
         # Discretização exata
-        Ad, Bd, _ = self.discretize()
+        Ad, Bd, _ = discretize(self.A, self.B, self.C, self.T_sample)
 
         # #################################### APAGAR #################################################
         #Ad = self.A
@@ -617,8 +618,8 @@ class mpc(object):
             #delta_u_initial = np.tile(delta_u_k,self.M)
         return np.array(X_vector), np.array(u_vector)
     
-    def discretize(self):
-        #sys = StateSpace(self.A,self.B,self.C, np.zeros((q,p)))
-        sys_d = cont2discrete((self.A,self.B,self.C, np.zeros((self.q,self.p))), self.T_sample, 'zoh')
-        Ad, Bd, Cd, _, _ = sys_d
-        return Ad, Bd, Cd
+    # def discretize(self):
+    #     #sys = StateSpace(self.A,self.B,self.C, np.zeros((q,p)))
+    #     sys_d = cont2discrete((self.A,self.B,self.C, np.zeros((self.q,self.p))), self.T_sample, 'zoh')
+    #     Ad, Bd, Cd, _, _ = sys_d
+    #     return Ad, Bd, Cd

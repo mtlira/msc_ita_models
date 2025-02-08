@@ -23,9 +23,13 @@ I_z = 0.8
 # Control allocation parameters
 l = 1 # multirotor's arm (distance from the center to the propeller)
 b = m*g/(200**2) # f_i = b*w^2, f_i is force of propeller and w is angular speed
-torque = (m*g/4)*l
-k_t = 0.01 # Torque = k_t * Tração, entre 0.01 e 0.03
+#k_t = 0.01 # Torque = k_t * Tração, entre 0.01 e 0.03
+k_t = 0.0001 # Valor de k_t afeta na velocidade de divergência de psi(t)
 d = b*k_t # Torque = d * w^2
+
+print('b =',b)
+print('k_t = ',k_t)
+print('d =', d)
 
 # PID Controller parameters
 KP = 6
@@ -34,7 +38,7 @@ KI = 3
 phi_setpoint = 0
 
 time_step = 1e-3 #5e-3 é um bom valor
-T_sample = 5e-2 # MP sample time
+T_sample = 1e-2 # MP sample time
 T_simulation = 20
 
 t = np.arange(0,T_simulation, time_step)
@@ -86,7 +90,7 @@ C = np.array([[0,0,0,0,0,0,0,0,0,1,0,0],
               [0,0,0,0,0,0,0,0,0,0,1,0],
               [0,0,0,0,0,0,0,0,0,0,0,1]])
 
-_, _, x_lin = openloop_sim_linear(A, B, t, X0, X_eq, u_eq, u_sim)
+#_, _, x_lin = openloop_sim_linear(A, B, t, X0, X_eq, u_eq, u_sim)
 
 eig_A, _ = np.linalg.eig(np.array(A, dtype='float'))
 print('Eigenvalues of A (open-loop):')
@@ -94,15 +98,15 @@ print(eig_A)
 
 # LQR
 x_max = [
-    np.deg2rad(45),
-    np.deg2rad(45),
-    np.deg2rad(45),
+    np.deg2rad(60),
+    np.deg2rad(60),
+    np.deg2rad(60),
     np.deg2rad(120),
     np.deg2rad(120),
     np.deg2rad(120),
-    5/0.8,
-    5/0.8,
-    5/0.8,
+    10/0.8,
+    10/0.8,
+    10/0.8,
     3,
     3,
     3]
@@ -120,19 +124,49 @@ u_max = [
 w = 2*np.pi*1/20
 tr = trajectory.Trajectory()
 #r_tracking = tr.point(0, 0, -1, t_samples)
-#r_tracking = tr.circle_xy(w, 5, t_samples)
+r_tracking = tr.circle_xy(w, 5, t_samples)
 #r_tracking = tr.helicoidal(w,t_samples)
-r_tracking = tr.line(1, 1, 1, t_samples, 10)
+#r_tracking = tr.line(1, 1, -1, t_samples, 15)
 
 LQR = lqr.LQR(A, B, C, time_step, T_sample)
 LQR.initialize(x_max, u_max)
 
-# Nonlinear simulation
+
+# Teste com feedforward de velocidade
+Cspeed = np.array([
+                   [0,0,0,0,0,0,1,0,0,0,0,0],
+                   [0,0,0,0,0,0,0,1,0,0,0,0],
+                   [0,0,0,0,0,0,0,0,1,0,0,0],
+                   [0,0,0,0,0,0,0,0,0,1,0,0],
+                   [0,0,0,0,0,0,0,0,0,0,1,0],
+                   [0,0,0,0,0,0,0,0,0,0,0,1],
+                   ])
+
+LQR2 = lqr.LQR(A, B, Cspeed, time_step, T_sample)
+LQR2.initialize(x_max, u_max)
+
+    # Nonlinear simulation
 x_lqr_nonlinear, u_lqr_nonlinear = LQR.simulate2(X0, t_samples, r_tracking, model.f2, u_eq)
-#print('shape nonlinear', np.shape(x_lqr_nonlinear))
-# Linear simulation
-x_lqr_linear = LQR.simulate_linear(X0, t_samples, r_tracking)
-#print('shape linear', np.shape(x_lqr_linear))
+    # Linear simulation
+#x_lqr_linear = LQR.simulate_linear(X0, t_samples, r_tracking)
+#x_lqr_linear3, u_linear_discrete3 = LQR.simulate_linear3(X0, t_samples, r_tracking)
+#x_lqr_linear2 = LQR.simulate_linear2(X0, t_samples, r_tracking)
+
+# Speed reference
+r_tracking = tr.speed_reference(r_tracking, t_samples)
+#x_lqr_nonlinear_speed, u_lqr_nonlinear_speed = LQR2.simulate_speed_reference(X0, t_samples, r_tracking, model.f2, u_eq)
+x_lqr_linear_speed, u_lqr_linear_speed = LQR2.simulate_linear4_speed_reference(X0, t_samples, r_tracking)
+plot_states_speed(x_lqr_nonlinear, t_samples, x_lqr_linear_speed, r_tracking)
+
+#plot_states(x_lqr_nonlinear, t_samples, x_lqr_linear, r_tracking, legend=['Nonlinear', 'Discrete(1)'])
+#plot_states(x_lqr_linear, t_samples, x_lqr_linear2, r_tracking, legend=['Discrete(1)', 'Discrete(2)'])
+#plot_states(x_lqr_linear2, t_samples, x_lqr_linear3, r_tracking, legend=['Discrete(2)', 'Discrete(3)'])
+#plot_states(x_lqr_nonlinear, t_samples, x_lqr_nonlinear, r_tracking)
+fig = plt.figure()
+plt.plot(t_samples[0:-1], u_lqr_nonlinear[:,0])
+plt.plot(t_samples[0:-1], u_lqr_linear_speed[:,0])
+plt.legend(['normal','speed'])
+plt.show()
 
 #X_lqr_nonlinear, u_vector = lqr1.simulate(X0, t, r_tracking, f2, u_eq) # Não linear
 #X_lqr_nonlinear2, u_vector2 = lqr2.simulate2(X0, t_samples, r_tracking, f2, u_eq)
@@ -159,7 +193,7 @@ x_lqr_linear = LQR.simulate_linear(X0, t_samples, r_tracking)
 
 # MPC Implementation
 
-N = 200
+N = 100
 M = 20
 rho = 1
 
@@ -192,7 +226,7 @@ MPC.initialize_matrices()
 X_mpc_nonlinear, u_mpc = MPC.simulate(model.f2, X0, t_samples, r_tracking, u_eq)
 X_mpc_nonlinear_future, u_mpc_future = MPC.simulate_future(model.f2, X0, t_samples, r_tracking, u_eq)
 #X_mpc_linear, u_mpc_linear = MPC.simulate_linear(X0, t_samples, r_tracking, u_eq)
-plot_states(X_mpc_nonlinear, t_samples[:np.shape(X_mpc_nonlinear)[0]], X_mpc_nonlinear_future, r_tracking, u_mpc, equal_scales=True)
+#plot_states(X_mpc_nonlinear, t_samples[:np.shape(X_mpc_nonlinear)[0]], X_mpc_nonlinear_future, r_tracking, u_mpc, equal_scales=True, legend=['Present Reference', 'Future Reference', 'Trajectory'])
 #plot_states(X_mpc_nonlinear, t_samples[:np.shape(X_mpc_nonlinear_future)[0]], X_mpc_nonlinear_future, r_tracking, u_mpc_future, equal_scales=True)
 #plot_inputs(u_mpc, t_samples[0:-1])
 
@@ -210,20 +244,20 @@ restrictions2 = {
 output_weights2 = 1 / (N*delta_y_max**2) # Deve variar a cada passo de simulação?
 control_weights2 = 1 / (M*restrictions2['delta_u_max']**2)
 
-print(np.sqrt(np.linalg.pinv(model.Gama) @ [2*m*g, 0, 0, 0]))
-print(np.sqrt(np.linalg.pinv(model.Gama) @ [m*g, 0.1*m*g, 0.1*m*g, 0*m*g]))
-print(np.sqrt(np.linalg.pinv(model.Gama) @ [m*g, -0.1*m*g, -0.1*m*g, -0.1*m*g]))
-print(np.sqrt(np.linalg.pinv(model.Gama) @ [1.5*m*g, 0, 0, 0]))
+# print(np.sqrt(np.linalg.pinv(model.Gama) @ [2*m*g, 0, 0, 0]))
+# print(np.sqrt(np.linalg.pinv(model.Gama) @ [m*g, 0.1*m*g, 0.1*m*g, 0*m*g]))
+# print(np.sqrt(np.linalg.pinv(model.Gama) @ [m*g, -0.1*m*g, -0.1*m*g, -0.1*m*g]))
+# print(np.sqrt(np.linalg.pinv(model.Gama) @ [1.5*m*g, 0, 0, 0]))
 
-print(np.linalg.pinv(model.Gama) @ [-m*g, 0, 0, 0])
-print(np.linalg.pinv(model.Gama) @ [m*g, 0, 0, 0])
-print(np.linalg.pinv(model.Gama) @ [m*g, 0.1*m*g, 0.1*m*g, 0.1*m*g])
-print(np.linalg.pinv(model.Gama) @ [m*g, -0.1*m*g, -0.1*m*g, -0.1*m*g])
-print(np.linalg.pinv(model.Gama) @ [1.5*m*g, 0, 0, 0])
+# print(np.linalg.pinv(model.Gama) @ [-m*g, 0, 0, 0])
+# print(np.linalg.pinv(model.Gama) @ [m*g, 0, 0, 0])
+# print(np.linalg.pinv(model.Gama) @ [m*g, 0.1*m*g, 0.1*m*g, 0.1*m*g])
+# print(np.linalg.pinv(model.Gama) @ [m*g, -0.1*m*g, -0.1*m*g, -0.1*m*g])
+# print(np.linalg.pinv(model.Gama) @ [1.5*m*g, 0, 0, 0])
 
 
 Bw = B @ model.Gama
 MPC2 = mpc.mpc(M, N, rho, A, Bw, C, time_step, T_sample, output_weights2, control_weights2, restrictions2)
 MPC2.initialize_matrices()
 x_mpc_rotors, u_rotors, omega_vector = MPC2.simulate_future_rotors(model, X0, t_samples, r_tracking, omega_eq**2)
-plot_states(X_mpc_nonlinear_future, t_samples[:np.shape(x_mpc_rotors)[0]], x_mpc_rotors, r_tracking, u_rotors, omega_vector, equal_scales=True)
+plot_states(X_mpc_nonlinear_future, t_samples[:np.shape(x_mpc_rotors)[0]], x_mpc_rotors, r_tracking, u_rotors, omega_vector, equal_scales=True, legend=['Force/Moment optimization','Angular speed optimization'])
