@@ -44,6 +44,16 @@ def linearize(f_sym, X_eq, U_eq):
                 ('t_z', U_eq[3])])
     
     return A,B
+
+def discretize(A, B, C, time_sample):
+    '''
+    Discretization of State Space matrices A, B and C according to time_sample.
+    '''
+    p = np.shape(B)[1]
+    q = np.shape(C)[0]
+    sys_d = signal.cont2discrete((A, B, C, np.zeros((q, p))), time_sample, 'zoh')
+    Ad, Bd, Cd, _, _ = sys_d
+    return Ad, Bd, Cd    
     
 def openloop_sim_linear(A, B, t, X0, X_eq, U_eq, U_sim):
     '''Simulates the linearized model around X0 and U_eq with the given input U_sim over time t, starting from initial condition X0'''
