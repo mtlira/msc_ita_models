@@ -154,6 +154,11 @@ class mpc(object):
     #    return -(Aqp @ x - bqp)
     
     def simulate(self, f_model, X0, t_samples, trajectory, u_eq):
+        '''
+        Output of the MPC is the thrust force and the moments that are the input of the multirotor.
+        It passes only the reference at instant k tiled N times
+        '''
+
         p = self.p
         q = self.q
 
@@ -229,6 +234,7 @@ class mpc(object):
     
     def simulate_future(self, f_model, X0, t_samples, trajectory, u_eq):
         """
+        Output of the MPC is the thrust force and the moments that are the input of the multirotor.
         Takes into account future trajectory reference from trajectory[k] until trajectory[k+N-1]
         """
         p = self.p
@@ -307,6 +313,10 @@ class mpc(object):
         return np.array(X_vector), np.array(u_vector)
     
     def simulate_future_rotors(self, model, X0, t_samples, trajectory, u_eq):
+        """
+        Output of the MPC are the angular speeds that are the input of the multirotor.
+        Takes into account future trajectory reference from trajectory[k] until trajectory[k+N-1]
+        """
         p = self.p
         q = self.q
 

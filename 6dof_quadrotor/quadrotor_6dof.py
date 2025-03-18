@@ -38,7 +38,7 @@ KI = 3
 phi_setpoint = 0
 
 time_step = 1e-3 #5e-3 é um bom valor
-T_sample = 1e-2 # MP sample time
+T_sample = 5e-2 # MP sample time
 T_simulation = 20
 
 t = np.arange(0,T_simulation, time_step)
@@ -146,27 +146,27 @@ LQR2 = lqr.LQR(A, B, Cspeed, time_step, T_sample)
 LQR2.initialize(x_max, u_max)
 
     # Nonlinear simulation
-x_lqr_nonlinear, u_lqr_nonlinear = LQR.simulate2(X0, t_samples, r_tracking, model.f2, u_eq)
+#x_lqr_nonlinear, u_lqr_nonlinear = LQR.simulate2(X0, t_samples, r_tracking, model.f2, u_eq)
     # Linear simulation
 #x_lqr_linear = LQR.simulate_linear(X0, t_samples, r_tracking)
 #x_lqr_linear3, u_linear_discrete3 = LQR.simulate_linear3(X0, t_samples, r_tracking)
 #x_lqr_linear2 = LQR.simulate_linear2(X0, t_samples, r_tracking)
 
 # Speed reference
-r_tracking = tr.speed_reference(r_tracking, t_samples)
+#r_tracking = tr.speed_reference(r_tracking, t_samples)
 #x_lqr_nonlinear_speed, u_lqr_nonlinear_speed = LQR2.simulate_speed_reference(X0, t_samples, r_tracking, model.f2, u_eq)
-x_lqr_linear_speed, u_lqr_linear_speed = LQR2.simulate_linear4_speed_reference(X0, t_samples, r_tracking)
-plot_states_speed(x_lqr_nonlinear, t_samples, x_lqr_linear_speed, r_tracking)
+#x_lqr_linear_speed, u_lqr_linear_speed = LQR2.simulate_linear4_speed_reference(X0, t_samples, r_tracking)
+#plot_states_speed(x_lqr_nonlinear, t_samples, x_lqr_linear_speed, r_tracking)
 
 #plot_states(x_lqr_nonlinear, t_samples, x_lqr_linear, r_tracking, legend=['Nonlinear', 'Discrete(1)'])
 #plot_states(x_lqr_linear, t_samples, x_lqr_linear2, r_tracking, legend=['Discrete(1)', 'Discrete(2)'])
 #plot_states(x_lqr_linear2, t_samples, x_lqr_linear3, r_tracking, legend=['Discrete(2)', 'Discrete(3)'])
 #plot_states(x_lqr_nonlinear, t_samples, x_lqr_nonlinear, r_tracking)
-fig = plt.figure()
-plt.plot(t_samples[0:-1], u_lqr_nonlinear[:,0])
-plt.plot(t_samples[0:-1], u_lqr_linear_speed[:,0])
-plt.legend(['normal','speed'])
-plt.show()
+#fig = plt.figure()
+#plt.plot(t_samples[0:-1], u_lqr_nonlinear[:,0])
+#plt.plot(t_samples[0:-1], u_lqr_linear_speed[:,0])
+#plt.legend(['normal','speed'])
+#plt.show()
 
 #X_lqr_nonlinear, u_vector = lqr1.simulate(X0, t, r_tracking, f2, u_eq) # Não linear
 #X_lqr_nonlinear2, u_vector2 = lqr2.simulate2(X0, t_samples, r_tracking, f2, u_eq)
@@ -193,7 +193,7 @@ plt.show()
 
 # MPC Implementation
 
-N = 100
+N = 50
 M = 20
 rho = 1
 
