@@ -12,7 +12,7 @@ import control as ct
 import lqr as lqr
 import mpc as mpc
 import multirotor
-import trajectory
+import trajectory_handler
 from pathlib import Path
 from datetime import datetime
 
@@ -126,7 +126,7 @@ u_max = [
 # LQR - tracking
 
 w = 2*np.pi*1/20
-tr = trajectory.Trajectory()
+tr = trajectory_handler.TrajectoryHandler()
 
 r_tracking = None
 if trajectory_type == 'circle_xy':

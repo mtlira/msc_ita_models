@@ -2,7 +2,7 @@ import numpy as np
 
 # x, y and z coordinates are on the upside-down body axis
 
-class Trajectory(object):
+class TrajectoryHandler(object):
     def __init__(self):
         pass
 
