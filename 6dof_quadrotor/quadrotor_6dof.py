@@ -41,7 +41,7 @@ phi_setpoint = 0
 
 time_step = 1e-3 #5e-3 é um bom valor
 T_sample = 5e-2 # MP sample time
-T_simulation = 20
+T_simulation = 60
 
 t = np.arange(0,T_simulation, time_step)
 t_samples = np.arange(0,T_simulation, T_sample)
@@ -55,7 +55,7 @@ X_eq = np.zeros(12)
 
 # f_t está no eixo do corpo
 
-trajectory_type = 'circle_xy'
+trajectory_type = 'helicoidal'
 
 # Open-loop Inputs
 def u_(t):
@@ -125,7 +125,7 @@ u_max = [
 ########################################################################################
 # LQR - tracking
 
-w = 2*np.pi*1/20
+w = 2*np.pi*1/30
 tr = trajectory_handler.TrajectoryHandler()
 
 r_tracking = None
@@ -213,7 +213,7 @@ LQR2.initialize(x_max, u_max)
 
 # MPC Implementation
 
-N = 50
+N = 80
 M = 20
 rho = 1
 

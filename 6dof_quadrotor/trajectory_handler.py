@@ -52,3 +52,250 @@ class TrajectoryHandler(object):
         speed_ref = np.array(speed_ref)
         tr = np.concatenate((speed_ref, trajectory), axis = 1)
         return tr
+    
+    def generate_trajectories_batch(self):
+        trajectories = []
+        
+        ### Circle XY trajectories ###
+
+        # Circle 1
+        T_simulation = 40
+        T_sample = 0.05
+        t_samples = np.arange(0,T_simulation, T_sample)
+        w = 2*np.pi*1/20
+        r = 5
+        trajectories.append((self.circle_xy(w, r, t_samples), T_sample))
+
+        # Circle 2
+        T_simulation = 40
+        T_sample = 0.02
+        t_samples = np.arange(0,T_simulation, T_sample)
+        w = 2*np.pi*1/20
+        r = 5
+        trajectories.append((self.circle_xy(w, r, t_samples), T_sample))
+
+        T_simulation = 10
+        T_sample = 0.05
+        t_samples = np.arange(0,T_simulation, T_sample)
+        w = 2*np.pi*1/T_simulation
+        r = 1
+        trajectories.append((self.circle_xy(w, r, t_samples), T_sample))
+
+        T_simulation = 5
+        T_sample = 0.05
+        t_samples = np.arange(0,T_simulation, T_sample)
+        w = 2*np.pi*1/T_simulation
+        r = 1
+        trajectories.append((self.circle_xy(w, r, t_samples), T_sample))
+
+        T_simulation = 2
+        T_sample = 0.05
+        t_samples = np.arange(0,T_simulation, T_sample)
+        w = 2*np.pi*1/T_simulation
+        r = 1
+        trajectories.append((self.circle_xy(w, r, t_samples), T_sample))
+
+        T_simulation = 5
+        T_sample = 0.02
+        t_samples = np.arange(0,T_simulation, T_sample)
+        w = 2*np.pi*1/T_simulation
+        r = 1
+        trajectories.append((self.circle_xy(w, r, t_samples), T_sample))
+
+        ### Circle XZ Trajectories ###
+
+        # Circle 1
+        T_simulation = 40
+        T_sample = 0.05
+        t_samples = np.arange(0,T_simulation, T_sample)
+        w = 2*np.pi*1/20
+        r = 5
+        trajectories.append((self.circle_xz(w, r, t_samples), T_sample))
+
+        # Circle 2
+        T_simulation = 40
+        T_sample = 0.02
+        t_samples = np.arange(0,T_simulation, T_sample)
+        w = 2*np.pi*1/20
+        r = 5
+        trajectories.append((self.circle_xz(w, r, t_samples), T_sample))
+
+        T_simulation = 10
+        T_sample = 0.05
+        t_samples = np.arange(0,T_simulation, T_sample)
+        w = 2*np.pi*1/T_simulation
+        r = 1
+        trajectories.append((self.circle_xz(w, r, t_samples), T_sample))
+
+        T_simulation = 5
+        T_sample = 0.05
+        t_samples = np.arange(0,T_simulation, T_sample)
+        w = 2*np.pi*1/T_simulation
+        r = 1
+        trajectories.append((self.circle_xz(w, r, t_samples), T_sample))
+
+        T_simulation = 2
+        T_sample = 0.05
+        t_samples = np.arange(0,T_simulation, T_sample)
+        w = 2*np.pi*1/T_simulation
+        r = 1
+        trajectories.append((self.circle_xz(w, r, t_samples), T_sample))
+
+        T_simulation = 5
+        T_sample = 0.02
+        t_samples = np.arange(0,T_simulation, T_sample)
+        w = 2*np.pi*1/T_simulation
+        r = 1
+        trajectories.append((self.circle_xz(w, r, t_samples), T_sample))
+
+
+        ### Points ###
+        T_simulation = 10
+        T_sample = 0.05
+        trajectories.append((self.point(0, 0, 0), T_sample))
+
+        T_simulation = 10
+        T_sample = 0.05
+        trajectories.append((self.point(0, 0, -1), T_sample))
+
+        T_simulation = 10
+        T_sample = 0.02
+        trajectories.append((self.point(0, 0, -1), T_sample))
+
+        T_simulation = 10
+        T_sample = 0.05
+        trajectories.append((self.point(0, 0, -2), T_sample))
+
+        T_simulation = 15
+        T_sample = 0.05
+        trajectories.append((self.point(0, 0, -5), T_sample))
+
+        T_simulation = 15
+        T_sample = 0.02
+        trajectories.append((self.point(0, 0, -5), T_sample))
+
+        T_simulation = 20
+        T_sample = 0.05
+        trajectories.append((self.point(0, 0, -10), T_sample))
+
+        T_simulation = 10
+        T_sample = 0.05
+        trajectories.append((self.point(0, 0, 1), T_sample))
+
+        T_simulation = 10
+        T_sample = 0.02
+        trajectories.append((self.point(0, 0, 1), T_sample))
+
+        T_simulation = 15
+        T_sample = 0.05
+        trajectories.append((self.point(0, 0, 5), T_sample))
+
+        T_simulation = 15
+        T_sample = 0.02
+        trajectories.append((self.point(0, 0, 5), T_sample))
+
+        T_simulation = 20
+        T_sample = 0.05
+        trajectories.append((self.point(0, 0, 10), T_sample))
+
+        T_simulation = 10
+        T_sample = 0.02
+        trajectories.append((self.point(0, 0, 10), T_sample))
+
+        T_simulation = 10
+        T_sample = 0.05
+        trajectories.append((self.point(1, 0, 0), T_sample))
+
+        T_simulation = 10
+        T_sample = 0.02
+        trajectories.append((self.point(1, 0, 0), T_sample))
+
+        T_simulation = 10
+        T_sample = 0.05
+        trajectories.append((self.point(0, 1, 0), T_sample))
+
+        T_simulation = 10
+        T_sample = 0.02
+        trajectories.append((self.point(0, 1, 0), T_sample))
+
+        T_simulation = 20
+        T_sample = 0.05
+        trajectories.append((self.point(10, 0, 0), T_sample))
+
+        T_simulation = 20
+        T_sample = 0.02
+        trajectories.append((self.point(10, 0, 0), T_sample))
+
+        T_simulation = 20
+        T_sample = 0.05
+        trajectories.append((self.point(0, 10, 0), T_sample))
+
+        T_simulation = 20
+        T_sample = 0.02
+        trajectories.append((self.point(0, 10, 0), T_sample))
+
+        T_simulation = 10
+        T_sample = 0.05
+        trajectories.append((self.point(1, 1, -1), T_sample))
+
+        T_simulation = 25
+        T_sample = 0.05
+        trajectories.append((self.point(5, -3, -15), T_sample))
+
+        T_simulation = 25
+        T_sample = 0.02
+        trajectories.append((self.point(5, -3, -15), T_sample))
+
+        T_simulation = 25
+        T_sample = 0.05
+        trajectories.append((self.point(5, -3, 15), T_sample))
+
+        T_simulation = 25
+        T_sample = 0.02
+        trajectories.append((self.point(5, -3, 15), T_sample))
+
+        ### Lines ###
+        T_simulation = 15
+        T_sample = 0.05
+        t_samples = np.arange(0, T_simulation, T_sample)
+        trajectories.append((self.line(1, 1, -1, t_samples, 10), T_sample))
+
+        T_simulation = 15
+        T_sample = 0.05
+        t_samples = np.arange(0, T_simulation, T_sample)
+        trajectories.append((self.line(1, 1, 1, t_samples, 10), T_sample))
+
+        T_simulation = 20
+        T_sample = 0.05
+        t_samples = np.arange(0, T_simulation, T_sample)
+        trajectories.append((self.line(5, -2, 6, t_samples, 17), T_sample))
+
+        T_simulation = 20
+        T_sample = 0.05
+        t_samples = np.arange(0, T_simulation, T_sample)
+        trajectories.append((self.line(5, -2, -6, t_samples, 17), T_sample))
+
+        ### Helicoidal ###
+        T_simulation = 40
+        T_sample = 0.05
+        w = 2*np.pi*1/20
+        t_samples = np.arange(0, T_simulation, T_sample)
+        trajectories.append((self.helicoidal(w, t_samples), T_sample))
+
+        T_simulation = 60
+        T_sample = 0.05
+        w = 2*np.pi*1/30
+        t_samples = np.arange(0, T_simulation, T_sample)
+        trajectories.append((self.helicoidal(w, t_samples), T_sample))
+
+        T_simulation = 60
+        T_sample = 0.05
+        w = 2*np.pi*1/30
+        t_samples = np.arange(0, T_simulation, T_sample)
+        trajectories.append((self.helicoidal(w, t_samples), T_sample))
+
+        T_simulation =50
+        T_sample = 0.05
+        w = 2*np.pi*1/30
+        t_samples = np.arange(0, T_simulation, T_sample)
+        trajectories.append((self.helicoidal(w, t_samples), T_sample))         
