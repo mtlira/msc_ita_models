@@ -13,6 +13,8 @@ import lqr as lqr
 import mpc as mpc
 import multirotor
 import trajectory
+from pathlib import Path
+from datetime import datetime
 
 m = 10
 g = 9.80665
@@ -48,10 +50,12 @@ t_samples = np.arange(0,T_simulation, T_sample)
 X0 = np.array([0,0,0,0,0,0,0,0,0,0,0,0])
 
 # Equilibrium point (trivial)
-#X_eq = np.zeros(12)
-X_eq = np.array([0,0,0,0,0,0,0,0,0,1,1,-1])
+X_eq = np.zeros(12)
+#X_eq = np.array([0,0,0,0,0,0,0,0,0,1,1,-1])
 
 # f_t está no eixo do corpo
+
+trajectory_type = 'circle_xy'
 
 # Open-loop Inputs
 def u_(t):
@@ -123,8 +127,24 @@ u_max = [
 
 w = 2*np.pi*1/20
 tr = trajectory.Trajectory()
+
+r_tracking = None
+if trajectory_type == 'circle_xy':
+    r_tracking = tr.circle_xy(w, 5, t_samples)
+
+if trajectory_type == 'circle_xz':
+    r_tracking = tr.circle_xz(w, 5, t_samples)
+
+if trajectory_type == 'point':
+    r_tracking = tr.point(0, 0, -1, t_samples)
+
+if trajectory_type == 'line':
+    r_tracking = tr.line(1, 1, -1, t_samples, 15)
+
+if trajectory_type == 'helicoidal':
+    r_tracking = tr.helicoidal(w,t_samples)
+
 #r_tracking = tr.point(0, 0, -1, t_samples)
-r_tracking = tr.circle_xy(w, 5, t_samples)
 #r_tracking = tr.helicoidal(w,t_samples)
 #r_tracking = tr.line(1, 1, -1, t_samples, 15)
 
@@ -221,10 +241,10 @@ control_weights = 1 / (M*restrictions['delta_u_max']**2)
 #output_weights = [1,1,3] # Deve variar a cada passo de simulação?
 #control_weights = [3,1,1,1]
 
-MPC = mpc.mpc(M, N, rho, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions)
-MPC.initialize_matrices()
-X_mpc_nonlinear, u_mpc = MPC.simulate(model.f2, X0, t_samples, r_tracking, u_eq)
-X_mpc_nonlinear_future, u_mpc_future = MPC.simulate_future(model.f2, X0, t_samples, r_tracking, u_eq)
+#MPC = mpc.mpc(M, N, rho, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions)
+#MPC.initialize_matrices()
+#X_mpc_nonlinear, u_mpc = MPC.simulate(model.f2, X0, t_samples, r_tracking, u_eq)
+#X_mpc_nonlinear_future, u_mpc_future = MPC.simulate_future(model.f2, X0, t_samples, r_tracking, u_eq)
 #X_mpc_linear, u_mpc_linear = MPC.simulate_linear(X0, t_samples, r_tracking, u_eq)
 #plot_states(X_mpc_nonlinear, t_samples[:np.shape(X_mpc_nonlinear)[0]], X_mpc_nonlinear_future, r_tracking, u_mpc, equal_scales=True, legend=['Present Reference', 'Future Reference', 'Trajectory'])
 #plot_states(X_mpc_nonlinear, t_samples[:np.shape(X_mpc_nonlinear_future)[0]], X_mpc_nonlinear_future, r_tracking, u_mpc_future, equal_scales=True)
@@ -257,7 +277,18 @@ control_weights2 = 1 / (M*restrictions2['delta_u_max']**2)
 
 
 Bw = B @ model.Gama
-MPC2 = mpc.mpc(M, N, rho, A, Bw, C, time_step, T_sample, output_weights2, control_weights2, restrictions2)
+MPC2 = mpc.mpc(M, N, A, Bw, C, time_step, T_sample, output_weights2, control_weights2, restrictions2)
 MPC2.initialize_matrices()
-x_mpc_rotors, u_rotors, omega_vector = MPC2.simulate_future_rotors(model, X0, t_samples, r_tracking, omega_eq**2)
-plot_states(X_mpc_nonlinear_future, t_samples[:np.shape(x_mpc_rotors)[0]], x_mpc_rotors, r_tracking, u_rotors, omega_vector, equal_scales=True, legend=['Force/Moment optimization','Angular speed optimization'])
+x_mpc_rotors, u_rotors, omega_vector, NN_dataset = MPC2.simulate_future_rotors(model, X0, t_samples, r_tracking, omega_eq**2, generate_dataset=True)
+
+if x_mpc_rotors is not None:
+    #plot_states(X_mpc_nonlinear_future, t_samples[:np.shape(x_mpc_rotors)[0]], x_mpc_rotors, r_tracking, u_rotors, omega_vector, equal_scales=True, legend=['Force/Moment optimization','Angular speed optimization'])
+    plot_states(x_mpc_rotors, t_samples[:np.shape(x_mpc_rotors)[0]], trajectory=r_tracking, u_vector=u_rotors, omega_vector=omega_vector, equal_scales=True, legend=['Force/Moment optimization'])
+
+    save_dataset = str(input('Do you wish to save the generated simulation dataset? (y/n): '))
+    if save_dataset == 'y':
+        now = datetime.now()
+        current_time = now.strftime("%m_%d_%Hh-%Mm")
+        Path("simulations/{}/{}/".format(trajectory_type, current_time)).mkdir(parents=True, exist_ok=True)
+        print('shape NN dataset=', np.shape(NN_dataset))
+        np.savetxt("simulations/{}/{}/dataset.csv".format(trajectory_type, current_time), NN_dataset, delimiter=",")
