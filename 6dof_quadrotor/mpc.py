@@ -7,10 +7,9 @@ import cvxopt
 from linearize import discretize
 
 class mpc(object):
-    def __init__(self, M, N, rho, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions):
+    def __init__(self, M, N, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions):
         self.M = M
         self.N = N
-        self.rho = rho
         self.A = A
         self.B = B
         self.C = C
@@ -312,7 +311,7 @@ class mpc(object):
             #delta_u_initial = np.tile(delta_u_k,self.M)
         return np.array(X_vector), np.array(u_vector)
     
-    def simulate_future_rotors(self, model, X0, t_samples, trajectory, u_eq):
+    def simulate_future_rotors(self, model, X0, t_samples, trajectory, u_eq, generate_dataset = False):
         """
         Output of the MPC are the angular speeds that are the input of the multirotor.
         Takes into account future trajectory reference from trajectory[k] until trajectory[k+N-1]
@@ -330,12 +329,110 @@ class mpc(object):
         Hqp = self.Hqp
         cvxopt.solvers.options['show_progress'] = False
 
+        # NN Dataset
+        NN_dataset = [] if generate_dataset else None
+
         for k in range(0, len(t_samples)-1): # TODO: confirmar se é -1 mesmo:
             ref_N = trajectory[k:k+self.N].reshape(-1) # TODO validar se termina em k+N-1 ou em k+N
             if np.shape(ref_N)[0] < q*self.N:
                 #print('kpi',self.N - int(np.shape(ref_N)[0]/q))
                 ref_N = np.concatenate((ref_N, np.tile(trajectory[-1].reshape(-1), self.N - int(np.shape(ref_N)[0]/q))), axis = 0) # padding de trajectory[-1] em ref_N quando trajectory[k+N] ultrapassa ultimo elemento
             #ref_N = np.tile(trajectory[k,:], self.N)
+            epsilon_k = np.concatenate((x_k, u_k_minus_1), axis = 0)
+            f = self.phi @ epsilon_k
+            fqp = 2*np.transpose(self.Gn) @ (f - ref_N)
+            
+            # bqp
+            bqp = np.concatenate((
+                np.tile(self.restrictions['delta_u_max'], self.M), # delta_u_max_M
+                - np.tile(self.restrictions['delta_u_min'], self.M), # -delta_u_min_M
+                np.tile(self.restrictions['u_max'] - u_k_minus_1, self.M),
+                np.tile(u_k_minus_1 - self.restrictions['u_min'], self.M),
+                np.tile(self.restrictions['y_max'], self.N) - f,
+                f - np.tile(self.restrictions['y_min'], self.N)
+            ), axis = 0)
+
+            # optimization
+            #cost_function = lambda x: 0.5*np.transpose(x) @ Hqp @ x + np.transpose(fqp) @ x
+
+            #constraints_dict = {
+            #    'type': 'ineq',
+            #    'fun': lambda x: -(self.Aqp @ x - bqp)
+            #}
+            #opt = {'maxiter': 1000}
+            #res = minimize(fun= cost_function, x0=delta_u_initial, constraints=constraints_dict)#, options=opt) ######################### TODO: verificar opt ######################
+            #print('Hqp',np.max(np.abs(Hqp - Hqp.T)))
+           
+            # METODO 2 #######################################
+            Hqp = Hqp.astype(np.double)
+            fqp = fqp.astype(np.double)
+            self.Aqp = self.Aqp.astype(np.double)
+            bqp = bqp.astype(np.double)
+            res = cvxopt.solvers.qp(cvxopt.matrix(Hqp), cvxopt.matrix(fqp), cvxopt.matrix(self.Aqp), cvxopt.matrix(bqp))
+            x = np.array(res['x']).reshape((Hqp.shape[1],))
+            ##################################################
+
+
+            #print('res.x',res.x)
+            #print('res2.x',np.array(res2['x']).reshape((Hqp.shape[1],)))
+            delta_u_k = np.concatenate((np.eye(p), np.zeros((p, p*(self.M - 1)))), axis = 1) @ x # optimal delta_u_k
+            u_k = u_k_minus_1 + delta_u_k # TODO: confirmar se tem esse u_eq
+
+            # omega**2 --> u
+            uu_k = model.Gama @ (u_k + u_eq)
+
+            # Apply control u_k in the multi-rotor
+            f_t_k, t_x_k, t_y_k, t_z_k = uu_k # Attention for u_eq (solved the problem)
+            t_simulation = np.arange(t_samples[k], t_samples[k+1], self.T)
+            #t_simulation2 = np.arange(0,t_samples[1], self.T)
+            #x_k = odeint(f_model, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
+            
+
+            x_k = odeint(model.f2, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
+            x_k = x_k[-1]
+            if np.linalg.norm(x_k[9:12]) > 100 or np.max(np.abs(x_k[0:2])) > 1.5:
+                print('Simulation exploded.')
+                print('x_k =',x_k)
+                return None, None, None, None
+            
+            X_vector.append(x_k)
+            u_k_minus_1 = u_k
+            u_vector.append(uu_k)
+            omega_vector.append(np.sqrt(u_k + u_eq))
+            #delta_u_initial = np.tile(delta_u_k,self.M)
+
+            # Storing dataset samples
+            if generate_dataset:
+                NN_sample = np.array([])
+
+                # Clarification: u is actually (u - ueq) and delta_u is (u-ueq)[k] - (u-ueq)[k-1] in this MPC formulation (i.e., u is in reference to u_eq, not 0)
+                NN_sample = np.concatenate((NN_sample, x_k, ref_N, self.restrictions['u_min'], self.restrictions['u_max'], self.restrictions['delta_u_min'], self.restrictions['delta_u_max'], u_k), axis = 0)
+
+                NN_dataset.append(NN_sample)
+
+        return np.array(X_vector), np.array(u_vector), np.array(omega_vector), np.asarray(NN_dataset)
+    
+    def simulate_rotors(self, model, X0, t_samples, trajectory, u_eq):
+        """
+        Output of the MPC are the angular speeds that are the input of the multirotor.
+        It passes only the reference at instant k tiled N times
+        """
+        p = self.p
+        q = self.q
+
+        #u_minus_1 = np.array(u_eq) # TODO: Confirmar se é u_eq ou 0
+        u_minus_1 = np.zeros(p)
+        x_k = X0
+        u_k_minus_1 = u_minus_1
+        X_vector = [X0]
+        u_vector = []
+        omega_vector = []
+        Hqp = self.Hqp
+        cvxopt.solvers.options['show_progress'] = False
+
+
+        for k in range(0, len(t_samples)-1): # TODO: confirmar se é -1 mesmo:
+            ref_N = np.tile(trajectory[k,:], self.N)
             epsilon_k = np.concatenate((x_k, u_k_minus_1), axis = 0)
             f = self.phi @ epsilon_k
             fqp = 2*np.transpose(self.Gn) @ (f - ref_N)
@@ -399,6 +496,7 @@ class mpc(object):
             omega_vector.append(np.sqrt(u_k + u_eq))
             #delta_u_initial = np.tile(delta_u_k,self.M)
         return np.array(X_vector), np.array(u_vector), np.array(omega_vector)
+
     
     def simulate_linear(self, X0, t_samples, trajectory, u_eq):
         p = self.p
