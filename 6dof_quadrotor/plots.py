@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None, omega_vector = None, equal_scales=False, legend = []):
+def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None, omega_vector = None, equal_scales=False, legend = [], save_path = None):
     # Rotation
     fig, axs = plt.subplots(2, 3)
     axs[0,0].plot(t,X[:,0])
@@ -41,6 +41,7 @@ def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None, omega_vec
     axs[1,2].set_ylabel('r (rad/s)')
     fig.legend(legend[0:-1])
     plt.subplots_adjust(left=0.083, bottom=0.083, right=0.948, top=0.914, wspace=0.23, hspace=0.31)
+    if save_path is not None: plt.savefig(save_path + 'x_angular.png')
 
     # Translation
     fig, axs = plt.subplots(2, 3)
@@ -84,6 +85,7 @@ def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None, omega_vec
     axs[1,2].set_ylabel('z (m)')
     fig.legend(legend)
     plt.subplots_adjust(left=0.083, bottom=0.083, right=0.948, top=0.914, wspace=0.23, hspace=0.31)
+    if save_path is not None: plt.savefig(save_path + 'x_linear.png')
 
     fig = plt.figure()
     axs = plt.axes(projection='3d')
@@ -96,12 +98,15 @@ def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None, omega_vec
     axs.set_title('3D Plot')
     fig.legend(legend)
     if equal_scales: axs.set_aspect('equal', adjustable='box')
+    if save_path is not None: plt.savefig(save_path + '3D.png')
 
     if u_vector is not None and omega_vector is not None:
         plot_inputs(u_vector, t, omega_vector)
     if u_vector is not None and omega_vector is None:
         plot_inputs(u_vector, t)
-    plt.show()
+    if save_path is not None: plt.savefig(save_path + 'inputs.png')
+    if save_path is None: plt.show()
+    plt.close('all')
 
 def plot_states_speed(X,t, X_lin = None, trajectory = None, u_vector = None, omega_vector = None, equal_scales=False):
     # Rotation
