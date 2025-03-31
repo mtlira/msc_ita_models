@@ -217,6 +217,8 @@ N = 80
 M = 20
 rho = 1
 
+
+# Clarification: u is actually (u - ueq) and delta_u is (u-ueq)[k] - (u-ueq)[k-1] in this MPC formulation (i.e., u is in reference to u_eq, not 0)
 restrictions = {
     #"delta_u_max": 1.5*m*g*time_step*np.ones(4),
     "delta_u_max": np.array([3*m*g*T_sample, 0.1*m*g*T_sample, 0.1*m*g*T_sample, 0.1*m*g*T_sample]),

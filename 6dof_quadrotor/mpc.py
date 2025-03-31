@@ -387,7 +387,8 @@ class mpc(object):
             #t_simulation2 = np.arange(0,t_samples[1], self.T)
             #x_k = odeint(f_model, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
             
-
+            # x[k+1] = f(x[k], u[k])
+            x_k_old = x_k # Used only to mount nn_sample array
             x_k = odeint(model.f2, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
             x_k = x_k[-1]
             if np.linalg.norm(x_k[9:12]) > 100 or np.max(np.abs(x_k[0:2])) > 1.5:
@@ -406,7 +407,7 @@ class mpc(object):
                 NN_sample = np.array([])
 
                 # Clarification: u is actually (u - ueq) and delta_u is (u-ueq)[k] - (u-ueq)[k-1] in this MPC formulation (i.e., u is in reference to u_eq, not 0)
-                NN_sample = np.concatenate((NN_sample, x_k, ref_N, self.restrictions['u_min'], self.restrictions['u_max'], self.restrictions['delta_u_min'], self.restrictions['delta_u_max'], u_k), axis = 0)
+                NN_sample = np.concatenate((NN_sample, x_k_old, ref_N, self.restrictions['u_min'], self.restrictions['u_max'], self.restrictions['delta_u_min'], self.restrictions['delta_u_max'], u_k), axis = 0)
 
                 NN_dataset.append(NN_sample)
 

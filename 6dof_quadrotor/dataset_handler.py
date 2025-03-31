@@ -51,7 +51,7 @@ def group_datasets(folder_path):
         if global_dataset[column].isnull().values.any():
             print('mean', mean)
             print('std', std)
-            print('column', column)
+            print('NaN column', column)
 
         mean_row.append(mean)
         std_row.append(std)

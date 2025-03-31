@@ -17,18 +17,7 @@ from pathlib import Path
 from datetime import datetime
 
 ### MULTIROTOR PARAMETERS ###
-m = 10
-g = 9.80665
-I_x = 0.8
-I_y = 0.8
-I_z = 0.8
-
-### Control allocation parameters ###
-l = 1 # multirotor's arm (distance from the center to the propeller)
-b = m*g/(200**2) # f_i = b*w^2, f_i is force of propeller and w is angular speed
-#k_t = 0.01 # Torque = k_t * Tração, entre 0.01 e 0.03 (segundo internet)
-k_t = 0.0001 # Valor de k_t afeta na velocidade de divergência de psi(t)
-d = b*k_t # Torque = d * w^2
+from quadrotor_parameters import m, g, I_x, I_y, I_z, l, b, d
 
 # Simulation trajectory
 #trajectory_type = 'circle_xy' # maybe delete
@@ -39,7 +28,6 @@ model = multirotor.multirotor(m, g, I_x, I_y, I_z, b, l, d)
 time_step = 1e-3 # Simulation time step #5e-3 é um bom valor
 T_sample = 5e-2 # MPC sample time
 T_simulation = 20 # Total simulation time
-#t = np.arange(0,T_simulation, time_step)
 t_samples = np.arange(0,T_simulation, T_sample)
 
 # Input and state values at the equilibrium condition
@@ -61,7 +49,7 @@ C = np.array([[0,0,0,0,0,0,0,0,0,1,0,0],
 # print(eig_A)
 
 # w = 2*np.pi*1/20# maybe delete
-# tr = trajectory_handler.TrajectoryHandler()# maybe delete
+tr = trajectory_handler.TrajectoryHandler()
 
 # trajectory = None # maybe delete
 # if trajectory_type == 'circle_xy':
