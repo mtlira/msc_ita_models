@@ -8,14 +8,16 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # Hyperparameters
-num_epochs = 5
+num_epochs = 30
 batch_size = 64
 learning_rate = 0.001
 
 def train_neural_network():
-    train_dataset = ControlAllocationDataset('dataset_canon/canon_N_50_M_20/global/train_dataset.csv')
+    #train_dataset = ControlAllocationDataset('dataset_canon/canon_N_50_M_20/global/train_dataset.csv')
+    train_dataset = ControlAllocationDataset('dataset_canon/canon_N_50_M_20_2/global/train_dataset.csv')
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,num_workers=0)
-    test_dataset = ControlAllocationDataset('dataset_canon/canon_N_50_M_20/global/test_dataset.csv')
+    #test_dataset = ControlAllocationDataset('dataset_canon/canon_N_50_M_20/global/test_dataset.csv')
+    test_dataset = ControlAllocationDataset('dataset_canon/canon_N_50_M_20_2/global/test_dataset.csv')
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True,num_workers=0)
 
     ### 2. Building the Neural Network ###

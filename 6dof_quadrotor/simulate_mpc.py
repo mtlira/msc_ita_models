@@ -70,27 +70,18 @@ tr = trajectory_handler.TrajectoryHandler()
 # MPC Implementation
 
 N = 50
-M = 20
+M = 10
 
-def simulate_mpc(time_step, T_sample, T_simulation, trajectory, dataset_name, folder_name):
+def simulate_mpc(time_step, T_sample, T_simulation, trajectory, restrictions, dataset_name, folder_name):
     '''
     Executes a control simulation with MPC given the time step, time sample, total simulation time and the desired trajectory.\n
     dataset_name: name of dataset folder the current simulation will belong to\n
     folder_name: name of the folder that will store the simulation results\n
     (obs: the folder hierarchy is dataset_name/folder_name/)
     '''
-
     t_samples = np.arange(0,T_simulation, T_sample)
-    restrictions = {
-    "delta_u_max": np.linalg.pinv(model.Gama) @ [9*m*g*T_sample, 0, 0, 0],
-    "delta_u_min": np.linalg.pinv(model.Gama) @ [-9*m*g*T_sample, 0, 0, 0],
-    "u_max": np.linalg.pinv(model.Gama) @ [0.9*m*g, 0, 0, 0],
-    "u_min": np.linalg.pinv(model.Gama) @ [-0.9*m*g, 0, 0, 0],
-    "y_max": 100*np.ones(3),
-    "y_min": -100*np.ones(3)
-}
 
-    delta_y_max = 20*T_sample*np.ones(3)
+    delta_y_max = 10*T_sample*np.ones(3)
 
     output_weights2 = 1 / (N*delta_y_max**2) # Deve variar a cada passo de simulação?
     control_weights2 = 1 / (M*restrictions['delta_u_max']**2)
@@ -98,7 +89,10 @@ def simulate_mpc(time_step, T_sample, T_simulation, trajectory, dataset_name, fo
     Bw = B @ model.Gama
     MPC = mpc.mpc(M, N, A, Bw, C, time_step, T_sample, output_weights2, control_weights2, restrictions)
     MPC.initialize_matrices()
-    x_mpc_rotors, u_rotors, omega_vector, NN_dataset = MPC.simulate_future_rotors(model, X0, t_samples, trajectory, omega_eq**2, generate_dataset=True)
+    try:
+        x_mpc_rotors, u_rotors, omega_vector, NN_dataset = MPC.simulate_future_rotors(model, X0, t_samples, trajectory, omega_eq**2, generate_dataset=True)
+    except:
+        x_mpc_rotors = None
 
     if x_mpc_rotors is not None:
         save_path = 'simulations/{}/{}/'.format(dataset_name, folder_name)
@@ -112,14 +106,26 @@ def simulate_mpc(time_step, T_sample, T_simulation, trajectory, dataset_name, fo
 def generate_dataset():
     #trajectories_array = tr.generate_trajectories_batch()
     trajectories_array = tr.generate_trajectories_batch()
+
     dataset_id = 1
-    time_step = 1e-2
     now = datetime.now()
     current_time = now.strftime("%m_%d_%Hh-%Mm")
     for trajectory, T_sample, T_simulation in trajectories_array:
-        dataset_name = current_time
-        folder_name = str(dataset_id)
-        simulate_mpc(time_step, T_sample, T_simulation, trajectory, dataset_name, folder_name)
-        dataset_id += 1
+        restrictions_vector = [
+            {
+            "delta_u_max": np.linalg.pinv(model.Gama) @ [10*m*g*T_sample, 0, 0, 0],
+            "delta_u_min": np.linalg.pinv(model.Gama) @ [-10*m*g*T_sample, 0, 0, 0],
+            "u_max": np.linalg.pinv(model.Gama) @ [m*g, 0, 0, 0],
+            "u_min": np.linalg.pinv(model.Gama) @ [m*g, 0, 0, 0],
+            "y_max": 100*np.ones(3),
+            "y_min": -100*np.ones(3)
+            }
+        ]
+
+        for restriction in restrictions_vector:
+            dataset_name = current_time
+            folder_name = str(dataset_id)
+            simulate_mpc(time_step, T_sample, T_simulation, trajectory, restriction, dataset_name, folder_name)
+            dataset_id += 1
 
 generate_dataset()

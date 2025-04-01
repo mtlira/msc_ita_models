@@ -71,8 +71,10 @@ def split_dataset(save_folder, dataset_name, train_percentage):
     training_dataset.to_csv(save_folder + 'train_dataset.csv', sep=',', header = False, index = False)
     test_dataset.to_csv(save_folder + 'test_dataset.csv', sep=',', header = False, index = False)
                                 
-group_datasets('dataset_canon/canon_N_50_M_20/')
-split_dataset('dataset_canon/canon_N_50_M_20/global/', 'global_dataset.csv', 0.8)
+#group_datasets('dataset_canon/canon_N_50_M_20/')
+group_datasets('dataset_canon/canon_N_50_M_20_2/')
+#split_dataset('dataset_canon/canon_N_50_M_20/global/', 'global_dataset.csv', 0.8)
+split_dataset('dataset_canon/canon_N_50_M_20_2/global/', 'global_dataset.csv', 0.8)
 
 # Teste de validação
 #check = pd.read_csv('dataset_canon/canon_N_50_M_20/global_dataset.csv', header = None)

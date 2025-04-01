@@ -17,8 +17,8 @@ num_inputs = 178
 num_outputs = 4
 q = 3 # Number of MPC outputs (x, y z)
 num_neurons_hidden_layers = 128
-nn_weights_path = 'dataset_canon/canon_N_50_M_20/global_dataset/nn_weights_128neurons_1e-3learnrate_adam_MSELoss_64batchsize.pth'
-nn_weights_folder = 'dataset_canon/canon_N_50_M_20/global_dataset/'
+nn_weights_path = 'dataset_canon/canon_N_50_M_20_2/global_dataset/nn_weights_128neurons_1e-3learnrate_adam_MSELoss_64batchsize.pth'
+nn_weights_folder = 'dataset_canon/canon_N_50_M_20_2/global_dataset/'
 
 time_step = 1e-3 # Simulation time step #5e-3 é um bom valor
 T_sample = 5e-2 # MPC sample time
