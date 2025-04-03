@@ -100,11 +100,7 @@ def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None, omega_vec
     if equal_scales: axs.set_aspect('equal', adjustable='box')
     if save_path is not None: plt.savefig(save_path + '3D.png')
 
-    if u_vector is not None and omega_vector is not None:
-        plot_inputs(u_vector, t, omega_vector)
-    if u_vector is not None and omega_vector is None:
-        plot_inputs(u_vector, t)
-    if save_path is not None: plt.savefig(save_path + 'inputs.png')
+    plot_inputs(u_vector, t, omega_vector, save_path)
     if save_path is None: plt.show()
     plt.close('all')
 
@@ -218,7 +214,7 @@ def plot_states_speed(X,t, X_lin = None, trajectory = None, u_vector = None, ome
     plt.show()
 
 
-def plot_inputs(u_vector, t, omega_vector = None):
+def plot_inputs(u_vector, t, omega_vector = None, save_path=None):
     t = t[0:-1]
     fig, axs = plt.subplots(2, 2)
     axs[0,0].step(t,u_vector[:,0])
@@ -241,6 +237,8 @@ def plot_inputs(u_vector, t, omega_vector = None):
     axs[1,1].set_ylabel('$\\tau_z (N.m)$')
     axs[1,1].set_xlabel('t (s)')
 
+    if save_path is not None: plt.savefig(save_path + 'inputs-forces.png')
+
     if omega_vector is not None:
         fig, axs = plt.subplots(2, 2)
         axs[0,0].step(t,omega_vector[:,0])
@@ -262,6 +260,8 @@ def plot_inputs(u_vector, t, omega_vector = None):
         axs[1,1].set_title('$\omega_4 (t)$')
         axs[1,1].set_ylabel('$\omega_4 (rad/s)$')
         axs[1,1].set_xlabel('t (s)')
+
+        if save_path is not None: plt.savefig(save_path + 'inputs-rotors.png')
 
 def plot_delays(X_nonlinear, trajectory, t, X_linear = False):
     samples_indexes = np.rint(np.linspace(0,1,11)*(len(t)-1)).astype('int')

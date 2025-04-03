@@ -369,3 +369,25 @@ class TrajectoryHandler(object):
         trajectories.append((self.helicoidal_znegative(w, t_samples), T_sample, T_simulation))
 
         return trajectories
+
+    def generate_point_trajectories(self, point_numbers):
+        points_vector = []
+
+        points_vector.append(np.array([0.0,0.0,0.0]))
+        points_vector.append(np.array([0.0,0.0,1.0]))
+        points_vector.append(np.array([0.0,0.0,-1.0]))
+        points_vector.append(np.array([0.0,0.0,2.0]))
+        points_vector.append(np.array([0.0,0.0,-2.0]))
+        points_vector.append(np.array([0.0,0.0,5.0]))
+        points_vector.append(np.array([0.0,0.0,-5.0]))
+        points_vector.append(np.array([1.0,0.0,0.0]))
+        points_vector.append(np.array([-1.0,0.0,0.0]))
+        points_vector.append(np.array([0.0,1.0,0.0]))
+        points_vector.append(np.array([0.0,-1.0,0.0]))
+
+        # Random points
+        for i in range(point_numbers):
+            point = 40*np.random.rand(3) - 20 # Random point inside sphere of 20m radius centered in (0,0,0)
+            points_vector.append(point)
+        
+        return points_vector

@@ -22,9 +22,9 @@ class mpc(object):
         # p - Number of controls
         # q - Number of outputs
         self.p = np.shape(self.B)[1]
-        print('p =',self.p,'Controls')
+        #print('p =',self.p,'Controls')
         self.q = np.shape(self.C)[0]
-        print('q =',self.q,'Outputs')
+        #print('q =',self.q,'Outputs')
         self.n_x = np.shape(self.A)[0]
 
     def initialize_matrices(self):
@@ -311,13 +311,18 @@ class mpc(object):
             #delta_u_initial = np.tile(delta_u_k,self.M)
         return np.array(X_vector), np.array(u_vector)
     
-    def simulate_future_rotors(self, model, X0, t_samples, trajectory, u_eq, generate_dataset = False):
+    def simulate_future_rotors(self, model, X0, t_samples, trajectory, u_eq, generate_dataset = False, disturb_state = False):
         """
         Output of the MPC are the angular speeds that are the input of the multirotor.
         Takes into account future trajectory reference from trajectory[k] until trajectory[k+N-1]
         """
         p = self.p
         q = self.q
+
+        # Disturb logic
+        if disturb_state:
+            X0 = self.add_state_disturbance(X0)
+            disturb_frequency = 0.05 # Adjust if desired
 
         #u_minus_1 = np.array(u_eq) # TODO: Confirmar se é u_eq ou 0
         u_minus_1 = np.zeros(p)
@@ -369,13 +374,13 @@ class mpc(object):
             self.Aqp = self.Aqp.astype(np.double)
             bqp = bqp.astype(np.double)
             res = cvxopt.solvers.qp(cvxopt.matrix(Hqp), cvxopt.matrix(fqp), cvxopt.matrix(self.Aqp), cvxopt.matrix(bqp))
-            x = np.array(res['x']).reshape((Hqp.shape[1],))
+            res = np.array(res['x']).reshape((Hqp.shape[1],))
             ##################################################
 
 
             #print('res.x',res.x)
             #print('res2.x',np.array(res2['x']).reshape((Hqp.shape[1],)))
-            delta_u_k = np.concatenate((np.eye(p), np.zeros((p, p*(self.M - 1)))), axis = 1) @ x # optimal delta_u_k
+            delta_u_k = np.concatenate((np.eye(p), np.zeros((p, p*(self.M - 1)))), axis = 1) @ res # optimal delta_u_k
             u_k = u_k_minus_1 + delta_u_k # TODO: confirmar se tem esse u_eq
 
             # omega**2 --> u
@@ -387,13 +392,19 @@ class mpc(object):
             #t_simulation2 = np.arange(0,t_samples[1], self.T)
             #x_k = odeint(f_model, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
             
+            # Add disturbance if enabled
+            if disturb_state and k > 0:
+                probability = np.random.rand()
+                if probability > disturb_frequency:
+                    x_k = self.add_state_disturbance(x_k)
+
             # x[k+1] = f(x[k], u[k])
             x_k_old = x_k # Used only to mount nn_sample array
             x_k = odeint(model.f2, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
             x_k = x_k[-1]
             if np.linalg.norm(x_k[9:12] - trajectory[k]) > 40 or np.max(np.abs(x_k[0:2])) > 1.5:
                 print('Simulation exploded.')
-                print('x_k =',x_k)
+                print(f'x_{k} =',x_k)
                 return None, None, None, None
             
             X_vector.append(x_k)
@@ -731,8 +742,74 @@ class mpc(object):
             #delta_u_initial = np.tile(delta_u_k,self.M)
         return np.array(X_vector), np.array(u_vector)
     
-    # def discretize(self):
-    #     #sys = StateSpace(self.A,self.B,self.C, np.zeros((q,p)))
-    #     sys_d = cont2discrete((self.A,self.B,self.C, np.zeros((self.q,self.p))), self.T_sample, 'zoh')
-    #     Ad, Bd, Cd, _, _ = sys_d
-    #     return Ad, Bd, Cd
+    def add_state_disturbance(self, X):
+        '''
+        Adds small disturbances to the state vector X.
+        '''
+        phi_range = 0.1
+        theta_range = 0.1
+        psi_range = 0.005
+        p_range = 0.1
+        q_range = 0.1
+        r_range = 0.005
+        u_range = 0.1
+        v_range = 0.1
+        w_range = 0.1
+        x_range = 0.3
+        y_range = 0.3
+        z_range = 0.3
+
+        ranges = np.array([
+            phi_range,
+            theta_range,
+            psi_range,
+            p_range,
+            q_range,
+            r_range,
+            u_range,
+            v_range,
+            w_range,
+            x_range,
+            y_range,
+            z_range
+        ])
+
+
+        # disturbance in [-range, + range]
+        disturbances = 2*ranges*np.random.rand(len(X))  - ranges
+
+        # adding disturbances
+        X = X + disturbances
+        return X
+    
+
+    def add_input_disturbance(self, u, model):
+        '''
+        Adds small disturbances to the state vector X.
+        '''
+
+        thrust_range = 0.05*model.m*model.g
+        tx_range = 0.01
+        ty_range = 0.01
+        tz_range = 0.001
+
+        ranges = np.array([
+            thrust_range,
+            tx_range,
+            ty_range,
+            tz_range
+        ])
+
+
+        # disturbance in [-range, + range]
+        disturbances = 2*ranges*np.random.rand(len(u))  - ranges
+
+        # adding disturbances
+        u += disturbances
+        return u
+    
+        # def discretize(self):
+        #     #sys = StateSpace(self.A,self.B,self.C, np.zeros((q,p)))
+        #     sys_d = cont2discrete((self.A,self.B,self.C, np.zeros((self.q,self.p))), self.T_sample, 'zoh')
+        #     Ad, Bd, Cd, _, _ = sys_d
+        #     return Ad, Bd, Cd
