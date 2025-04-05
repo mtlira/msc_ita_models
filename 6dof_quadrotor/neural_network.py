@@ -10,9 +10,11 @@ from torch.utils.data import Dataset, DataLoader
 ### 1. Dataset class ###
 
 class ControlAllocationDataset(Dataset):
-    def __init__(self, dataset_path, transform=None):
+    def __init__(self, dataset_path, num_outputs, transform=None):
         self.dataframe = pd.read_csv(dataset_path, header = None).astype('float32')
         self.transform = transform
+        self.num_outputs = num_outputs
+        self.num_inputs = np.shape(self.dataframe)[1] - num_outputs
     def __len__(self):
         return len(self.dataframe)
     
@@ -20,9 +22,8 @@ class ControlAllocationDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         
-        num_inputs = np.shape(self.dataframe)[1] - 4 # There are 4 outputs for the quadcopter # TODO: automatizar a verificação de número de saídas (talvez criar um csv de metadados de simulação)
-        input = self.dataframe.iloc[idx, 0:num_inputs]
-        output = self.dataframe.iloc[idx, num_inputs:]
+        input = self.dataframe.iloc[idx, 0:self.num_inputs]
+        output = self.dataframe.iloc[idx, self.num_inputs:]
 
         sample = {'input': np.array(input), 'output': np.array(output)}
 

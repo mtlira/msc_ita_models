@@ -386,8 +386,8 @@ class TrajectoryHandler(object):
         points_vector.append(np.array([0.0,-1.0,0.0]))
 
         # Random points
-        for i in range(point_numbers):
-            point = 40*np.random.rand(3) - 20 # Random point inside sphere of 20m radius centered in (0,0,0)
+        for i in range(point_numbers - len(points_vector)):
+            point = 6*np.random.rand(3) - 3 # Random point inside sphere of 20m radius centered in (0,0,0)
             points_vector.append(point)
         
         return points_vector

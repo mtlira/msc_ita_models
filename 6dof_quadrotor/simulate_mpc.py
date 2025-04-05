@@ -27,7 +27,7 @@ model = multirotor.multirotor(m, g, I_x, I_y, I_z, b, l, d)
 
 time_step = 1e-3 # Simulation time step #5e-3 é um bom valor
 T_sample = 5e-2 # MPC sample time
-T_simulation = 30 # Total simulation time
+T_simulation = 15 # Total simulation time
 t_samples = np.arange(0,T_simulation, T_sample)
 
 # Input and state values at the equilibrium condition
@@ -46,14 +46,14 @@ C = np.array([[0,0,0,0,0,0,0,0,0,1,0,0],
 
 tr = trajectory_handler.TrajectoryHandler()
 
-num_points = 30
+num_points = 500
 
 # MPC Implementation
 
-N = 100
+N = 90
 M = 10
 
-def simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, dataset_name, folder_name, disturb_state=False):
+def simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, dataset_name, folder_name, disturb_input=False):
     '''
     Executes a control simulation with MPC given the time step, time sample, total simulation time and the desired trajectory.\n
     dataset_name: name of dataset folder the current simulation will belong to\n
@@ -62,7 +62,7 @@ def simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions
     '''
     t_samples = np.arange(0,T_simulation, T_sample)
 
-    delta_y_max = 10*T_sample*np.ones(3)
+    delta_y_max = 20*T_sample*np.ones(3)
 
     output_weights2 = 1 / (N*delta_y_max**2) # Deve variar a cada passo de simulação?
     control_weights2 = 1 / (M*restrictions['delta_u_max']**2)
@@ -71,7 +71,7 @@ def simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions
     MPC = mpc.mpc(M, N, A, Bw, C, time_step, T_sample, output_weights2, control_weights2, restrictions)
     MPC.initialize_matrices()
     #try:
-    x_mpc_rotors, u_rotors, omega_vector, NN_dataset = MPC.simulate_future_rotors(model, X0, t_samples, trajectory, omega_eq**2, generate_dataset=True, disturb_state=disturb_state)
+    x_mpc_rotors, u_rotors, omega_vector, NN_dataset = MPC.simulate_future_rotors(model, X0, t_samples, trajectory, omega_eq**2, generate_dataset=True, disturb_input=disturb_input)
     #except:
         #x_mpc_rotors = None
         #print('exception')
@@ -88,6 +88,7 @@ def simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions
 
 def generate_dataset():
     failed_simulations = 0
+    total_simulations = 2*num_points #2x because of clean and disturbed simulations
     #trajectories_array = tr.generate_trajectories_batch()
     points_array = tr.generate_point_trajectories(num_points)
 
@@ -108,29 +109,35 @@ def generate_dataset():
         }
     ]
 
-    # Normal run
-    # for point in points_array:
-    #     for restrictions in restrictions_vector:
-    #         print(f'Simulation {dataset_id}/{num_points}') #TODO: CORRIGIR NUMPOINTS PARA TRAJETORIA GENERICA
-    #         trajectory = tr.point(point[0], point[1], point[2], t_samples)
-    #         folder_name = str(dataset_id)
-    #         simulation_success = simulate_mpc(time_step, T_sample, T_simulation, trajectory, restrictions, dataset_name, folder_name)
-    #         if not simulation_success: failed_simulations += 1
-    #         dataset_id += 1
-
     # Addition of disturbances
     for point in points_array:
         for restrictions in restrictions_vector:
-            print(f'Simulation {dataset_id}/{num_points}') #TODO: CORRIGIR NUMPOINTS PARA TRAJETORIA GENERICA
+            print(f'Simulation {dataset_id}/{total_simulations}') #TODO: CORRIGIR NUMPOINTS PARA TRAJETORIA GENERICA
             trajectory = tr.point(point[0], point[1], point[2], t_samples)
             folder_name = str(dataset_id)
 
             #Adding disturbance to X0
-            simulation_success = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, dataset_name, folder_name, disturb_state = True)
+            simulation_success = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, dataset_name, folder_name, disturb_input = True)
             if not simulation_success: failed_simulations += 1
             dataset_id += 1
+
+    # Normal run
+    for point in points_array:
+        for restrictions in restrictions_vector:
+            print(f'Simulation {dataset_id}/{total_simulations}') #TODO: CORRIGIR NUMPOINTS PARA TRAJETORIA GENERICA
+            trajectory = tr.point(point[0], point[1], point[2], t_samples)
+            folder_name = str(dataset_id)
+
+            simulation_success = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, dataset_name, folder_name)
+            if not simulation_success: failed_simulations += 1
+            dataset_id += 1
+
+    #w = 2*np.pi*1/30
+    #temp_tr = tr.circle_xy(w,5, t_samples)
+    #simulate_mpc(X0, time_step, T_sample, T_simulation, temp_tr, restrictions_vector[0], dataset_name, str(dataset_id), disturb_input = True)
+    #dataset_id+=1
     
-    print(f'Failed simulations: {failed_simulations}/{num_points}') # TODO: deixar mais generico (nao so pontos)
+    print(f'Failed simulations: {failed_simulations}/{total_simulations}') # TODO: deixar mais generico (nao so pontos)
 
     # for trajectory, T_sample, T_simulation in trajectories_array:
     #     restrictions_vector = [

@@ -11,13 +11,18 @@ warnings.filterwarnings("ignore")
 num_epochs = 30
 batch_size = 64
 learning_rate = 0.001
+num_outputs = 4
+num_neurons_hiddenlayers = 128
+
+# Dataset path
+datasets_folder = 'dataset_canon/canon_N_90_M_10_hover_only/global/'
 
 def train_neural_network():
-    #train_dataset = ControlAllocationDataset('dataset_canon/canon_N_50_M_20/global/train_dataset.csv')
-    train_dataset = ControlAllocationDataset('dataset_canon/canon_N_50_M_20_2/global/train_dataset.csv')
+    # 1. Loading datasets and creating dataloaders
+    train_dataset = ControlAllocationDataset(datasets_folder + 'train_dataset.csv', num_outputs)
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,num_workers=0)
-    #test_dataset = ControlAllocationDataset('dataset_canon/canon_N_50_M_20/global/test_dataset.csv')
-    test_dataset = ControlAllocationDataset('dataset_canon/canon_N_50_M_20_2/global/test_dataset.csv')
+
+    test_dataset = ControlAllocationDataset(datasets_folder + 'test_dataset.csv', num_outputs)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True,num_workers=0)
 
     ### 2. Building the Neural Network ###
@@ -25,7 +30,8 @@ def train_neural_network():
     print(f"Using {device} device")
 
     ### 3. Training the Neural Network ###
-    model = NeuralNetwork(178, 4, 128).to(device) # TODO: automatizar 178 e 4
+    num_inputs = test_dataset.num_inputs
+    model = NeuralNetwork(num_inputs, num_outputs, num_neurons_hiddenlayers).to(device) # TODO: automatizar 178 e 4
 
     # for i_batch, batch_sample in enumerate(dataloader):
     #     if i_batch == 0:
@@ -89,7 +95,7 @@ def train_neural_network():
     plt.legend(['Train Loss', 'Test Loss'])
     plt.show()
 
-    torch.save(model.state_dict(), 'model_weights.pth')
+    torch.save(model.state_dict(), 'dataset_canon/canon_N_90_M_10_hover_only/global/model_weights.pth')
 
 train_neural_network()
 

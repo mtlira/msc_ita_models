@@ -236,30 +236,32 @@ def plot_inputs(u_vector, t, omega_vector = None, save_path=None):
     axs[1,1].set_title('$\\tau_z (t)$')
     axs[1,1].set_ylabel('$\\tau_z (N.m)$')
     axs[1,1].set_xlabel('t (s)')
+    plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
 
     if save_path is not None: plt.savefig(save_path + 'inputs-forces.png')
 
     if omega_vector is not None:
         fig, axs = plt.subplots(2, 2)
         axs[0,0].step(t,omega_vector[:,0])
-        axs[0,0].set_title('$\omega_1 (t)$')
-        axs[0,0].set_ylabel('$\omega_1 (rad/s)$')
+        axs[0,0].set_title('$\\omega_1 (t)$')
+        axs[0,0].set_ylabel('$\\omega_1 (rad/s)$')
         axs[0,0].set_xlabel('t (s)')
 
         axs[0,1].step(t,omega_vector[:,1])
-        axs[0,1].set_title('$\omega_2 (t)$')
-        axs[0,1].set_ylabel('$\omega_2 (rad/s)$')
+        axs[0,1].set_title('$\\omega_2 (t)$')
+        axs[0,1].set_ylabel('$\\omega_2 (rad/s)$')
         axs[0,1].set_xlabel('t (s)')
 
         axs[1,0].step(t,omega_vector[:,2])
-        axs[1,0].set_title('$\omega_3 (t)$')
-        axs[1,0].set_ylabel('$\omega_3 (rad/s)$')
+        axs[1,0].set_title('$\\omega_3 (t)$')
+        axs[1,0].set_ylabel('$\\omega_3 (rad/s)$')
         axs[1,0].set_xlabel('t (s)')
 
         axs[1,1].step(t,omega_vector[:,3])
-        axs[1,1].set_title('$\omega_4 (t)$')
-        axs[1,1].set_ylabel('$\omega_4 (rad/s)$')
+        axs[1,1].set_title('$\\omega_4 (t)$')
+        axs[1,1].set_ylabel('$\\omega_4 (rad/s)$')
         axs[1,1].set_xlabel('t (s)')
+        plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
 
         if save_path is not None: plt.savefig(save_path + 'inputs-rotors.png')
 

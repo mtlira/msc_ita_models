@@ -311,7 +311,7 @@ class mpc(object):
             #delta_u_initial = np.tile(delta_u_k,self.M)
         return np.array(X_vector), np.array(u_vector)
     
-    def simulate_future_rotors(self, model, X0, t_samples, trajectory, u_eq, generate_dataset = False, disturb_state = False):
+    def simulate_future_rotors(self, model, X0, t_samples, trajectory, u_eq, generate_dataset = False, disturb_input = False):
         """
         Output of the MPC are the angular speeds that are the input of the multirotor.
         Takes into account future trajectory reference from trajectory[k] until trajectory[k+N-1]
@@ -319,10 +319,12 @@ class mpc(object):
         p = self.p
         q = self.q
 
-        # Disturb logic
-        if disturb_state:
-            X0 = self.add_state_disturbance(X0)
-            disturb_frequency = 0.05 # Adjust if desired
+        # Disturb logic (state disturbance)
+        disturb_frequency = 0.1
+        #if disturb_state:
+            #X0 = self.add_state_disturbance(X0)
+            #disturb_frequency = 0.05 # Adjust if desired
+        #X0 = self.add_state_disturbance(X0)
 
         #u_minus_1 = np.array(u_eq) # TODO: Confirmar se é u_eq ou 0
         u_minus_1 = np.zeros(p)
@@ -386,23 +388,29 @@ class mpc(object):
             # omega**2 --> u
             uu_k = model.Gama @ (u_k + u_eq)
 
+            # Apply INPUT disturbance if enabled
+            if disturb_input and k>0:
+                probability = np.random.rand()
+                if probability > disturb_frequency:
+                    uu_k = self.add_input_disturbance(uu_k, model)                
+
             # Apply control u_k in the multi-rotor
             f_t_k, t_x_k, t_y_k, t_z_k = uu_k # Attention for u_eq (solved the problem)
             t_simulation = np.arange(t_samples[k], t_samples[k+1], self.T)
             #t_simulation2 = np.arange(0,t_samples[1], self.T)
             #x_k = odeint(f_model, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
             
-            # Add disturbance if enabled
-            if disturb_state and k > 0:
-                probability = np.random.rand()
-                if probability > disturb_frequency:
-                    x_k = self.add_state_disturbance(x_k)
+            # Add disturbance to STATE if enabled
+            # if disturb_state and k > 0:
+            #     probability = np.random.rand()
+            #     if probability > disturb_frequency:
+            #         x_k = self.add_state_disturbance(x_k)
 
             # x[k+1] = f(x[k], u[k])
             x_k_old = x_k # Used only to mount nn_sample array
             x_k = odeint(model.f2, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
             x_k = x_k[-1]
-            if np.linalg.norm(x_k[9:12] - trajectory[k]) > 40 or np.max(np.abs(x_k[0:2])) > 1.5:
+            if np.linalg.norm(x_k[9:12] - trajectory[k]) > 5 or np.max(np.abs(x_k[0:2])) > 2.5:
                 print('Simulation exploded.')
                 print(f'x_{k} =',x_k)
                 return None, None, None, None
@@ -788,9 +796,9 @@ class mpc(object):
         Adds small disturbances to the state vector X.
         '''
 
-        thrust_range = 0.05*model.m*model.g
-        tx_range = 0.01
-        ty_range = 0.01
+        thrust_range = 0.2*model.m*model.g
+        tx_range = 0.2
+        ty_range = 0.2
         tz_range = 0.001
 
         ranges = np.array([
@@ -806,6 +814,10 @@ class mpc(object):
 
         # adding disturbances
         u += disturbances
+
+        #Making sure thrust is not negative
+        u[0] = np.clip(u[0], a_min = 0.0, a_max=None)
+
         return u
     
         # def discretize(self):

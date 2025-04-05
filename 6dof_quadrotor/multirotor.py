@@ -58,7 +58,31 @@ class multirotor(object):
         (I_x - I_y)/I_z * p*q + t_z/I_z,
         r*v - q*w - g*np.sin(theta),
         p*w - r*u + g*np.sin(phi)*np.cos(theta),
-        q*u - p*v + g*np.cos(theta)*np.cos(phi) - f_t/m,
+        q*u - p*v + g*np.cos(theta)*np.cos(phi) - f_t/m, # Sabatino é - ft/m!!!!!
+        w*(np.sin(phi)*np.sin(psi) + np.cos(phi)*np.cos(psi)*np.sin(theta)) - v*(np.cos(phi)*np.sin(psi) - np.cos(psi)*np.sin(phi)*np.sin(theta)) + u*(np.cos(psi)*np.cos(theta)),
+        v*(np.cos(phi)*np.cos(psi) + np.sin(phi)*np.sin(psi)*np.sin(theta)) - w*(np.cos(psi)*np.sin(phi) - np.cos(phi)*np.sin(psi)*np.sin(theta)) + u*(np.cos(theta)*np.sin(psi)),
+        w*(np.cos(phi)*np.cos(theta)) - u*(np.sin(theta)) + v*(np.cos(theta)*np.sin(phi))
+        ]
+        return dx_dt
+
+    def f2_bresciani(self, X, t, f_t, t_x, t_y, t_z):
+        m = self.m
+        g = self.g
+        I_x = self.I_x
+        I_y = self.I_y
+        I_z = self.I_z
+
+        phi, theta, psi, p, q, r, u, v, w, x, y, z = X
+        dx_dt = [
+        p + r*np.cos(phi)*np.tan(theta) + q*np.sin(phi)*np.tan(theta),
+        q*np.cos(phi) - r*np.sin(phi),
+        r*np.cos(phi)/np.cos(theta) + q*np.sin(phi)/np.cos(theta),
+        (I_y - I_z)/I_x * r*q + t_x/I_x,
+        (I_z - I_x)/I_y * p*r + t_y/I_y,
+        (I_x - I_y)/I_z * p*q + t_z/I_z,
+        r*v - q*w + g*np.sin(theta),
+        p*w - r*u - g*np.sin(phi)*np.cos(theta),
+        q*u - p*v - g*np.cos(theta)*np.sin(phi) + f_t/m,
         w*(np.sin(phi)*np.sin(psi) + np.cos(phi)*np.cos(psi)*np.sin(theta)) - v*(np.cos(phi)*np.sin(psi) - np.cos(psi)*np.sin(phi)*np.sin(theta)) + u*(np.cos(psi)*np.cos(theta)),
         v*(np.cos(phi)*np.cos(psi) + np.sin(phi)*np.sin(psi)*np.sin(theta)) - w*(np.cos(psi)*np.sin(phi) - np.cos(phi)*np.sin(psi)*np.sin(theta)) + u*(np.cos(theta)*np.sin(psi)),
         w*(np.cos(phi)*np.cos(theta)) - u*(np.sin(theta)) + v*(np.cos(theta)*np.sin(phi))

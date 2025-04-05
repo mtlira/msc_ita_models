@@ -13,16 +13,16 @@ from quadrotor_parameters import m, g, I_x, I_y, I_z, l, b, d
 ### Create model of multirotor ###
 multirotor_model = multirotor.multirotor(m, g, I_x, I_y, I_z, b, l, d)
 
-num_inputs = 178
+num_inputs = 279
 num_outputs = 4
 q = 3 # Number of MPC outputs (x, y z)
 num_neurons_hidden_layers = 128
-nn_weights_path = 'dataset_canon/canon_N_50_M_20_2/global_dataset/nn_weights_128neurons_1e-3learnrate_adam_MSELoss_64batchsize.pth'
-nn_weights_folder = 'dataset_canon/canon_N_50_M_20_2/global_dataset/'
+nn_weights_path = 'dataset_canon/canon_N_90_M_10_hover_only/global_dataset/model_weights.pth'
+nn_weights_folder = 'dataset_canon/canon_N_90_M_10_hover_only/global_dataset/'
 
 time_step = 1e-3 # Simulation time step #5e-3 é um bom valor
 T_sample = 5e-2 # MPC sample time
-T_simulation = 20 # Total simulation time
+T_simulation = 30 # Total simulation time
 t_samples = np.arange(0,T_simulation, T_sample)
 
 # Initial condition
@@ -35,9 +35,11 @@ omega_squared_eq = omega_eq**2
 print('omega_squared_eq',omega_squared_eq)
 
 # Trajectory
+#w=2*np.pi*1/30
 tr = trajectory_handler.TrajectoryHandler()
 #trajectory = tr.line(1, 1, -1, t_samples, 15)
-trajectory = tr.point(0,0,0,t_samples)
+#trajectory = tr.circle_xy(w,2,t_samples)
+trajectory = tr.point(2,-2,-1,t_samples)
 
 restrictions = {
 "delta_u_max": np.linalg.pinv(multirotor_model.Gama) @ [10*m*g*T_sample, 0, 0, 0],
@@ -56,7 +58,7 @@ def simulate_neural_network():
     #exec(cmd)
     #from dataset_canon.canon_N_50_M_20.global_dataset.nn_metadata import N, M
     # TODO: resolver automatização do carregamento de N
-    N = 50
+    N = 90
 
     print('(Check value) N =', N)
     if N == 0:
@@ -74,6 +76,8 @@ def simulate_neural_network():
     X_vector = [X0]
     u_vector = []
     omega_vector = []
+        
+    normalization_df = pd.read_csv(nn_weights_folder + 'normalization_data.csv', header = None)
 
     # Control loop
     for k in range(0, len(t_samples)-1): # TODO: confirmar se é -1 mesmo:
@@ -85,11 +89,14 @@ def simulate_neural_network():
             #print('kpi',N - int(np.shape(ref_N)[0]/q))
             ref_N = np.concatenate((ref_N, np.tile(trajectory[-1].reshape(-1), N - int(np.shape(ref_N)[0]/q))), axis = 0) # padding de trajectory[-1] em ref_N quando trajectory[k+N] ultrapassa ultimo elemento
 
+        # Calculating reference values relative to multirotor's current position at instant k
+        position_k = np.tile(x_k[9:], N).reshape(-1)
+        ref_N_relative = ref_N - position_k
+
         # Clarification: u is actually (u - ueq) and delta_u is (u-ueq)[k] - (u-ueq)[k-1] in this MPC formulation (i.e., u is in reference to u_eq, not 0)
-        nn_input = np.concatenate((nn_input, x_k, ref_N, restrictions['u_min'], restrictions['u_max'], restrictions['delta_u_min'], restrictions['delta_u_max']), axis = 0)
+        nn_input = np.concatenate((nn_input, x_k[0:9], ref_N_relative), axis = 0)
 
         # Normalization of the input
-        normalization_df = pd.read_csv(nn_weights_folder + 'normalization_data.csv', header = None)
         for i_column in range(num_inputs):
             mean = normalization_df.iloc[0, i_column]
             std = normalization_df.iloc[1, i_column]
@@ -133,4 +140,4 @@ def simulate_neural_network():
     return np.array(X_vector), np.array(u_vector), np.array(omega_vector)
 
 x_nn, u_vector, omega_vector = simulate_neural_network()
-plot_states(x_nn, t_samples[:np.shape(x_nn)[0]], trajectory=trajectory, u_vector=u_vector, omega_vector=omega_vector, equal_scales=True, legend=['Force/Moment optimization'])
+plot_states(x_nn, t_samples[:np.shape(x_nn)[0]], trajectory=trajectory, u_vector=u_vector, omega_vector=omega_vector)
