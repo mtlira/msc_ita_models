@@ -48,8 +48,8 @@ def define_model(trial):
         out_features = trial.suggest_int('n_units_l{}'.format(i), 64, 256)
         layers.append(nn.Linear(in_features, out_features))
         layers.append(nn.LeakyReLU(negative_slope=leakyReLU_negative_slope))
-        dropout_percentage = trial.suggest_float('dropout_l{}'.format(i), 0.0, 0.5)
-        layers.append(nn.Dropout(dropout_percentage))
+        #dropout_percentage = trial.suggest_float('dropout_l{}'.format(i), 0.0, 0.5) # Dropout removed, at least temporarily
+        #layers.append(nn.Dropout(dropout_percentage))
         in_features = out_features
     
     layers.append(nn.Linear(in_features, num_outputs))
