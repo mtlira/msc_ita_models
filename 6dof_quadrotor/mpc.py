@@ -410,7 +410,7 @@ class mpc(object):
             x_k_old = x_k # Used only to mount nn_sample array
             x_k = odeint(model.f2, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
             x_k = x_k[-1]
-            if np.linalg.norm(x_k[9:12] - trajectory[k]) > 5 or np.max(np.abs(x_k[0:2])) > 2.0:
+            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 5 or np.max(np.abs(x_k[0:2])) > 2.0:
                 print('Simulation exploded.')
                 print(f'x_{k} =',x_k)
                 return None, None, None, None
@@ -426,11 +426,12 @@ class mpc(object):
                 NN_sample = np.array([])
 
                 # Calculating reference values relative to multirotor's current position at instant k
-                position_k = np.tile(x_k_old[9:], self.N).reshape(-1)
+                position_k = np.concatenate((x_k_old[9:], [x_k_old[2]]), axis = 0)
+                position_k = np.tile(position_k, self.N).reshape(-1)
                 ref_N_relative = ref_N - position_k
 
                 # Clarification: u is actually (u - ueq) and delta_u is (u-ueq)[k] - (u-ueq)[k-1] in this MPC formulation (i.e., u is in reference to u_eq, not 0)
-                NN_sample = np.concatenate((NN_sample, x_k_old[0:9], ref_N_relative, u_k), axis = 0) #TODO: depois, acrescentar restrições
+                NN_sample = np.concatenate((NN_sample, np.delete(x_k_old[0:9], 2), ref_N_relative, u_k), axis = 0) #TODO: depois, acrescentar restrições
 
                 NN_dataset.append(NN_sample)
 

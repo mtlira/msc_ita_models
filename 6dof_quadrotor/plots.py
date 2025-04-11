@@ -10,14 +10,14 @@ def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None, omega_vec
     axs[0,0].set_xlabel('t (s)')
     axs[0,0].set_ylabel('$\\phi (rad)$')
 
-    axs[0,1].plot(t,X[:,1])
-    if X_lin is not None: axs[0,1].plot(t,X_lin[:,1])
+    axs[0,1].plot(t,(-1)*X[:,1])
+    if X_lin is not None: axs[0,1].plot(t,(-1)*X_lin[:,1])
     axs[0,1].set_title('$\\theta(t)$')
     axs[0,1].set_xlabel('t (s)')
     axs[0,1].set_ylabel('$\\theta (rad)$')
 
-    axs[0,2].plot(t,X[:,2])
-    if X_lin is not None: axs[0,2].plot(t,X_lin[:,2])
+    axs[0,2].plot(t,(-1)*X[:,2])
+    if X_lin is not None: axs[0,2].plot(t,(-1)*X_lin[:,2])
     axs[0,2].set_title('$\\psi(t)$')
     axs[0,2].set_xlabel('t (s)')
     axs[0,2].set_ylabel('$\\psi$ (rad)')

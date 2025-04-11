@@ -82,7 +82,8 @@ print('omegas_eq',omega_eq)
 A, B = linearize(model.f_sym, X_eq, u_eq)
 C = np.array([[0,0,0,0,0,0,0,0,0,1,0,0],
               [0,0,0,0,0,0,0,0,0,0,1,0],
-              [0,0,0,0,0,0,0,0,0,0,0,1]])
+              [0,0,0,0,0,0,0,0,0,0,0,1],
+              [0,0,1,0,0,0,0,0,0,0,0,0]])
 
 #_, _, x_lin = openloop_sim_linear(A, B, t, X0, X_eq, u_eq, u_sim)
 
@@ -126,7 +127,7 @@ if trajectory_type == 'circle_xz':
     r_tracking = tr.circle_xz(w, 5, t_samples)
 
 if trajectory_type == 'point':
-    r_tracking = tr.point(3, 2, 1, t_samples)
+    r_tracking = tr.point(0, 0, 0, t_samples)
 
 if trajectory_type == 'line':
     r_tracking = tr.line(1, 1, -1, t_samples, 15)
@@ -215,15 +216,15 @@ restrictions = {
     "delta_u_min": np.array([-3*m*g*T_sample, -1*m*g*T_sample, -1*m*g*T_sample, -1*m*g*T_sample]),
     "u_max": [m*g, m*g, m*g, m*g],
     "u_min": [-m*g, -m*g, -m*g, -m*g],
-    "y_max": 50*np.ones(3),
-    "y_min": -50*np.ones(3)
+    "y_max": 50*np.ones(4),
+    "y_min": -50*np.ones(4)
 }
 
 #teste = np.array([1,2,3])
 #print('1/teste=',1/teste)
 #print('1/teste^2=',1/(teste**2))
 
-delta_y_max = 20*T_sample*np.ones(3)
+delta_y_max = 20*T_sample*np.ones(4)
 #delta_y_max = 1e-6*np.ones(3)
 
 
@@ -252,8 +253,8 @@ restrictions2 = {
     "delta_u_min": np.linalg.pinv(model.Gama) @ [-10*m*g*T_sample, 0, 0, 0],
     "u_max": np.linalg.pinv(model.Gama) @ [m*g, 0, 0, 0],
     "u_min": np.linalg.pinv(model.Gama) @ [-m*g, 0, 0, 0],
-    "y_max": 100*np.ones(3),
-    "y_min": -100*np.ones(3)
+    "y_max": 100*np.ones(4),
+    "y_min": -100*np.ones(4)
 }
 
 output_weights2 = 1 / (N*delta_y_max**2) # Deve variar a cada passo de simulação?

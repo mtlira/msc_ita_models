@@ -9,7 +9,9 @@ class TrajectoryHandler(object):
     def point(self, xp, yp, zp, t):
         r_point = np.array([xp*np.ones(len(t)),
                     yp*np.ones(len(t)),
-                    (zp*np.ones(len(t)))]).transpose()
+                    zp*np.ones(len(t)),
+                    np.zeros(len(t)),
+                    ]).transpose()
         return r_point
     
     def line(self, a, b, c, t, clamp=None):
@@ -17,7 +19,7 @@ class TrajectoryHandler(object):
         Creates a line trajectory defined by [a.t b.t c.t]
         clamp: maximum coordinate value allowed for the trajectory
         """
-        r_line = np.array([a*t, b*t, c*t]).transpose()
+        r_line = np.array([a*t, b*t, c*t, 0*t]).transpose()
         if clamp is not None:
             r_line = r_line.clip(min=-clamp, max=clamp)
         return r_line            
@@ -25,25 +27,33 @@ class TrajectoryHandler(object):
     def circle_xy(self, w, r, t):
         r_circle_xy = np.array([r*np.sin(w*t),
                        (r - r*np.cos(w*t)),
-                       np.zeros(len(t))]).transpose()
+                       np.zeros(len(t)),
+                       np.zeros(len(t))
+                       ]).transpose()
         return r_circle_xy
     
     def circle_xz(self, w, r, t):
         r_circle_xz = np.array([r*np.sin(w*t),
                        np.zeros(len(t)),
-                       (r - r*np.cos(w*t))]).transpose()
+                       (r - r*np.cos(w*t)),
+                       np.zeros(len(t))
+                       ]).transpose()
         return r_circle_xz
     
     def helicoidal(self, w, t):
         r_helicoidal = np.array([5*(1 + 0.1*t)*np.sin(w*t),
                        (5 - 5*(1 + 0.1*t)*np.cos(w*t)),
-                       -1*t]).transpose()
+                       -1*t,
+                       np.zeros(len(t))
+                       ]).transpose()
         return r_helicoidal
 
     def helicoidal_znegative(self, w, t):
         r_helicoidal = np.array([5*(1 + 0.1*t)*np.sin(w*t),
                        (5 - 5*(1 + 0.1*t)*np.cos(w*t)),
-                       1*t]).transpose()
+                       1*t,
+                       np.zeros(len(t))
+                       ]).transpose()
         return r_helicoidal
     
     def speed_reference(self, trajectory, t):
