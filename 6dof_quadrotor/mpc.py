@@ -410,7 +410,7 @@ class mpc(object):
             x_k_old = x_k # Used only to mount nn_sample array
             x_k = odeint(model.f2, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
             x_k = x_k[-1]
-            if np.linalg.norm(x_k[9:12] - trajectory[k]) > 5 or np.max(np.abs(x_k[0:2])) > 2.5:
+            if np.linalg.norm(x_k[9:12] - trajectory[k]) > 5 or np.max(np.abs(x_k[0:2])) > 2.0:
                 print('Simulation exploded.')
                 print(f'x_{k} =',x_k)
                 return None, None, None, None
@@ -799,7 +799,7 @@ class mpc(object):
         thrust_range = 0.2*model.m*model.g
         tx_range = 0.2
         ty_range = 0.2
-        tz_range = 0.001
+        tz_range = 0.0005
 
         ranges = np.array([
             thrust_range,

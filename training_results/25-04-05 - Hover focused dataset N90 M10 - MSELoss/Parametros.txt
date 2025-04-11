@@ -14,3 +14,7 @@ Optimizer = Adam
 Epochs = 30
 
 Dataset used: dataset_canon/canon_N_90_M_10_hover_only
+
+Obs: Mais simulações foram feitas:
+2. Com early stop e 1000 epochs
+3. Com hiperparametros tunados por optuna

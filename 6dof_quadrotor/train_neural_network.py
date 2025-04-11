@@ -1,5 +1,5 @@
 import numpy as np
-from neural_network import NeuralNetwork, ControlAllocationDataset
+from neural_network import NeuralNetwork, NeuralNetwork_optuna, ControlAllocationDataset, EarlyStopper
 import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -8,21 +8,25 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # Hyperparameters
-num_epochs = 30
-batch_size = 64
+num_epochs = 1000
+batch_size = 128
 learning_rate = 0.001
 num_outputs = 4
 num_neurons_hiddenlayers = 128
+batches_per_epoch = 200
 
 # Dataset path
-datasets_folder = 'dataset_canon/canon_N_90_M_10_hover_only/global/'
+datasets_folder = 'dataset_canon/canon_N_90_M_10_hover_only/global_dataset/'
+
+load_previous_model = False
+previous_model_path = 'dataset_canon/canon_N_90_M_10_hover_only/global_dataset/model_weights_main.pth'
 
 def train_neural_network():
     # 1. Loading datasets and creating dataloaders
     train_dataset = ControlAllocationDataset(datasets_folder + 'train_dataset.csv', num_outputs)
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,num_workers=0)
 
-    test_dataset = ControlAllocationDataset(datasets_folder + 'test_dataset.csv', num_outputs)
+    test_dataset = ControlAllocationDataset(datasets_folder + 'validation_dataset.csv', num_outputs)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True,num_workers=0)
 
     ### 2. Building the Neural Network ###
@@ -31,7 +35,12 @@ def train_neural_network():
 
     ### 3. Training the Neural Network ###
     num_inputs = test_dataset.num_inputs
-    model = NeuralNetwork(num_inputs, num_outputs, num_neurons_hiddenlayers).to(device) # TODO: automatizar 178 e 4
+    model = NeuralNetwork_optuna(num_inputs, num_outputs, num_neurons_hiddenlayers).to(device) # TODO: automatizar 178 e 4
+
+    if load_previous_model:
+        model.load_state_dict(torch.load(previous_model_path, weights_only=True))
+        model.eval()
+
 
     # for i_batch, batch_sample in enumerate(dataloader):
     #     if i_batch == 0:
@@ -41,12 +50,14 @@ def train_neural_network():
     #         print('forward\n',model(batch_sample['input']), '\n shape',model(batch_sample['input']).size())
 
     criterion = torch.nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate) # Using Adam
+    #optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate) # Using Adam
+    optimizer = torch.optim.RMSprop(model.parameters(), lr = 0.00016413606390770354, weight_decay=0.00010599318964659744)
 
     # Test forward
 
     train_losses = []
     val_losses = []
+    earlystopper = EarlyStopper(4, 10, 0.05,)
 
     #for i_batch, batch_sample in enumerate(train_dataloader):
         #if i_batch == 0:
@@ -83,10 +94,17 @@ def train_neural_network():
 
         print(f'Epoch {epoch + 1}/{num_epochs} - Train loss: {train_loss}, Validation loss: {val_loss}')
 
+        if earlystopper.stop_early(val_loss):
+            print('Stopped early to avoid overfitting')
+            break
+
+
     # TODO: diferenciar test de validation
 
+    torch.save(model.state_dict(), 'dataset_canon/canon_N_90_M_10_hover_only/global_dataset/model_weights_optuna.pth')
+
     fig = plt.figure()
-    x = range(1,num_epochs + 1)
+    x = range(1,len(train_losses) + 1)
     plt.plot(x, train_losses)
     plt.plot(x, val_losses)
     plt.ylabel('Loss')
@@ -95,7 +113,6 @@ def train_neural_network():
     plt.legend(['Train Loss', 'Test Loss'])
     plt.show()
 
-    torch.save(model.state_dict(), 'dataset_canon/canon_N_90_M_10_hover_only/global/model_weights.pth')
 
 train_neural_network()
 

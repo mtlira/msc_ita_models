@@ -16,30 +16,10 @@ import trajectory_handler
 from pathlib import Path
 from datetime import datetime
 
-m = 10
-g = 9.80665
-I_x = 0.8
-I_y = 0.8
-I_z = 0.8
-
-# Control allocation parameters
-l = 1 # multirotor's arm (distance from the center to the propeller)
-b = m*g/(200**2) # f_i = b*w^2, f_i is force of propeller and w is angular speed
-#k_t = 0.01 # Torque = k_t * Tração, entre 0.01 e 0.03
-k_t = 0.0001 # Valor de k_t afeta na velocidade de divergência de psi(t)
-d = b*k_t # Torque = d * w^2
-
-m = 0.65
-g = 9.80665
-I_x = 7.5e-3
-I_y = 7.5e-3
-I_z = 1.3e-2
-l = 0.232
-b = 1e-4 # f_i = bw^2, f_i is force of propeller and w is angular speed
-d = 7.4e-6 # t_i = d*w^2 t_i is torque of propeller
+### MULTIROTOR PARAMETERS ###
+from quadrotor_parameters import m, g, I_x, I_y, I_z, l, b, d
 
 print('b =',b)
-print('k_t = ',k_t)
 print('d =', d)
 
 # PID Controller parameters
@@ -54,6 +34,7 @@ T_simulation = 30
 
 t = np.arange(0,T_simulation, time_step)
 t_samples = np.arange(0,T_simulation, T_sample)
+t_samples_extended = np.arange(0,2*T_simulation, T_sample) # Para não ocorrer estagnação da referência em ref[-1] quando se tem menos que q*N pontos restantes
 
 # Initial condition
 X0 = np.array([0,0,0,0,0,0,0,0,0,0,0,0])
@@ -64,7 +45,7 @@ X_eq = np.zeros(12)
 
 # f_t está no eixo do corpo
 
-trajectory_type = 'point'
+trajectory_type = 'line'
 
 # Open-loop Inputs
 def u_(t):
@@ -139,7 +120,7 @@ tr = trajectory_handler.TrajectoryHandler()
 
 r_tracking = None
 if trajectory_type == 'circle_xy':
-    r_tracking = tr.circle_xy(w, 5, t_samples)
+    r_tracking = tr.circle_xy(w, 5, t_samples_extended)
 
 if trajectory_type == 'circle_xz':
     r_tracking = tr.circle_xz(w, 5, t_samples)
@@ -157,8 +138,8 @@ if trajectory_type == 'helicoidal':
 #r_tracking = tr.helicoidal(w,t_samples)
 #r_tracking = tr.line(1, 1, -1, t_samples, 15)
 
-LQR = lqr.LQR(A, B, C, time_step, T_sample)
-LQR.initialize(x_max, u_max)
+#LQR = lqr.LQR(A, B, C, time_step, T_sample)
+#LQR.initialize(x_max, u_max)
 
 
 # # Teste com feedforward de velocidade
@@ -262,7 +243,7 @@ MPC.initialize_matrices()
 #plot_inputs(u_mpc, t_samples[0:-1])
 
 x_classic, u_classic = MPC.simulate_future(model.f2,X0, t_samples, r_tracking, u_eq)
-plot_states(x_classic, t_samples, trajectory=r_tracking, u_vector=u_classic)
+plot_states(x_classic, t_samples, trajectory=r_tracking[:len(t_samples)], u_vector=u_classic)
 print('wrong plot')
 # MPC with actuators
 restrictions2 = {
@@ -297,7 +278,7 @@ x_mpc_rotors, u_rotors, omega_vector, NN_dataset = MPC2.simulate_future_rotors(m
 
 if x_mpc_rotors is not None:
     #plot_states(X_mpc_nonlinear_future, t_samples[:np.shape(x_mpc_rotors)[0]], x_mpc_rotors, r_tracking, u_rotors, omega_vector, equal_scales=True, legend=['Force/Moment optimization','Angular speed optimization'])
-    plot_states(x_mpc_rotors, t_samples[:np.shape(x_mpc_rotors)[0]], trajectory=r_tracking, u_vector=u_rotors, omega_vector=omega_vector, equal_scales=True, legend=['Force/Moment optimization'])
+    plot_states(x_mpc_rotors, t_samples[:np.shape(x_mpc_rotors)[0]], trajectory=r_tracking[:len(t_samples)], u_vector=u_rotors, omega_vector=omega_vector, equal_scales=True, legend=['Force/Moment optimization'])
 
     save_dataset = str(input('Do you wish to save the generated simulation dataset? (y/n): '))
     if save_dataset == 'y':

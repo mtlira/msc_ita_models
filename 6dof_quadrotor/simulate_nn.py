@@ -1,11 +1,13 @@
 import numpy as np
 import trajectory_handler
 import multirotor
-from neural_network import NeuralNetwork
+from neural_network import NeuralNetwork, NeuralNetwork_optuna
 import torch
 from scipy.integrate import odeint
 from plots import plot_states
 import pandas as pd
+
+use_optuna_model = True
 
 ### MULTIROTOR PARAMETERS ###
 from quadrotor_parameters import m, g, I_x, I_y, I_z, l, b, d
@@ -17,13 +19,14 @@ num_inputs = 279
 num_outputs = 4
 q = 3 # Number of MPC outputs (x, y z)
 num_neurons_hidden_layers = 128
-nn_weights_path = 'dataset_canon/canon_N_90_M_10_hover_only/global_dataset/model_weights.pth'
-nn_weights_folder = 'dataset_canon/canon_N_90_M_10_hover_only/global_dataset/'
+#nn_weights_folder = 'dataset_canon/canon_N_90_M_10_hover_only/global_dataset/'
+#weights_file_name = 'model_weights.pth'
 
 time_step = 1e-3 # Simulation time step #5e-3 é um bom valor
 T_sample = 5e-2 # MPC sample time
 T_simulation = 30 # Total simulation time
 t_samples = np.arange(0,T_simulation, T_sample)
+t_samples_extended = np.arange(0,2*T_simulation, T_sample)
 
 # Initial condition
 X0 = np.array([0,0,0,0,0,0,0,0,0,0,0,0])
@@ -35,11 +38,11 @@ omega_squared_eq = omega_eq**2
 print('omega_squared_eq',omega_squared_eq)
 
 # Trajectory
-#w=2*np.pi*1/30
+w=2*np.pi*1/30
 tr = trajectory_handler.TrajectoryHandler()
-#trajectory = tr.line(1, 1, -1, t_samples, 15)
-#trajectory = tr.circle_xy(w,2,t_samples)
-trajectory = tr.point(2,-2,-1,t_samples)
+#trajectory = tr.line(2, 2, -1, t_samples_extended)
+trajectory = tr.circle_xy(w,4,t_samples_extended)
+#trajectory = tr.point(0,0,-1,t_samples)
 
 restrictions = {
 "delta_u_max": np.linalg.pinv(multirotor_model.Gama) @ [10*m*g*T_sample, 0, 0, 0],
@@ -50,7 +53,10 @@ restrictions = {
 "y_min": -100*np.ones(3)
 }
 
-def simulate_neural_network():
+def simulate_neural_network(nn_weights_folder, file_name, t_samples):
+
+    nn_weights_path = nn_weights_folder + file_name
+
     # Import N used in neural network model
     #N = 0
     #cmd = 'from ' + nn_weights_folder.replace('/', '.') + 'nn_metadata import N'
@@ -67,7 +73,10 @@ def simulate_neural_network():
     # 1. Load Neural Network model
     device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
     print(f"Using {device} device")
-    nn_model = NeuralNetwork(num_inputs, num_outputs, num_neurons_hidden_layers).to(device) # TODO: automatizar 178 e 4
+    if use_optuna_model:
+        nn_model = NeuralNetwork_optuna(num_inputs, num_outputs, num_neurons_hidden_layers).to(device)
+    else:
+        nn_model = NeuralNetwork(num_inputs, num_outputs, num_neurons_hidden_layers).to(device)
     nn_model.load_state_dict(torch.load(nn_weights_path, weights_only=True))
     nn_model.eval()
 
@@ -139,5 +148,20 @@ def simulate_neural_network():
 
     return np.array(X_vector), np.array(u_vector), np.array(omega_vector)
 
-x_nn, u_vector, omega_vector = simulate_neural_network()
-plot_states(x_nn, t_samples[:np.shape(x_nn)[0]], trajectory=trajectory, u_vector=u_vector, omega_vector=omega_vector)
+nn_weights_folder_mse = 'training_results/25-04-05 - Hover focused dataset N90 M10 - MSELoss/'
+if use_optuna_model: weights_file_name_mse = 'model_weights_MSELoss_optuna.pth'
+else: weights_file_name_mse = 'model_weights_MSELoss.pth'
+
+#nn_weights_folder_l1 = 'training_results/25-04-05 - Hover focused dataset N90 M10 - L1Loss/'
+#weights_file_name_l1 = 'model_weights_L1Loss.pth'
+
+x_mse, u_vector_mse, omega_vector_mse = simulate_neural_network(nn_weights_folder_mse, weights_file_name_mse, t_samples)
+
+#use_optuna_model = False
+
+#x_mse2, u_vector_mse2, omega_vector_mse2 = simulate_neural_network(nn_weights_folder_mse, weights_file_name_mse, t_samples)
+
+plot_states(x_mse, t_samples[:np.shape(x_mse)[0]], trajectory=trajectory[:len(t_samples)], u_vector=u_vector_mse, omega_vector=omega_vector_mse)
+#plot_states(x_l1, t_samples[:np.shape(x_l1)[0]], trajectory=trajectory, u_vector=u_vector_l1, omega_vector=omega_vector_l1)
+
+#plot_states(x_mse, t_samples[:np.shape(x_l1)[0]], trajectory=trajectory, u_vector=u_vector_mse, X_lin=x_l1, legend=['MSE', 'MAE'])
