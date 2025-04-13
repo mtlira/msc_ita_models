@@ -50,7 +50,7 @@ num_points = 500
 
 # MPC Implementation
 
-N = 90
+N = 100
 M = 10
 
 def simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, dataset_name, folder_name, disturb_input=False):

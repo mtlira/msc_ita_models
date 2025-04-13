@@ -207,7 +207,7 @@ if trajectory_type == 'helicoidal':
 
 # MPC Implementation
 
-N = 90
+N = 100
 M = 10
 rho = 1
 

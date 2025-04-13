@@ -64,7 +64,7 @@ def simulate_neural_network(nn_weights_folder, file_name, t_samples):
     #exec(cmd)
     #from dataset_canon.canon_N_50_M_20.global_dataset.nn_metadata import N, M
     # TODO: resolver automatização do carregamento de N
-    N = 90
+    N = 100
 
     print('(Check value) N =', N)
     if N == 0:
