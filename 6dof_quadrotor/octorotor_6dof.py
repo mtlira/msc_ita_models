@@ -17,19 +17,13 @@ from pathlib import Path
 from datetime import datetime
 
 ### MULTIROTOR PARAMETERS ###
-from quadrotor_parameters import m, g, I_x, I_y, I_z, l, b, d
+from octorotor_parameters import m, g, I_x, I_y, I_z, l, b, d
 
 print('b =',b)
 print('d =', d)
 
-# PID Controller parameters
-KP = 6
-KD = 3
-KI = 3
-phi_setpoint = 0
-
 time_step = 1e-3 #5e-3 é um bom valor
-T_sample = 5e-2 # MP sample time
+T_sample = 1e-2 # MP sample time
 T_simulation = 30
 
 t = np.arange(0,T_simulation, time_step)
@@ -45,8 +39,8 @@ X_eq = np.zeros(12)
 
 # f_t está no eixo do corpo
 
-trajectory_type = 'point'
-include_psi = False
+trajectory_type = 'circle_xy'
+include_psi = True
 
 # Open-loop Inputs
 def u_(t):
@@ -73,7 +67,7 @@ u_eq = [m*g, 0, 0, 0]
 #root = fsolve(fn_solve, p.zeros(9))
 #print('eq point:',root)
 
-model = multirotor.multirotor(m, g, I_x, I_y, I_z, b, l, d)
+model = multirotor.multirotor(m, g, I_x, I_y, I_z, b, l, d, num_rotors=8)
 
 # deletar #################################3
 omega_eq = model.get_omegas(u_eq)
@@ -119,24 +113,24 @@ u_max = [
 ########################################################################################
 # LQR - tracking
 
-w = 2*np.pi*1/30
+w = 2*np.pi*1/10
 tr = trajectory_handler.TrajectoryHandler()
 
 r_tracking = None
 if trajectory_type == 'circle_xy':
-    r_tracking = tr.circle_xy(w, 5, t_samples_extended)
+    r_tracking = tr.circle_xy(w, 5, t_samples, include_psi = include_psi)
 
 if trajectory_type == 'circle_xz':
-    r_tracking = tr.circle_xz(w, 5, t_samples)
+    r_tracking = tr.circle_xz(w, 5, t_samples, include_psi = include_psi)
 
 if trajectory_type == 'point':
     r_tracking = tr.point(0, 0, 0, t_samples, include_psi = include_psi)
 
 if trajectory_type == 'line':
-    r_tracking = tr.line(1, 1, -1, t_samples, 15)
+    r_tracking = tr.line(1, 1, -1, t_samples, 15, include_psi = include_psi)
 
 if trajectory_type == 'helicoidal':
-    r_tracking = tr.helicoidal(w,t_samples)
+    r_tracking = tr.helicoidal(w,t_samples, include_psi = include_psi)
 
 #r_tracking = tr.point(0, 0, -1, t_samples)
 #r_tracking = tr.helicoidal(w,t_samples)
@@ -207,7 +201,7 @@ if trajectory_type == 'helicoidal':
 
 # MPC Implementation
 
-N = 90
+N = 100
 M = 10
 rho = 1
 
@@ -227,7 +221,7 @@ restrictions = {
 #print('1/teste=',1/teste)
 #print('1/teste^2=',1/(teste**2))
 
-delta_y_max = np.array([100, 100, 100, 100]) if include_psi else 5*T_sample*np.ones(3)
+delta_y_max = np.array([1, 1, 0.8, 1.5]) if include_psi else 20*T_sample*np.ones(3)
 #delta_y_max = 1e-6*np.ones(3)
 
 
@@ -250,14 +244,24 @@ x_classic, u_classic = MPC.simulate_future(model.f2,X0, t_samples, r_tracking, u
 plot_states(x_classic, t_samples, trajectory=r_tracking[:len(t_samples)], u_vector=u_classic)
 print('wrong plot')
 # MPC with actuators
+
+omega_max = np.sqrt(2)*omega_eq
+# Failure in omega_0
+#omega_max[0] = 0*omega_eq[0]
+print('Failed omega_0: max value =',omega_max[0])
+u_max = omega_max**2 - omega_eq**2
+
+omega_min = np.zeros(8)
+u_min = omega_min**2 - omega_eq**2
+
 restrictions2 = {
     #"delta_u_max": 1.5*m*g*time_step*np.ones(4),
-    "delta_u_max": np.linalg.pinv(model.Gama) @ [10*m*g*T_sample, 0, 0, 0] * np.array([1, 1, 1, 1]),
-    "delta_u_min": np.linalg.pinv(model.Gama) @ [-10*m*g*T_sample, 0, 0, 0] * np.array([1, 1, 1, 1]),
-    "u_max": np.array([-0.05*omega_eq[0]**2, omega_eq[0]**2, omega_eq[0]**2, omega_eq[0]**2]),
-    "u_min": np.array([-omega_eq[0]**2, -omega_eq[0]**2, -omega_eq[0]**2, -omega_eq[0]**2]),
-    "y_max": np.array([100, 100, 20, 100]) if include_psi else np.array([5, 5, 5]),
-    "y_min": np.array([-100, -100, -20, -100]) if include_psi else -np.array([-5, -5, -5])
+    "delta_u_max": np.linalg.pinv(model.Gama) @ [10*m*g*T_sample, 0, 0, 0],
+    "delta_u_min": np.linalg.pinv(model.Gama) @ [-10*m*g*T_sample, 0, 0, 0],
+    "u_max": u_max,
+    "u_min": u_min,
+    "y_max": np.array([20, 20, 20, 1.5]) if include_psi else np.array([20, 20, 20]),
+    "y_min": np.array([-20, -20, -20, -1.5]) if include_psi else np.array([-20, -20, -20])
 }
 
 output_weights2 = 1 / (N*delta_y_max**2) # Deve variar a cada passo de simulação?

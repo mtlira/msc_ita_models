@@ -263,6 +263,29 @@ def plot_inputs(u_vector, t, omega_vector = None, save_path=None):
         axs[1,1].set_xlabel('t (s)')
         plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
 
+        if np.shape(omega_vector)[1] == 8:
+            fig, axs = plt.subplots(2, 2)
+            axs[0,0].step(t,omega_vector[:,4])
+            axs[0,0].set_title('$\\omega_5 (t)$')
+            axs[0,0].set_ylabel('$\\omega_5 (rad/s)$')
+            axs[0,0].set_xlabel('t (s)')
+
+            axs[0,1].step(t,omega_vector[:,5])
+            axs[0,1].set_title('$\\omega_6 (t)$')
+            axs[0,1].set_ylabel('$\\omega_6 (rad/s)$')
+            axs[0,1].set_xlabel('t (s)')
+
+            axs[1,0].step(t,omega_vector[:,6])
+            axs[1,0].set_title('$\\omega_7 (t)$')
+            axs[1,0].set_ylabel('$\\omega_7 (rad/s)$')
+            axs[1,0].set_xlabel('t (s)')
+
+            axs[1,1].step(t,omega_vector[:,7])
+            axs[1,1].set_title('$\\omega_8 (t)$')
+            axs[1,1].set_ylabel('$\\omega_8 (rad/s)$')
+            axs[1,1].set_xlabel('t (s)')
+            plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
+
         if save_path is not None: plt.savefig(save_path + 'inputs-rotors.png')
 
 def plot_delays(X_nonlinear, trajectory, t, X_linear = False):

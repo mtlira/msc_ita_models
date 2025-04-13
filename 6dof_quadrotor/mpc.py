@@ -386,7 +386,8 @@ class mpc(object):
             u_k = u_k_minus_1 + delta_u_k # TODO: confirmar se tem esse u_eq
 
             # omega**2 --> u
-            uu_k = model.Gama @ (u_k + u_eq)
+            omega_squared = np.clip(u_k + u_eq, 0, None)
+            uu_k = model.Gama @ omega_squared
 
             # Apply INPUT disturbance if enabled
             if disturb_input and k>0:
@@ -418,7 +419,7 @@ class mpc(object):
             X_vector.append(x_k)
             u_k_minus_1 = u_k
             u_vector.append(uu_k)
-            omega_vector.append(np.sqrt(u_k + u_eq))
+            omega_vector.append(np.sqrt(omega_squared))
             #delta_u_initial = np.tile(delta_u_k,self.M)
 
             # Storing dataset samples

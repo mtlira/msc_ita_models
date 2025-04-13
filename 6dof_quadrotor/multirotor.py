@@ -23,7 +23,7 @@ import sympy as sp
 #]
 
 class multirotor(object):
-    def __init__(self, m, g, I_x, I_y, I_z, b, l, d):
+    def __init__(self, m, g, I_x, I_y, I_z, b, l, d, num_rotors):
         self.m = m
         self.g = g
         self.I_x = I_x
@@ -32,11 +32,25 @@ class multirotor(object):
         self.b = b
         self.l = l
         self.d = d
+        if num_rotors not in [4, 8]:
+            raise ValueError('Valid numbers of rotors are 4 and 8 only.')
+        self.num_rotors = num_rotors
         # [u] = Gama * [w]
-        self.Gama = np.array([[b, b, b, b],
+        if num_rotors == 4:
+            self.Gama = np.array([[b, b, b, b],
                          [-b*l, 0, b*l, 0],
                          [0, b*l, 0, -b*l],
                          [d, -d, d, -d]])
+            
+        if num_rotors == 8:
+
+            sq2o2 = np.sin(np.pi/4)
+            self.Gama = np.array([
+                [b, b, b, b, b, b, b, b],
+                [b*l, b*l*sq2o2, 0, -b*l*sq2o2, -b*l, -b*l*sq2o2, 0, b*l*sq2o2],
+                [0, b*l*sq2o2, b*l, b*l*sq2o2, 0, -b*l*sq2o2, -b*l, -b*l*sq2o2],
+                [d, -d, d, -d, d, -d, d, -d]
+            ])
 
     # State-space model functions
 
@@ -172,5 +186,6 @@ class multirotor(object):
         return u
     
     def get_omegas(self, u):
-        w_vector = np.sqrt(np.linalg.inv(self.Gama) @ u)
+        #w_vector = np.sqrt(np.linalg.pinv(self.Gama) @ u)
+        w_vector = np.sqrt(self.m*self.g/(self.num_rotors*self.b))*np.ones(self.num_rotors)
         return w_vector
