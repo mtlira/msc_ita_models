@@ -17,14 +17,20 @@ from pathlib import Path
 from datetime import datetime
 
 ### MULTIROTOR PARAMETERS ###
-from parameters.octorotor_parameters import m, g, I_x, I_y, I_z, l, b, d
+from parameters.quadrotor_parameters import m, g, I_x, I_y, I_z, l, b, d
 
 print('b =',b)
 print('d =', d)
 
+# PID Controller parameters
+KP = 6
+KD = 3
+KI = 3
+phi_setpoint = 0
+
 ### SIMULATION PARAMETERS ###
 from parameters.simulation_parameters import time_step, T_sample, N, M
-T_simulation = 30
+T_simulation = 60
 
 t = np.arange(0,T_simulation, time_step)
 t_samples = np.arange(0,T_simulation, T_sample)
@@ -40,8 +46,8 @@ X_eq = np.zeros(12)
 # f_t está no eixo do corpo
 
 trajectory_type = 'circle_xy'
-#include_psi = True
-num_rotors = 8
+include_psi = True
+num_rotors = 4
 
 # Open-loop Inputs
 def u_(t):
@@ -68,7 +74,7 @@ u_eq = [m*g, 0, 0, 0]
 #root = fsolve(fn_solve, p.zeros(9))
 #print('eq point:',root)
 
-model = multirotor.multirotor(m, g, I_x, I_y, I_z, b, l, d, num_rotors=8)
+model = multirotor.multirotor(m, g, I_x, I_y, I_z, b, l, d, num_rotors = 4)
 
 # deletar #################################3
 omega_eq = model.get_omegas(u_eq)
@@ -83,9 +89,6 @@ C = np.array([[0,0,0,0,0,0,0,0,0,1,0,0],
               [0,1,0,0,0,0,0,0,0,0,0,0],
               [0,0,1,0,0,0,0,0,0,0,0,0],
               ])
-
-#if include_psi:
-#    C = np.concatenate((C, np.array([[0,0,1,0,0,0,0,0,0,0,0,0]])), axis = 0)
 
 #_, _, x_lin = openloop_sim_linear(A, B, t, X0, X_eq, u_eq, u_sim)
 
@@ -123,16 +126,16 @@ tr = trajectory_handler.TrajectoryHandler()
 
 r_tracking = None
 if trajectory_type == 'circle_xy':
-    r_tracking = tr.circle_xy_phibetapsi(w, 5, t_samples)
+    r_tracking = tr.circle_xy_phibeta(w, 5, t_samples, include_psi = include_psi)
 
 if trajectory_type == 'circle_xz':
     r_tracking = tr.circle_xz(w, 5, t_samples)
 
 if trajectory_type == 'point':
-    r_tracking = tr.point(0, 0, 0, t_samples)
+    r_tracking = tr.point_phibeta(0, 0, -1, t_samples, include_psi = include_psi)
 
 if trajectory_type == 'line':
-    r_tracking = tr.line(1, 1, -1, t_samples, 15)
+    r_tracking = tr.line(1, 1, -1, t_samples, 10)
 
 if trajectory_type == 'helicoidal':
     r_tracking = tr.helicoidal(w,t_samples)
@@ -161,7 +164,6 @@ if trajectory_type == 'helicoidal':
     # Nonlinear simulation
 #x_lqr_nonlinear, u_lqr_nonlinear = LQR.simulate2(X0, t_samples, r_tracking, model.f2, u_eq)
 
-
 #######################################################################################
 
 # Open-loop simulation (with input = u_sim)
@@ -178,7 +180,6 @@ if trajectory_type == 'helicoidal':
 
 # MPC Implementation
 
-
 # Clarification: u is actually (u - ueq) and delta_u is (u-ueq)[k] - (u-ueq)[k-1] in this MPC formulation (i.e., u is in reference to u_eq, not 0)
 restrictions = {
     #"delta_u_max": 1.5*m*g*time_step*np.ones(4),
@@ -187,7 +188,7 @@ restrictions = {
     "u_max": [m*g, m*g, m*g, m*g],
     "u_min": [-m*g, -m*g, -m*g, -m*g],
     "y_max": np.array([20, 20, 20, 1.4, 1.4, 1.4]),
-    "y_min": np.array([-20, -20, -20, -1.4, -1.4, -1.4]),
+    "y_min": np.array([-20, -20, -20, -1.4, -1.4, -1.4])
 }
 
 #teste = np.array([1,2,3])
@@ -214,7 +215,7 @@ print('wrong plot')
 
 omega_max = np.sqrt(2)*omega_eq
 # Failure in omega_0
-#omega_max[0] = 0*omega_eq[0]
+#omega_max[0] = 0.9*omega_eq[0]
 print('Failed omega_0: max value =',omega_max[0])
 u_max = omega_max**2 - omega_eq**2
 
@@ -228,7 +229,7 @@ restrictions2 = {
     "u_max": u_max,
     "u_min": u_min,
     "y_max": np.array([20, 20, 20, 1.4, 1.4, 1.4]),
-    "y_min": np.array([-20, -20, -20, -1.4, -1.4, -1.4]),
+    "y_min": np.array([-20, -20, -20, -1.4, -1.4, -1.4])
 }
 
 output_weights2 = 1 / (N*delta_y_max**2) # Deve variar a cada passo de simulação?

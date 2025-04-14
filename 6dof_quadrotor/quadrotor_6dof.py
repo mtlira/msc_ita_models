@@ -17,7 +17,7 @@ from pathlib import Path
 from datetime import datetime
 
 ### MULTIROTOR PARAMETERS ###
-from quadrotor_parameters import m, g, I_x, I_y, I_z, l, b, d
+from parameters.quadrotor_parameters import m, g, I_x, I_y, I_z, l, b, d
 
 print('b =',b)
 print('d =', d)
@@ -28,8 +28,8 @@ KD = 3
 KI = 3
 phi_setpoint = 0
 
-time_step = 1e-3 #5e-3 é um bom valor
-T_sample = 5e-2 # MP sample time
+### SIMULATION PARAMETERS ###
+from parameters.simulation_parameters import time_step, T_sample, N, M
 T_simulation = 30
 
 t = np.arange(0,T_simulation, time_step)
@@ -47,6 +47,7 @@ X_eq = np.zeros(12)
 
 trajectory_type = 'point'
 include_psi = False
+num_rotors = 4
 
 # Open-loop Inputs
 def u_(t):
@@ -73,7 +74,7 @@ u_eq = [m*g, 0, 0, 0]
 #root = fsolve(fn_solve, p.zeros(9))
 #print('eq point:',root)
 
-model = multirotor.multirotor(m, g, I_x, I_y, I_z, b, l, d)
+model = multirotor.multirotor(m, g, I_x, I_y, I_z, b, l, d, num_rotors = 4)
 
 # deletar #################################3
 omega_eq = model.get_omegas(u_eq)
@@ -119,12 +120,12 @@ u_max = [
 ########################################################################################
 # LQR - tracking
 
-w = 2*np.pi*1/30
+w = 2*np.pi*1/20
 tr = trajectory_handler.TrajectoryHandler()
 
 r_tracking = None
 if trajectory_type == 'circle_xy':
-    r_tracking = tr.circle_xy(w, 5, t_samples_extended)
+    r_tracking = tr.circle_xy(w, 5, t_samples_extended, include_psi = include_psi)
 
 if trajectory_type == 'circle_xz':
     r_tracking = tr.circle_xz(w, 5, t_samples)
@@ -161,35 +162,6 @@ if trajectory_type == 'helicoidal':
 
     # Nonlinear simulation
 #x_lqr_nonlinear, u_lqr_nonlinear = LQR.simulate2(X0, t_samples, r_tracking, model.f2, u_eq)
-    # Linear simulation
-#x_lqr_linear = LQR.simulate_linear(X0, t_samples, r_tracking)
-#x_lqr_linear3, u_linear_discrete3 = LQR.simulate_linear3(X0, t_samples, r_tracking)
-#x_lqr_linear2 = LQR.simulate_linear2(X0, t_samples, r_tracking)
-
-# Speed reference
-#r_tracking = tr.speed_reference(r_tracking, t_samples)
-#x_lqr_nonlinear_speed, u_lqr_nonlinear_speed = LQR2.simulate_speed_reference(X0, t_samples, r_tracking, model.f2, u_eq)
-#x_lqr_linear_speed, u_lqr_linear_speed = LQR2.simulate_linear4_speed_reference(X0, t_samples, r_tracking)
-#plot_states_speed(x_lqr_nonlinear, t_samples, x_lqr_linear_speed, r_tracking)
-
-#plot_states(x_lqr_nonlinear, t_samples, trajectory=r_tracking, u_vector=u_lqr_nonlinear)
-#plot_states(x_lqr_linear, t_samples, x_lqr_linear2, r_tracking, legend=['Discrete(1)', 'Discrete(2)'])
-#plot_states(x_lqr_linear2, t_samples, x_lqr_linear3, r_tracking, legend=['Discrete(2)', 'Discrete(3)'])
-#plot_states(x_lqr_nonlinear, t_samples, x_lqr_nonlinear, r_tracking)
-#fig = plt.figure()
-#plt.plot(t_samples[0:-1], u_lqr_nonlinear[:,0])
-#plt.plot(t_samples[0:-1], u_lqr_linear_speed[:,0])
-#plt.legend(['normal','speed'])
-#plt.show()
-
-#X_lqr_nonlinear, u_vector = lqr1.simulate(X0, t, r_tracking, f2, u_eq) # Não linear
-#X_lqr_nonlinear2, u_vector2 = lqr2.simulate2(X0, t_samples, r_tracking, f2, u_eq)
-#plot_states(x_lqr_nonlinear, t_samples, x_lqr_linear, r_tracking)
-#r_tracking = r_circle_xy2
-#plot_states(X_lqr_nonlinear2, t_samples, X_lin = None, trajectory=r_tracking)
-#plot_inputs(u_vector,t[0:-1])
-#plot_delays(X_lqr_nonlinear, r_tracking, t)
-#plot_errors(X_lqr_nonlinear, r_tracking, t)
 
 #######################################################################################
 
@@ -207,11 +179,6 @@ if trajectory_type == 'helicoidal':
 
 # MPC Implementation
 
-N = 100
-M = 10
-rho = 1
-
-
 # Clarification: u is actually (u - ueq) and delta_u is (u-ueq)[k] - (u-ueq)[k-1] in this MPC formulation (i.e., u is in reference to u_eq, not 0)
 restrictions = {
     #"delta_u_max": 1.5*m*g*time_step*np.ones(4),
@@ -219,15 +186,15 @@ restrictions = {
     "delta_u_min": np.array([-3*m*g*T_sample, -1*m*g*T_sample, -1*m*g*T_sample, -1*m*g*T_sample]),
     "u_max": [m*g, m*g, m*g, m*g],
     "u_min": [-m*g, -m*g, -m*g, -m*g],
-    "y_max": 50*np.ones(4) if include_psi else 50*np.ones(3),
-    "y_min": -50*np.ones(4) if include_psi else -50*np.ones(3),
+    "y_max": np.array([5, 5, 10, 1e3]) if include_psi else np.array([2, 2, 5]),
+    "y_min": np.array([-5, -5, -10, -1e3]) if include_psi else np.array([-2, -2, -5]),
 }
 
 #teste = np.array([1,2,3])
 #print('1/teste=',1/teste)
 #print('1/teste^2=',1/(teste**2))
 
-delta_y_max = np.array([100, 100, 100, 100]) if include_psi else 5*T_sample*np.ones(3)
+delta_y_max = np.array([2, 2, 5, 1e3]) if include_psi else np.array([3, 3, 3])
 #delta_y_max = 1e-6*np.ones(3)
 
 
@@ -239,40 +206,33 @@ control_weights = 1 / (M*restrictions['delta_u_max']**2)
 
 MPC = mpc.mpc(M, N, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions)
 MPC.initialize_matrices()
-#X_mpc_nonlinear, u_mpc = MPC.simulate(model.f2, X0, t_samples, r_tracking, u_eq)
-#X_mpc_nonlinear_future, u_mpc_future = MPC.simulate_future(model.f2, X0, t_samples, r_tracking, u_eq)
-#X_mpc_linear, u_mpc_linear = MPC.simulate_linear(X0, t_samples, r_tracking, u_eq)
-#plot_states(X_mpc_nonlinear, t_samples[:np.shape(X_mpc_nonlinear)[0]], X_mpc_nonlinear_future, r_tracking, u_mpc, equal_scales=True, legend=['Present Reference', 'Future Reference', 'Trajectory'])
-#plot_states(X_mpc_nonlinear, t_samples[:np.shape(X_mpc_nonlinear_future)[0]], X_mpc_nonlinear_future, r_tracking, u_mpc_future, equal_scales=True)
-#plot_inputs(u_mpc, t_samples[0:-1])
 
 x_classic, u_classic = MPC.simulate_future(model.f2,X0, t_samples, r_tracking, u_eq)
 plot_states(x_classic, t_samples, trajectory=r_tracking[:len(t_samples)], u_vector=u_classic)
 print('wrong plot')
 # MPC with actuators
+
+omega_max = np.sqrt(2)*omega_eq
+# Failure in omega_0
+omega_max[0] = 0.99*omega_eq[0]
+print('Failed omega_0: max value =',omega_max[0])
+u_max = omega_max**2 - omega_eq**2
+
+omega_min = np.zeros(num_rotors)
+u_min = omega_min**2 - omega_eq**2
+
 restrictions2 = {
     #"delta_u_max": 1.5*m*g*time_step*np.ones(4),
-    "delta_u_max": np.linalg.pinv(model.Gama) @ [10*m*g*T_sample, 0, 0, 0] * np.array([1, 1, 1, 1]),
-    "delta_u_min": np.linalg.pinv(model.Gama) @ [-10*m*g*T_sample, 0, 0, 0] * np.array([1, 1, 1, 1]),
-    "u_max": np.array([-0.05*omega_eq[0]**2, omega_eq[0]**2, omega_eq[0]**2, omega_eq[0]**2]),
-    "u_min": np.array([-omega_eq[0]**2, -omega_eq[0]**2, -omega_eq[0]**2, -omega_eq[0]**2]),
-    "y_max": np.array([100, 100, 20, 100]) if include_psi else np.array([5, 5, 5]),
-    "y_min": np.array([-100, -100, -20, -100]) if include_psi else -np.array([-5, -5, -5])
+    "delta_u_max": np.linalg.pinv(model.Gama) @ [10*m*g*T_sample, 0, 0, 0],
+    "delta_u_min": np.linalg.pinv(model.Gama) @ [-10*m*g*T_sample, 0, 0, 0],
+    "u_max": u_max,
+    "u_min": u_min,
+    "y_max": np.array([10, 10, 10, 1e6]) if include_psi else np.array([3, 3, 3]),
+    "y_min": np.array([-10, -10, -10, 1e6]) if include_psi else np.array([-3, -3, -3])
 }
 
 output_weights2 = 1 / (N*delta_y_max**2) # Deve variar a cada passo de simulação?
 control_weights2 = 1 / (M*restrictions2['delta_u_max']**2)
-
-# print(np.sqrt(np.linalg.pinv(model.Gama) @ [2*m*g, 0, 0, 0]))
-# print(np.sqrt(np.linalg.pinv(model.Gama) @ [m*g, 0.1*m*g, 0.1*m*g, 0*m*g]))
-# print(np.sqrt(np.linalg.pinv(model.Gama) @ [m*g, -0.1*m*g, -0.1*m*g, -0.1*m*g]))
-# print(np.sqrt(np.linalg.pinv(model.Gama) @ [1.5*m*g, 0, 0, 0]))
-
-# print(np.linalg.pinv(model.Gama) @ [-m*g, 0, 0, 0])
-# print(np.linalg.pinv(model.Gama) @ [m*g, 0, 0, 0])
-# print(np.linalg.pinv(model.Gama) @ [m*g, 0.1*m*g, 0.1*m*g, 0.1*m*g])
-# print(np.linalg.pinv(model.Gama) @ [m*g, -0.1*m*g, -0.1*m*g, -0.1*m*g])
-# print(np.linalg.pinv(model.Gama) @ [1.5*m*g, 0, 0, 0])
 
 
 Bw = B @ model.Gama

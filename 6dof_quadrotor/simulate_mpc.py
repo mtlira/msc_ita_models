@@ -17,7 +17,7 @@ from pathlib import Path
 from datetime import datetime
 
 ### MULTIROTOR PARAMETERS ###
-from quadrotor_parameters import m, g, I_x, I_y, I_z, l, b, d
+from parameters.quadrotor_parameters import m, g, I_x, I_y, I_z, l, b, d
 
 # Simulation trajectory
 #trajectory_type = 'circle_xy' # maybe delete
@@ -25,8 +25,8 @@ from quadrotor_parameters import m, g, I_x, I_y, I_z, l, b, d
 ### Create model of multirotor ###
 model = multirotor.multirotor(m, g, I_x, I_y, I_z, b, l, d)
 
-time_step = 1e-3 # Simulation time step #5e-3 é um bom valor
-T_sample = 5e-2 # MPC sample time
+### SIMULATION PARAMETERS ###
+from parameters.simulation_parameters import time_step, T_sample, N, M
 T_simulation = 15 # Total simulation time
 t_samples = np.arange(0,T_simulation, T_sample)
 
@@ -49,9 +49,6 @@ tr = trajectory_handler.TrajectoryHandler()
 num_points = 500
 
 # MPC Implementation
-
-N = 100
-M = 10
 
 def simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, dataset_name, folder_name, disturb_input=False):
     '''

@@ -10,20 +10,19 @@ import pandas as pd
 use_optuna_model = True
 
 ### MULTIROTOR PARAMETERS ###
-from quadrotor_parameters import m, g, I_x, I_y, I_z, l, b, d
+from parameters.quadrotor_parameters import m, g, I_x, I_y, I_z, l, b, d
 
 ### Create model of multirotor ###
 multirotor_model = multirotor.multirotor(m, g, I_x, I_y, I_z, b, l, d)
 
-num_inputs = 279
-num_outputs = 4
-q = 3 # Number of MPC outputs (x, y z)
-num_neurons_hidden_layers = 128
+num_neurons_hidden_layers = 128 # TODO: AUTOMATIZAR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #nn_weights_folder = 'dataset_canon/canon_N_90_M_10_hover_only/global_dataset/'
 #weights_file_name = 'model_weights.pth'
 
-time_step = 1e-3 # Simulation time step #5e-3 é um bom valor
-T_sample = 5e-2 # MPC sample time
+### SIMULATION PARAMETERS ###
+from parameters.simulation_parameters import time_step, T_sample, N, num_outputs
+q = num_outputs # Number of MPC outputs (x, y z)
+num_inputs = 279 # TODO: AUTOMATIZAR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 T_simulation = 30 # Total simulation time
 t_samples = np.arange(0,T_simulation, T_sample)
 t_samples_extended = np.arange(0,2*T_simulation, T_sample)
@@ -44,7 +43,7 @@ tr = trajectory_handler.TrajectoryHandler()
 trajectory = tr.circle_xy(w,4,t_samples_extended)
 #trajectory = tr.point(0,0,-1,t_samples)
 
-restrictions = {
+restrictions = { #TODO: CORRIGIR!!!!!!!!!!!!!!!!!!!!!!!
 "delta_u_max": np.linalg.pinv(multirotor_model.Gama) @ [10*m*g*T_sample, 0, 0, 0],
 "delta_u_min": np.linalg.pinv(multirotor_model.Gama) @ [-10*m*g*T_sample, 0, 0, 0],
 "u_max": np.linalg.pinv(multirotor_model.Gama) @ [m*g, 0, 0, 0],
@@ -63,8 +62,6 @@ def simulate_neural_network(nn_weights_folder, file_name, t_samples):
     #print('cmd=',cmd)
     #exec(cmd)
     #from dataset_canon.canon_N_50_M_20.global_dataset.nn_metadata import N, M
-    # TODO: resolver automatização do carregamento de N
-    N = 100
 
     print('(Check value) N =', N)
     if N == 0:
