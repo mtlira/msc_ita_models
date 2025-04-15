@@ -32,7 +32,7 @@ X0 = np.array([0,0,0,0,0,0,0,0,0,0,0,0])
 
 # Input and state values at the equilibrium condition
 u_eq = [m*g, 0, 0, 0]
-omega_eq = multirotor_model.get_omegas(u_eq)
+omega_eq = multirotor_model.get_omega_eq()
 omega_squared_eq = omega_eq**2
 print('omega_squared_eq',omega_squared_eq)
 

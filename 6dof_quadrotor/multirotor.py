@@ -36,13 +36,13 @@ class Multirotor(object):
         self.X_eq = np.zeros(12)
         self.u_eq = np.array([m*g, 0, 0, 0])
         self.I_rotor = I_rotor
+        if num_rotors not in [4, 8]:
+            raise ValueError('Valid numbers of rotors are 4 and 8 only.')
+        self.num_rotors = num_rotors
 
         t_z_eq = d*self.get_omega_eq()[0]**2
         self.angular_acceleration = t_z_eq / I_rotor
 
-        if num_rotors not in [4, 8]:
-            raise ValueError('Valid numbers of rotors are 4 and 8 only.')
-        self.num_rotors = num_rotors
         # [u] = Gama * [w]
         if num_rotors == 4:
             self.Gama = np.array([[b, b, b, b],

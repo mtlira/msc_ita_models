@@ -32,7 +32,7 @@ t_samples = np.arange(0,T_simulation, T_sample)
 
 # Input and state values at the equilibrium condition
 u_eq = [m*g, 0, 0, 0]
-omega_eq = model.get_omegas(u_eq)
+omega_eq = model.get_omega_eq()
 X_eq = np.zeros(12)
 
 # Initial condition

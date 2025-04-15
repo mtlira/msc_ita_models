@@ -31,7 +31,7 @@ class Restriction(object):
         }
 
         # Order: x, y, z, phi, beta, psi
-        delta_y_max = np.array([0.5, 0.5, 0.8, 0.5, 0.5, 1]) # Tune in case of unsatisfactory simulation results
+        delta_y_max = np.array([1, 1, 1, 0.8, 0.8, 0.8]) # Tune in case of unsatisfactory simulation results
 
 
         output_weights = 1 / (self.N*delta_y_max**2) # Deve variar a cada passo de simulação?

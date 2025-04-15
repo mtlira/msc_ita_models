@@ -27,17 +27,14 @@ class TrajectoryHandler(object):
                 
         return r_point
     
-    def line(self, a, b, c, t, clamp=None, include_psi = False):
+    def line(self, a, b, c, t, clamp=None):
         """
         Creates a line trajectory defined by [a.t b.t c.t]
         clamp: maximum coordinate value allowed for the trajectory
         """
-        r_line = np.array([a*t, b*t, c*t]).transpose()
+        r_line = np.array([a*t, b*t, c*t, 0*t, 0*t, 0*t]).transpose()
         if clamp is not None:
             r_line = r_line.clip(min=-clamp, max=clamp)
-
-        if include_psi:
-            r_line = np.concatenate((r_line, np.array([np.zeros(len(t))]).transpose()), axis = 1)
 
         return r_line            
 
@@ -126,7 +123,40 @@ class TrajectoryHandler(object):
 
         # Random points
         for i in range(point_numbers - len(points_vector)):
-            point = 6*np.random.rand(3) - 3 # Random point inside sphere of 20m radius centered in (0,0,0)
+            point = 6*np.random.rand(3) - 3 # Random point inside sphere of 3m radius centered in (0,0,0)
             points_vector.append(point)
         
         return points_vector
+    
+    def generate_circle_trajectories(self):
+        short_radius_vector = np.arange(0.5, 5, 0.5)
+        long_radius_vector = np.arange(5, 10, 0.2)
+        short_period_vector = np.arange(1, 10, 0.5)
+        long_period_vector = np.arange(10, 30, 1)
+
+        w_short_vector = 2*np.pi/short_period_vector
+        w_long_vector = 2*np.pi/long_period_vector
+
+        args1 = np.concatenate((w_short_vector, short_radius_vector), axis = 1)
+        args2 = np.concatenate((w_long_vector, long_radius_vector), axis = 1)
+        args = np.concatenate((args1, args2), axis = 0)
+
+        #num_circles = len(short_radius_vector) * len(short_period_vector) + len(long_radius_vector) * len(long_period_vector)
+        #print(' Number of circle trajectories:', num_circles)
+
+        return args
+
+
+    def generate_line_trajectories(self):
+        coefficients = 8*np.random.rand(500, 3) - 4
+        clamp = 5*np.random.rand(500, 1) + 10
+        T_simulation = 25*np.ones((500, 1))
+
+        args = np.concatenate((coefficients, T_simulation, clamp), axis = 1)
+        return args
+
+#teste = TrajectoryHandler()
+#teste.generate_circle_trajectories()
+#args = teste.generate_line_trajectories()
+#print('argsshape',np.shape(args))
+
