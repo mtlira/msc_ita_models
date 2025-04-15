@@ -74,17 +74,14 @@ u_eq = [m*g, 0, 0, 0]
 #root = fsolve(fn_solve, p.zeros(9))
 #print('eq point:',root)
 
-model = multirotor.multirotor(m, g, I_x, I_y, I_z, b, l, d, num_rotors = 4)
+model = multirotor.Multirotor(m, g, I_x, I_y, I_z, b, l, d, num_rotors = 4)
 
 # deletar #################################3
 omega_eq = model.get_omegas(u_eq)
 print('omegas_eq',omega_eq)
 #############################################
 
-A, B = linearize(model.f_sym, X_eq, u_eq)
-C = np.array([[0,0,0,0,0,0,0,0,0,1,0,0],
-              [0,0,0,0,0,0,0,0,0,0,1,0],
-              [0,0,0,0,0,0,0,0,0,0,0,1]])
+A, B, C = model.linearize()
 
 if include_psi:
     C = np.concatenate((C, np.array([[0,0,1,0,0,0,0,0,0,0,0,0]])), axis = 0)

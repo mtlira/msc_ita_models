@@ -1,5 +1,6 @@
 import numpy as np
 import sympy as sp
+from linearize import *
 
 # x = [  phi (0)
 #        theta (1)
@@ -22,7 +23,7 @@ import sympy as sp
 #    tz (3)
 #]
 
-class multirotor(object):
+class Multirotor(object):
     def __init__(self, m, g, I_x, I_y, I_z, b, l, d, num_rotors):
         self.m = m
         self.g = g
@@ -32,6 +33,10 @@ class multirotor(object):
         self.b = b
         self.l = l
         self.d = d
+        self.X_eq = np.zeros(12)
+        self.u_eq = np.array([m*g, 0, 0, 0])
+
+
         if num_rotors not in [4, 8]:
             raise ValueError('Valid numbers of rotors are 4 and 8 only.')
         self.num_rotors = num_rotors
@@ -185,7 +190,18 @@ class multirotor(object):
         u = self.Gama @ w_vector**2
         return u
     
-    def get_omegas(self, u):
+    def get_omega_eq(self):
         #w_vector = np.sqrt(np.linalg.pinv(self.Gama) @ u)
         w_vector = np.sqrt(self.m*self.g/(self.num_rotors*self.b))*np.ones(self.num_rotors)
         return w_vector
+    
+    def linearize(self):
+        A, B = linearize(self.f_sym, self.X_eq, self.u_eq)
+        C = np.array([[0,0,0,0,0,0,0,0,0,1,0,0],
+                    [0,0,0,0,0,0,0,0,0,0,1,0],
+                    [0,0,0,0,0,0,0,0,0,0,0,1],
+                    [1,0,0,0,0,0,0,0,0,0,0,0],
+                    [0,1,0,0,0,0,0,0,0,0,0,0],
+                    [0,0,1,0,0,0,0,0,0,0,0,0],
+                    ])
+        return A, B, C

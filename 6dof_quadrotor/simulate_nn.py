@@ -13,7 +13,7 @@ use_optuna_model = True
 from parameters.quadrotor_parameters import m, g, I_x, I_y, I_z, l, b, d
 
 ### Create model of multirotor ###
-multirotor_model = multirotor.multirotor(m, g, I_x, I_y, I_z, b, l, d)
+multirotor_model = multirotor.Multirotor(m, g, I_x, I_y, I_z, b, l, d)
 
 num_neurons_hidden_layers = 128 # TODO: AUTOMATIZAR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #nn_weights_folder = 'dataset_canon/canon_N_90_M_10_hover_only/global_dataset/'

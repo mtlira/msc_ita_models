@@ -23,7 +23,7 @@ from parameters.quadrotor_parameters import m, g, I_x, I_y, I_z, l, b, d
 #trajectory_type = 'circle_xy' # maybe delete
 
 ### Create model of multirotor ###
-model = multirotor.multirotor(m, g, I_x, I_y, I_z, b, l, d)
+model = multirotor.Multirotor(m, g, I_x, I_y, I_z, b, l, d)
 
 ### SIMULATION PARAMETERS ###
 from parameters.simulation_parameters import time_step, T_sample, N, M
@@ -39,10 +39,7 @@ X_eq = np.zeros(12)
 X0 = np.array([0,0,0,0,0,0,0,0,0,0,0,0])
 
 ### Linearization of the model
-A, B = linearize(model.f_sym, X_eq, u_eq)
-C = np.array([[0,0,0,0,0,0,0,0,0,1,0,0],
-              [0,0,0,0,0,0,0,0,0,0,1,0],
-              [0,0,0,0,0,0,0,0,0,0,0,1]])
+A, B, C = model.linearize()
 
 tr = trajectory_handler.TrajectoryHandler()
 
