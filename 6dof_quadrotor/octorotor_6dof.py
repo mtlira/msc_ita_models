@@ -202,12 +202,11 @@ MPC.initialize_matrices()
 
 #x_classic, u_classic = MPC.simulate_future(model.f2,X0, t_samples, r_tracking, u_eq)
 #plot_states(x_classic, t_samples, trajectory=r_tracking[:len(t_samples)], u_vector=u_classic)
-print('wrong plot')
 # MPC with actuators
 
 omega_max = np.sqrt(2)*omega_eq
 # Failure in omega_0
-#omega_max[0] = 0.5*omega_eq[0]
+omega_max[0] = 0*omega_eq[0]
 #print('Failed omega_0: max value =',omega_max[0])
 u_max = omega_max**2 - omega_eq**2
 
@@ -231,7 +230,7 @@ control_weights2 = 1 / (M*restrictions2['delta_u_max']**2)
 Bw = B @ model.Gama
 MPC2 = mpc.mpc(M, N, A, Bw, C, time_step, T_sample, output_weights2, control_weights2, restrictions2)
 MPC2.initialize_matrices()
-x_mpc_rotors, u_rotors, omega_vector, NN_dataset = MPC2.simulate_future_rotors(model, X0, t_samples, r_tracking, omega_eq**2, generate_dataset=False, disturb_input=True)
+x_mpc_rotors, u_rotors, omega_vector, NN_dataset = MPC2.simulate_future_rotors(model, X0, t_samples, r_tracking, omega_eq**2, generate_dataset=False, disturb_input=False)
 
 if x_mpc_rotors is not None:
     #plot_states(X_mpc_nonlinear_future, t_samples[:np.shape(x_mpc_rotors)[0]], x_mpc_rotors, r_tracking, u_rotors, omega_vector, equal_scales=True, legend=['Force/Moment optimization','Angular speed optimization'])

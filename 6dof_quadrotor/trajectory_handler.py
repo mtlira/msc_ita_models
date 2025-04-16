@@ -6,14 +6,14 @@ class TrajectoryHandler(object):
     def __init__(self):
         pass
 
-    def point(self, xp, yp, zp, t, include_psi):
+    def point(self, xp, yp, zp, t):
         r_point = np.array([xp*np.ones(len(t)),
                     yp*np.ones(len(t)),
                     zp*np.ones(len(t)),
+                    0*t,
+                    0*t,
+                    0*t
                     ]).transpose()
-        
-        if include_psi:
-            r_point = np.concatenate((r_point, np.array([np.zeros(len(t))]).transpose()), axis = 1)
         
         return r_point
     

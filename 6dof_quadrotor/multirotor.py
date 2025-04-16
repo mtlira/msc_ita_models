@@ -24,7 +24,7 @@ from linearize import *
 #]
 
 class Multirotor(object):
-    def __init__(self, m, g, I_x, I_y, I_z, b, l, d, I_rotor, num_rotors):
+    def __init__(self, m, g, I_x, I_y, I_z, b, l, d, num_rotors, I_rotor=None):
         self.m = m
         self.g = g
         self.I_x = I_x
@@ -40,8 +40,9 @@ class Multirotor(object):
             raise ValueError('Valid numbers of rotors are 4 and 8 only.')
         self.num_rotors = num_rotors
 
-        t_z_eq = d*self.get_omega_eq()[0]**2
-        self.angular_acceleration = t_z_eq / I_rotor
+        if I_rotor is not None:
+            t_z_eq = d*self.get_omega_eq()[0]**2
+            self.angular_acceleration = t_z_eq / I_rotor
 
         # [u] = Gama * [w]
         if num_rotors == 4:

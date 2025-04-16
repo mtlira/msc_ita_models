@@ -30,7 +30,7 @@ phi_setpoint = 0
 
 ### SIMULATION PARAMETERS ###
 from parameters.simulation_parameters import time_step, T_sample, N, M
-T_simulation = 60
+T_simulation = 15
 
 t = np.arange(0,T_simulation, time_step)
 t_samples = np.arange(0,T_simulation, T_sample)
@@ -45,7 +45,7 @@ X_eq = np.zeros(12)
 
 # f_t está no eixo do corpo
 
-trajectory_type = 'circle_xy'
+trajectory_type = 'point'
 include_psi = True
 num_rotors = 4
 
@@ -119,13 +119,13 @@ tr = trajectory_handler.TrajectoryHandler()
 
 r_tracking = None
 if trajectory_type == 'circle_xy':
-    r_tracking = tr.circle_xy_phibeta(w, 5, t_samples, include_psi = include_psi)
+    r_tracking = tr.circle_xy(w, 5, t_samples)
 
 if trajectory_type == 'circle_xz':
     r_tracking = tr.circle_xz(w, 5, t_samples)
 
 if trajectory_type == 'point':
-    r_tracking = tr.point_phibeta(0, 0, -1, t_samples, include_psi = include_psi)
+    r_tracking = tr.point(0, 0, 0, t_samples)
 
 if trajectory_type == 'line':
     r_tracking = tr.line(1, 1, -1, t_samples, 10)
@@ -188,7 +188,7 @@ restrictions = {
 #print('1/teste=',1/teste)
 #print('1/teste^2=',1/(teste**2))
 
-delta_y_max = np.array([0.5, 0.5, 0.8, 0.5, 0.5, 1])
+delta_y_max = np.array([0.4, 0.4, 0.4, 0.8, 0.8, 1000])
 #delta_y_max = 1e-6*np.ones(3)
 
 
@@ -208,7 +208,7 @@ print('wrong plot')
 
 omega_max = np.sqrt(2)*omega_eq
 # Failure in omega_0
-#omega_max[0] = 0.9*omega_eq[0]
+omega_max[0] = 0.95*omega_eq[0]
 print('Failed omega_0: max value =',omega_max[0])
 u_max = omega_max**2 - omega_eq**2
 
@@ -221,8 +221,8 @@ restrictions2 = {
     "delta_u_min": np.linalg.pinv(model.Gama) @ [-10*m*g*T_sample, 0, 0, 0],
     "u_max": u_max,
     "u_min": u_min,
-    "y_max": np.array([20, 20, 20, 1.4, 1.4, 1.4]),
-    "y_min": np.array([-20, -20, -20, -1.4, -1.4, -1.4])
+    "y_max": np.array([20, 20, 20, 1.4, 1.4, 1000]),
+    "y_min": np.array([-20, -20, -20, -1.4, -1.4, -1000])
 }
 
 output_weights2 = 1 / (N*delta_y_max**2) # Deve variar a cada passo de simulação?

@@ -81,27 +81,18 @@ def simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions
     return False
 
 def generate_dataset():
+    # Parameters
     failed_simulations = 0
-    total_simulations = 2*num_points #2x because of clean and disturbed simulations
-    #trajectories_array = tr.generate_trajectories_batch()
-    points_array = tr.generate_point_trajectories(num_points)
-
     dataset_id = 1
     now = datetime.now()
     current_time = now.strftime("%m_%d_%Hh-%Mm")
     dataset_name = current_time
-    t_samples = np.arange(0,T_simulation, T_sample)
+    
+    # Restrictions vector
 
-    restrictions_vector = [
-        {
-        "delta_u_max": np.linalg.pinv(model.Gama) @ [10*m*g*T_sample, 0, 0, 0],
-        "delta_u_min": np.linalg.pinv(model.Gama) @ [-10*m*g*T_sample, 0, 0, 0],
-        "u_max": np.linalg.pinv(model.Gama) @ [m*g, 0, 0, 0],
-        "u_min": np.linalg.pinv(model.Gama) @ [-m*g, 0, 0, 0],
-        "y_max": 100*np.ones(3),
-        "y_min": -100*np.ones(3)
-        }
-    ]
+    points_array = tr.generate_point_trajectories(num_points)
+
+    
 
     # Addition of disturbances
     for point in points_array:
