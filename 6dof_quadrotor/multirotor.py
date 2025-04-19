@@ -24,7 +24,7 @@ from linearize import *
 #]
 
 class Multirotor(object):
-    def __init__(self, m, g, I_x, I_y, I_z, b, l, d, num_rotors, I_rotor=None):
+    def __init__(self, m, g, I_x, I_y, I_z, b, l, d, num_rotors, thrust_to_weight, I_rotor=None):
         self.m = m
         self.g = g
         self.I_x = I_x
@@ -36,13 +36,15 @@ class Multirotor(object):
         self.X_eq = np.zeros(12)
         self.u_eq = np.array([m*g, 0, 0, 0])
         self.I_rotor = I_rotor
+        self.thrust_to_weight = thrust_to_weight
+        
         if num_rotors not in [4, 8]:
             raise ValueError('Valid numbers of rotors are 4 and 8 only.')
         self.num_rotors = num_rotors
 
-        if I_rotor is not None:
-            t_z_eq = d*self.get_omega_eq()[0]**2
-            self.angular_acceleration = t_z_eq / I_rotor
+        #if I_rotor is not None:
+        #    t_z_eq = d*self.get_omega_eq()[0]**2
+        self.angular_acceleration = self.get_omega_eq()[0]/0.3
 
         # [u] = Gama * [w]
         if num_rotors == 4:
@@ -207,5 +209,15 @@ class Multirotor(object):
                     [1,0,0,0,0,0,0,0,0,0,0,0],
                     [0,1,0,0,0,0,0,0,0,0,0,0],
                     [0,0,1,0,0,0,0,0,0,0,0,0],
+                    ])
+        return A, B, C
+    
+    def linearize_fault_tolerant(self):
+        A, B = linearize(self.f_sym, self.X_eq, self.u_eq)
+        C = np.array([[0,0,0,0,0,0,0,0,0,1,0,0],
+                    [0,0,0,0,0,0,0,0,0,0,1,0],
+                    [0,0,0,0,0,0,0,0,0,0,0,1],
+                    [1,0,0,0,0,0,0,0,0,0,0,0],
+                    [0,1,0,0,0,0,0,0,0,0,0,0],
                     ])
         return A, B, C

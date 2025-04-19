@@ -1,4 +1,5 @@
 import numpy as np
+from parameters.simulation_parameters import T_sample
 
 # x, y and z coordinates are on the upside-down body axis
 
@@ -6,7 +7,8 @@ class TrajectoryHandler(object):
     def __init__(self):
         pass
 
-    def point(self, xp, yp, zp, t):
+    def point(self, xp, yp, zp, T_simulation):
+        t = np.arange(0, T_simulation, T_sample)
         r_point = np.array([xp*np.ones(len(t)),
                     yp*np.ones(len(t)),
                     zp*np.ones(len(t)),
@@ -17,38 +19,20 @@ class TrajectoryHandler(object):
         
         return r_point
     
-    def point_phibeta(self, xp, yp, zp, t, include_psi):
-        r_point = np.array([xp*np.ones(len(t)),
-                    yp*np.ones(len(t)),
-                    zp*np.ones(len(t)),
-                    0*t,
-                    0*t
-                    ]).transpose()
-                
-        return r_point
-    
-    def line(self, a, b, c, t, clamp=None):
+    def line(self, a, b, c, T_simulation, clamp=None):
         """
         Creates a line trajectory defined by [a.t b.t c.t]
         clamp: maximum coordinate value allowed for the trajectory
         """
+        t = np.arange(0, T_simulation, T_sample)
         r_line = np.array([a*t, b*t, c*t, 0*t, 0*t, 0*t]).transpose()
         if clamp is not None:
             r_line = r_line.clip(min=-clamp, max=clamp)
 
         return r_line            
-
-    def circle_xy(self, w, r, t, include_psi = False):
-        r_circle_xy = np.array([r*np.sin(w*t),
-                       (r - r*np.cos(w*t)),
-                       np.zeros(len(t)),
-                       ]).transpose()
-        
-        if include_psi:
-            r_circle_xy = np.concatenate((r_circle_xy, np.array([np.zeros(len(t))]).transpose()), axis = 1)
-        return r_circle_xy
     
-    def circle_xy_phibetapsi(self, w, r, t, include_psi = False):
+    def circle_xy_phibetapsi(self, w, r, T_simulation):
+        t = np.arange(0, T_simulation, T_sample)
         r_circle_xy = np.array([r*np.sin(w*t),
                        (r - r*np.cos(w*t)),
                        np.zeros(len(t)),
@@ -59,37 +43,35 @@ class TrajectoryHandler(object):
         
         return r_circle_xy
     
-    def circle_xz(self, w, r, t, include_psi = False):
+    def circle_xz(self, w, r, T_simulation):
+        t = np.arange(0, T_simulation, T_sample)
         r_circle_xz = np.array([r*np.sin(w*t),
-                       np.zeros(len(t)),
-                       (r - r*np.cos(w*t)),
+                        np.zeros(len(t)),
+                        (r - r*np.cos(w*t)),
+                        0*t,
+                        0*t,
+                        0*t
                        ]).transpose()
-        
-        if include_psi:
-            r_circle_xz = np.concatenate((r_circle_xz, np.array([np.zeros(len(t))]).transpose()), axis = 1)
 
         return r_circle_xz
 
     
-    def helicoidal(self, w, t, include_psi = False):
+    def helicoidal(self, w, T_simulation):
+        t = np.arange(0, T_simulation, T_sample)
         r_helicoidal = np.array([5*(1 + 0.1*t)*np.sin(w*t),
                        (5 - 5*(1 + 0.1*t)*np.cos(w*t)),
                        -1*t,
                        ]).transpose()
 
-        if include_psi:
-            r_helicoidal = np.concatenate((r_helicoidal, np.array([np.zeros(len(t))]).transpose()), axis = 1)
-
         return r_helicoidal
 
-    def helicoidal_znegative(self, w, t, include_psi=False):
+    def helicoidal_znegative(self, w, T_simulation):
+        t = np.arange(0, T_simulation, T_sample)
         r_helicoidal = np.array([5*(1 + 0.1*t)*np.sin(w*t),
                        (5 - 5*(1 + 0.1*t)*np.cos(w*t)),
                        1*t,
                        ]).transpose()
-        
-        if include_psi:
-            r_helicoidal = np.concatenate((r_helicoidal, np.array([np.zeros(len(t))]).transpose()), axis = 1)
+    
         
         return r_helicoidal
     
@@ -106,24 +88,25 @@ class TrajectoryHandler(object):
         tr = np.concatenate((speed_ref, trajectory), axis = 1)
         return tr
 
-    def generate_point_trajectories(self, point_numbers):
+    def generate_point_trajectories(self, point_numbers, T_simulation):
         points_vector = []
 
-        points_vector.append(np.array([0.0,0.0,0.0]))
-        points_vector.append(np.array([0.0,0.0,1.0]))
-        points_vector.append(np.array([0.0,0.0,-1.0]))
-        points_vector.append(np.array([0.0,0.0,2.0]))
-        points_vector.append(np.array([0.0,0.0,-2.0]))
-        points_vector.append(np.array([0.0,0.0,5.0]))
-        points_vector.append(np.array([0.0,0.0,-5.0]))
-        points_vector.append(np.array([1.0,0.0,0.0]))
-        points_vector.append(np.array([-1.0,0.0,0.0]))
-        points_vector.append(np.array([0.0,1.0,0.0]))
-        points_vector.append(np.array([0.0,-1.0,0.0]))
+        points_vector.append(np.array([0.0,0.0,0.0, T_simulation]))
+        points_vector.append(np.array([0.0,0.0,1.0, T_simulation]))
+        points_vector.append(np.array([0.0,0.0,-1.0, T_simulation]))
+        points_vector.append(np.array([0.0,0.0,2.0, T_simulation]))
+        points_vector.append(np.array([0.0,0.0,-2.0, T_simulation]))
+        points_vector.append(np.array([0.0,0.0,5.0, T_simulation]))
+        points_vector.append(np.array([0.0,0.0,-5.0, T_simulation]))
+        points_vector.append(np.array([1.0,0.0,0.0, T_simulation]))
+        points_vector.append(np.array([-1.0,0.0,0.0, T_simulation]))
+        points_vector.append(np.array([0.0,1.0,0.0, T_simulation]))
+        points_vector.append(np.array([0.0,-1.0,0.0, T_simulation]))
 
         # Random points
         for i in range(point_numbers - len(points_vector)):
             point = 6*np.random.rand(3) - 3 # Random point inside sphere of 3m radius centered in (0,0,0)
+            point = np.concatenate((point, [T_simulation]), axis = 0)
             points_vector.append(point)
         
         return points_vector
@@ -131,20 +114,27 @@ class TrajectoryHandler(object):
     def generate_circle_trajectories(self):
         short_radius_vector = np.arange(0.5, 5, 0.5)
         long_radius_vector = np.arange(5, 10, 0.2)
-        short_period_vector = np.arange(1, 10, 0.5)
+        short_period_vector = np.arange(2, 10, 1)
         long_period_vector = np.arange(10, 30, 1)
 
         w_short_vector = 2*np.pi/short_period_vector
         w_long_vector = 2*np.pi/long_period_vector
 
-        args1 = np.concatenate((w_short_vector, short_radius_vector), axis = 1)
-        args2 = np.concatenate((w_long_vector, long_radius_vector), axis = 1)
-        args = np.concatenate((args1, args2), axis = 0)
+        args = []
 
-        #num_circles = len(short_radius_vector) * len(short_period_vector) + len(long_radius_vector) * len(long_period_vector)
-        #print(' Number of circle trajectories:', num_circles)
+        for period in short_period_vector:
+            for radius in short_radius_vector:
+                #args = np.concatenate((args, [[2*np.pi/period, radius, 3*period]]), axis = 0)
+                args.append([2*np.pi/period, radius, 3*period])
+        for period in long_period_vector:
+            for radius in long_radius_vector:
+                #args = np.concatenate((args, [[2*np.pi/period, radius, 1.3*period]]), axis = 0)
+                args.append([2*np.pi/period, radius, 1.25*period])
+        num_circles = len(short_radius_vector) * len(short_period_vector) + len(long_radius_vector) * len(long_period_vector)
+        print('Number of circle trajectories:', num_circles)
+        print('len(args)', len(args))
 
-        return args
+        #return args
 
 
     def generate_line_trajectories(self):
@@ -155,8 +145,8 @@ class TrajectoryHandler(object):
         args = np.concatenate((coefficients, T_simulation, clamp), axis = 1)
         return args
 
-#teste = TrajectoryHandler()
-#teste.generate_circle_trajectories()
+teste = TrajectoryHandler()
+teste.generate_circle_trajectories()
 #args = teste.generate_line_trajectories()
 #print('argsshape',np.shape(args))
 

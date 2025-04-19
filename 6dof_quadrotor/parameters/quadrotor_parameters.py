@@ -12,6 +12,8 @@ if use_old_parameters:
     b = 1e-4 # f_i = b*w^2, f_i is force of propeller and w is angular speed
     k_t = 0.0001 # Valor de k_t afeta na velocidade de divergência de psi(t)
     d = b*k_t # Torque = d * w^2
+    num_rotors = 4
+    thrust_to_weight = 2.5
 
 else:
 # Parameters from reference
@@ -30,6 +32,8 @@ else:
     #d = 7.4e-6 #7.4e-6 # t_i = d*w^2 t_i is torque of propeller 
     b = rho*CT*A*R**2
     d = rho*CQ*A*R**3
+    num_rotors = 4
+    thrust_to_weight = 2.5
 
 ### Control allocation parameters ###
 #l = 1 # multirotor's arm (distance from the center to the propeller)

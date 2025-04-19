@@ -7,3 +7,5 @@ l = 0.4
 b = 3.13e-5
 d = 7.5e-7
 I_rotor = 6e-5
+num_rotors = 8
+thrust_to_weight = 2.5

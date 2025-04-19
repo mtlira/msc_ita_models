@@ -15,9 +15,10 @@ import multirotor
 import trajectory_handler
 from pathlib import Path
 from datetime import datetime
+from restriction_handler import *
 
 ### MULTIROTOR PARAMETERS ###
-from parameters.octorotor_parameters import m, g, I_x, I_y, I_z, l, b, d, I_rotor
+from parameters.octorotor_parameters import m, g, I_x, I_y, I_z, l, b, d, thrust_to_weight, num_rotors
 
 print('b =',b)
 print('d =', d)
@@ -41,7 +42,6 @@ X_eq = np.zeros(12)
 
 trajectory_type = 'circle_xy'
 #include_psi = True
-num_rotors = 8
 
 # Open-loop Inputs
 def u_(t):
@@ -68,7 +68,8 @@ u_eq = [m*g, 0, 0, 0]
 #root = fsolve(fn_solve, p.zeros(9))
 #print('eq point:',root)
 
-model = multirotor.Multirotor(m, g, I_x, I_y, I_z, b, l, d, I_rotor, 8)
+model = multirotor.Multirotor(m, g, I_x, I_y, I_z, b, l, d, num_rotors, thrust_to_weight)
+
 
 # deletar #################################3
 omega_eq = model.get_omega_eq()
@@ -116,19 +117,19 @@ tr = trajectory_handler.TrajectoryHandler()
 
 r_tracking = None
 if trajectory_type == 'circle_xy':
-    r_tracking = tr.circle_xy_phibetapsi(w, 5, t_samples)
+    r_tracking = tr.circle_xy_phibetapsi(w, 5, T_simulation)
 
 if trajectory_type == 'circle_xz':
-    r_tracking = tr.circle_xz(w, 5, t_samples)
+    r_tracking = tr.circle_xz(w, 5, T_simulation)
 
 if trajectory_type == 'point':
-    r_tracking = tr.point(0, 0, 0, t_samples)
+    r_tracking = tr.point(0, 0, 0, T_simulation)
 
 if trajectory_type == 'line':
-    r_tracking = tr.line(3, 3, -3, t_samples, 15)
+    r_tracking = tr.line(3, 3, -3, T_simulation, 15)
 
 if trajectory_type == 'helicoidal':
-    r_tracking = tr.helicoidal(w,t_samples)
+    r_tracking = tr.helicoidal(w,T_simulation)
 
 #r_tracking = tr.point(0, 0, -1, t_samples)
 #r_tracking = tr.helicoidal(w,t_samples)
@@ -204,33 +205,42 @@ MPC.initialize_matrices()
 #plot_states(x_classic, t_samples, trajectory=r_tracking[:len(t_samples)], u_vector=u_classic)
 # MPC with actuators
 
-omega_max = np.sqrt(2)*omega_eq
-# Failure in omega_0
-omega_max[0] = 0*omega_eq[0]
-#print('Failed omega_0: max value =',omega_max[0])
-u_max = omega_max**2 - omega_eq**2
+# omega_max = np.sqrt(2)*omega_eq
+# # Failure in omega_0
+# omega_max[0] = 0*omega_eq[0]
+# #omega_max[3] = 0*omega_eq[2]
+# #print('Failed omega_0: max value =',omega_max[0])
+# u_max = omega_max**2 - omega_eq**2
 
-omega_min = np.zeros(num_rotors)
-u_min = omega_min**2 - omega_eq**2
+# omega_min = np.zeros(num_rotors)
+# u_min = omega_min**2 - omega_eq**2
 
-restrictions2 = {
-    #"delta_u_max": 1.5*m*g*time_step*np.ones(4),
-    "delta_u_max": np.linalg.pinv(model.Gama) @ [10*m*g*T_sample, 0, 0, 0],
-    "delta_u_min": np.linalg.pinv(model.Gama) @ [-10*m*g*T_sample, 0, 0, 0],
-    "u_max": u_max,
-    "u_min": u_min,
-    "y_max": np.array([20, 20, 20, 1.4, 1.4, 1.4]),
-    "y_min": np.array([-20, -20, -20, -1.4, -1.4, -1.4]),
-}
+# restrictions2 = {
+#     #"delta_u_max": 1.5*m*g*time_step*np.ones(4),
+#     "delta_u_max": np.linalg.pinv(model.Gama) @ [10*m*g*T_sample, 0, 0, 0],
+#     "delta_u_min": np.linalg.pinv(model.Gama) @ [-10*m*g*T_sample, 0, 0, 0],
+#     "u_max": u_max,
+#     "u_min": u_min,
+#     "y_max": np.array([20, 20, 20, 0.8, 0.8, 10000]),
+#     "y_min": np.array([-20, -20, -20, -0.8, -0.8, -10000]),
+# }
 
-output_weights2 = 1 / (N*delta_y_max**2) # Deve variar a cada passo de simulação?
-control_weights2 = 1 / (M*restrictions2['delta_u_max']**2)
+# output_weights2 = 1 / (N*delta_y_max**2) # Deve variar a cada passo de simulação?
+# control_weights2 = 1 / (M*restrictions2['delta_u_max']**2)
 
+# Testing restriction handler class
+rst = Restriction(model, T_sample, N, M)
+
+failed_rotors = []
+restrictions2, output_weights2, control_weights2, _ = rst.restriction('total_failure', failed_rotors)
+#if len(failed_rotors) >= 2: 
+#    r_tracking = r_tracking[:, : 5]
+#    _, _, C = model.linearize_fault_tolerant()
 
 Bw = B @ model.Gama
 MPC2 = mpc.mpc(M, N, A, Bw, C, time_step, T_sample, output_weights2, control_weights2, restrictions2)
 MPC2.initialize_matrices()
-x_mpc_rotors, u_rotors, omega_vector, NN_dataset = MPC2.simulate_future_rotors(model, X0, t_samples, r_tracking, omega_eq**2, generate_dataset=False, disturb_input=False)
+x_mpc_rotors, u_rotors, omega_vector, NN_dataset, _ = MPC2.simulate_future_rotors(model, X0, t_samples, r_tracking, omega_eq**2, generate_dataset=False, disturb_input=False)
 
 if x_mpc_rotors is not None:
     #plot_states(X_mpc_nonlinear_future, t_samples[:np.shape(x_mpc_rotors)[0]], x_mpc_rotors, r_tracking, u_rotors, omega_vector, equal_scales=True, legend=['Force/Moment optimization','Angular speed optimization'])

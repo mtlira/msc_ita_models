@@ -122,19 +122,19 @@ tr = trajectory_handler.TrajectoryHandler()
 
 r_tracking = None
 if trajectory_type == 'circle_xy':
-    r_tracking = tr.circle_xy(w, 5, t_samples_extended, include_psi = include_psi)
+    r_tracking = tr.circle_xy(w, 5, T_simulation, include_psi = include_psi)
 
 if trajectory_type == 'circle_xz':
-    r_tracking = tr.circle_xz(w, 5, t_samples)
+    r_tracking = tr.circle_xz(w, 5, T_simulation)
 
 if trajectory_type == 'point':
-    r_tracking = tr.point(0, 0, 0, t_samples, include_psi = include_psi)
+    r_tracking = tr.point(0, 0, 0, T_simulation, include_psi = include_psi)
 
 if trajectory_type == 'line':
-    r_tracking = tr.line(1, 1, -1, t_samples, 15)
+    r_tracking = tr.line(1, 1, -1, T_simulation, 15)
 
 if trajectory_type == 'helicoidal':
-    r_tracking = tr.helicoidal(w,t_samples)
+    r_tracking = tr.helicoidal(w,T_simulation)
 
 #r_tracking = tr.point(0, 0, -1, t_samples)
 #r_tracking = tr.helicoidal(w,t_samples)

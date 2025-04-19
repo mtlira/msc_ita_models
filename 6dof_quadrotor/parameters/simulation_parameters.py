@@ -1,6 +1,6 @@
-time_step = 1e-3 #5e-3 é um bom valor
-T_sample = 1e-2 # MP sample time
-N = 100
+time_step = 2e-3 #5e-3 é um bom valor
+T_sample = 2e-2 # MP sample time
+N = 60
 M = 10
 
 num_outputs = 6 # x, y, z, phi, beta, psi

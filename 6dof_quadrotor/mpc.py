@@ -5,6 +5,7 @@ from scipy.integrate import odeint
 from scipy.signal import StateSpace, cont2discrete, lsim
 import cvxopt
 from linearize import discretize
+import time
 
 class mpc(object):
     def __init__(self, M, N, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions):
@@ -316,6 +317,9 @@ class mpc(object):
         Output of the MPC are the angular speeds that are the input of the multirotor.
         Takes into account future trajectory reference from trajectory[k] until trajectory[k+N-1]
         """
+
+        start_time = time.time()
+
         p = self.p
         q = self.q
 
@@ -330,6 +334,9 @@ class mpc(object):
         u_minus_1 = np.zeros(p)
         x_k = X0
         u_k_minus_1 = u_minus_1
+        omega_k = model.get_omega_eq()
+        #alpha = model.angular_acceleration (Not being used at the moment)
+        #alpha_neg = -alpha
         X_vector = [X0]
         u_vector = []
         omega_vector = []
@@ -349,6 +356,11 @@ class mpc(object):
             f = self.phi @ epsilon_k
             fqp = 2*np.transpose(self.Gn) @ (f - ref_N)
             
+            # Update delta_u restrictions
+            #print(self.restrictions['delta_u_min'])
+            #self.restrictions['delta_u_max'] = (2*omega_k + alpha*self.T_sample)*alpha * self.T_sample
+            #self.restrictions['delta_u_min'] = (2*omega_k + alpha_neg*self.T_sample)*alpha_neg * self.T_sample
+
             # bqp
             bqp = np.concatenate((
                 np.tile(self.restrictions['delta_u_max'], self.M), # delta_u_max_M
@@ -387,6 +399,7 @@ class mpc(object):
 
             # omega**2 --> u
             omega_squared = np.clip(u_k + u_eq, 0, None)
+            omega_k = np.sqrt(omega_squared)
             uu_k = model.Gama @ omega_squared
 
             # Apply INPUT disturbance if enabled
@@ -411,7 +424,7 @@ class mpc(object):
             x_k_old = x_k # Used only to mount nn_sample array
             x_k = odeint(model.f2, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
             x_k = x_k[-1]
-            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 10 or np.max(np.abs(x_k[0:2])) > 2:
+            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 15 or np.max(np.abs(x_k[0:2])) > 1.75:
                 print('Simulation exploded.')
                 print(f'x_{k} =',x_k)
                 return None, None, None, None
@@ -419,24 +432,47 @@ class mpc(object):
             X_vector.append(x_k)
             u_k_minus_1 = u_k
             u_vector.append(uu_k)
-            omega_vector.append(np.sqrt(omega_squared))
+            omega_vector.append(omega_k)
             #delta_u_initial = np.tile(delta_u_k,self.M)
 
             # Storing dataset samples
+            waste_time = 0
             if generate_dataset:
+                start_waste_time = time.time()
                 NN_sample = np.array([])
 
                 # Calculating reference values relative to multirotor's current position at instant k
-                position_k = np.concatenate((x_k_old[9:], [x_k_old[2]]), axis = 0)
+                ref_N_position = trajectory[k:k+self.N, 0:3].reshape(-1) # TODO validar se termina em k+N-1 ou em k+N
+                q_neuralnetwork = 3 # For the NN, only x, y and z counts as effective references, since the angle references are all 0
+                if np.shape(ref_N_position)[0] < q_neuralnetwork*self.N:
+                    ref_N_position = np.concatenate((ref_N_position, np.tile(trajectory[-1, :3].reshape(-1), self.N - int(np.shape(ref_N_position)[0]/q_neuralnetwork))), axis = 0) # padding de trajectory[-1] em ref_N quando trajectory[k+N] ultrapassa ultimo elemento
+                position_k = x_k_old[9:]
                 position_k = np.tile(position_k, self.N).reshape(-1)
-                ref_N_relative = ref_N - position_k
+                ref_N_relative = ref_N_position - position_k
 
                 # Clarification: u is actually (u - ueq) and delta_u is (u-ueq)[k] - (u-ueq)[k-1] in this MPC formulation (i.e., u is in reference to u_eq, not 0)
-                NN_sample = np.concatenate((NN_sample, np.delete(x_k_old[0:9], 2), ref_N_relative, u_k), axis = 0) #TODO: depois, acrescentar restrições
+                NN_sample = np.concatenate((NN_sample, x_k_old[0:9], ref_N_relative, self.restrictions['u_max'] + u_eq, u_k), axis = 0) #TODO: depois, acrescentar restrições
 
                 NN_dataset.append(NN_sample)
+                end_waste_time = time.time()
+                waste_time += end_waste_time - start_waste_time
 
-        return np.array(X_vector), np.array(u_vector), np.array(omega_vector), np.asarray(NN_dataset)
+        end_time = time.time()
+        
+        # Metadata
+        execution_time = (end_time - start_time) - waste_time
+
+        position = np.array(X_vector)[:, 9:]
+        delta_position = trajectory[:,:3] - position
+        RMSe = np.mean(delta_position**2)
+
+        metadata = {
+            'execution_time': execution_time,
+            'RMSe': RMSe
+        }
+
+
+        return np.array(X_vector), np.array(u_vector), np.array(omega_vector), np.asarray(NN_dataset), metadata
     
     def simulate_rotors(self, model, X0, t_samples, trajectory, u_eq):
         """
@@ -799,7 +835,7 @@ class mpc(object):
         '''
 
         thrust_range = 0.2*model.m*model.g
-        tx_range = 0.1*model.m*model.g*model.l
+        tx_range = 0.05*model.m*model.g*model.l
         ty_range = tx_range
         tz_range = tx_range
 
