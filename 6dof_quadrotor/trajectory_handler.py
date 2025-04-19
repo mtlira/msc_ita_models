@@ -7,7 +7,7 @@ class TrajectoryHandler(object):
     def __init__(self):
         pass
 
-    def point(self, xp, yp, zp, T_simulation):
+    def point(self, xp, yp, zp, T_simulation, include_psi = True):
         t = np.arange(0, T_simulation, T_sample)
         r_point = np.array([xp*np.ones(len(t)),
                     yp*np.ones(len(t)),
@@ -17,6 +17,9 @@ class TrajectoryHandler(object):
                     0*t
                     ]).transpose()
         
+        if not include_psi:
+            r_point = r_point[:, :-1]
+
         return r_point
     
     def line(self, a, b, c, T_simulation, clamp=None):
@@ -31,7 +34,7 @@ class TrajectoryHandler(object):
 
         return r_line            
     
-    def circle_xy_phibetapsi(self, w, r, T_simulation):
+    def circle_xy_phibetapsi(self, w, r, T_simulation, include_psi = True):
         t = np.arange(0, T_simulation, T_sample)
         r_circle_xy = np.array([r*np.sin(w*t),
                        (r - r*np.cos(w*t)),
@@ -41,6 +44,9 @@ class TrajectoryHandler(object):
                        0*t
                        ]).transpose()
         
+        if not include_psi:
+            r_circle_xy = r_circle_xy[:, :-1]
+
         return r_circle_xy
     
     def circle_xz(self, w, r, T_simulation):

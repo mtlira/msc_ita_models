@@ -424,10 +424,10 @@ class mpc(object):
             x_k_old = x_k # Used only to mount nn_sample array
             x_k = odeint(model.f2, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
             x_k = x_k[-1]
-            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 15 or np.max(np.abs(x_k[0:2])) > 1.75:
+            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 10 or np.max(np.abs(x_k[0:2])) > 1.75:
                 print('Simulation exploded.')
                 print(f'x_{k} =',x_k)
-                return None, None, None, None
+                return None, None, None, None, None
             
             X_vector.append(x_k)
             u_k_minus_1 = u_k
@@ -463,7 +463,7 @@ class mpc(object):
         execution_time = (end_time - start_time) - waste_time
 
         position = np.array(X_vector)[:, 9:]
-        delta_position = trajectory[:,:3] - position
+        delta_position = trajectory[:len(position),:3] - position
         RMSe = np.mean(delta_position**2)
 
         metadata = {

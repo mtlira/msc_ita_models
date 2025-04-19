@@ -41,7 +41,7 @@ X_eq = np.zeros(12)
 # f_t está no eixo do corpo
 
 trajectory_type = 'circle_xy'
-#include_psi = True
+include_psi = True
 
 # Open-loop Inputs
 def u_(t):
@@ -112,18 +112,18 @@ u_max = [
 ########################################################################################
 # LQR - tracking
 
-w = 2*np.pi*1/20
+w = 2*np.pi*1/10
 tr = trajectory_handler.TrajectoryHandler()
 
 r_tracking = None
 if trajectory_type == 'circle_xy':
-    r_tracking = tr.circle_xy_phibetapsi(w, 5, T_simulation)
+    r_tracking = tr.circle_xy_phibetapsi(w, 5, T_simulation, include_psi)
 
 if trajectory_type == 'circle_xz':
     r_tracking = tr.circle_xz(w, 5, T_simulation)
 
 if trajectory_type == 'point':
-    r_tracking = tr.point(0, 0, 0, T_simulation)
+    r_tracking = tr.point(0, 0, 0, T_simulation, include_psi)
 
 if trajectory_type == 'line':
     r_tracking = tr.line(3, 3, -3, T_simulation, 15)
@@ -231,11 +231,18 @@ MPC.initialize_matrices()
 # Testing restriction handler class
 rst = Restriction(model, T_sample, N, M)
 
-failed_rotors = []
+failed_rotors = [2]
 restrictions2, output_weights2, control_weights2, _ = rst.restriction('total_failure', failed_rotors)
 #if len(failed_rotors) >= 2: 
 #    r_tracking = r_tracking[:, : 5]
 #    _, _, C = model.linearize_fault_tolerant()
+
+# IF YOU WANT TO REMOVE PSI REFERENCE
+if not include_psi:
+    _, _, C = model.linearize_fault_tolerant()
+    restrictions2['y_max'] = restrictions['y_max'][:-1]
+    restrictions2['y_min'] = restrictions['y_min'][:-1]
+    output_weights2 = output_weights2[:-1]
 
 Bw = B @ model.Gama
 MPC2 = mpc.mpc(M, N, A, Bw, C, time_step, T_sample, output_weights2, control_weights2, restrictions2)
@@ -244,7 +251,7 @@ x_mpc_rotors, u_rotors, omega_vector, NN_dataset, _ = MPC2.simulate_future_rotor
 
 if x_mpc_rotors is not None:
     #plot_states(X_mpc_nonlinear_future, t_samples[:np.shape(x_mpc_rotors)[0]], x_mpc_rotors, r_tracking, u_rotors, omega_vector, equal_scales=True, legend=['Force/Moment optimization','Angular speed optimization'])
-    plot_states(x_mpc_rotors, t_samples[:np.shape(x_mpc_rotors)[0]], trajectory=r_tracking[:len(t_samples)], u_vector=u_rotors, omega_vector=omega_vector, equal_scales=True, legend=['Force/Moment optimization'])
+    plot_states(x_mpc_rotors, t_samples[:len(x_mpc_rotors)], trajectory=r_tracking[:len(x_mpc_rotors)], u_vector=u_rotors, omega_vector=omega_vector, equal_scales=True, legend=['Force/Moment optimization'])
 
     save_dataset = str(input('Do you wish to save the generated simulation dataset? (y/n): '))
     if save_dataset == 'y':
