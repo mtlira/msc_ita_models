@@ -464,7 +464,7 @@ class mpc(object):
 
         position = np.array(X_vector)[:, 9:]
         delta_position = trajectory[:len(position),:3] - position
-        RMSe = np.mean(delta_position**2)
+        RMSe = np.sqrt(np.mean(delta_position**2))
 
         metadata = {
             'execution_time': execution_time,

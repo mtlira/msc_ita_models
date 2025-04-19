@@ -22,19 +22,18 @@ class TrajectoryHandler(object):
 
         return r_point
     
-    def line(self, a, b, c, T_simulation, clamp=None):
+    def line(self, a, b, c, clamp, T_simulation):
         """
         Creates a line trajectory defined by [a.t b.t c.t]
         clamp: maximum coordinate value allowed for the trajectory
         """
         t = np.arange(0, T_simulation, T_sample)
         r_line = np.array([a*t, b*t, c*t, 0*t, 0*t, 0*t]).transpose()
-        if clamp is not None:
-            r_line = r_line.clip(min=-clamp, max=clamp)
+        r_line = r_line.clip(min=-clamp, max=clamp)
 
         return r_line            
     
-    def circle_xy_phibetapsi(self, w, r, T_simulation, include_psi = True):
+    def circle_xy(self, w, r, T_simulation, include_psi = True):
         t = np.arange(0, T_simulation, T_sample)
         r_circle_xy = np.array([r*np.sin(w*t),
                        (r - r*np.cos(w*t)),
@@ -80,6 +79,27 @@ class TrajectoryHandler(object):
     
         
         return r_helicoidal
+    
+    def generate_trajectory(self, trajectory_type, args):
+        if trajectory_type == 'point':
+            return self.point(args[0], args[1], args[2], args[3])
+        
+        if trajectory_type == 'line':
+            return self.line(args[0], args[1], args[2], args[3], args[4])
+        
+        if trajectory_type == 'circle_xy':
+            return self.circle_xy(args[0], args[1], args[2])
+        
+        if trajectory_type == 'circle_xz':
+            return self.circle_xz(args[0], args[1], args[2])
+        
+        if trajectory_type == 'helicoidal':
+            return self.helicoidal(args[0], args[1])
+        
+        if trajectory_type == 'helicoidal_znegative':
+            return self.helicoidal_znegative(args[0], args[1])
+        
+        raise ValueError('Trajectory type not compatible')
     
     def speed_reference(self, trajectory, t):
         '''
@@ -148,7 +168,7 @@ class TrajectoryHandler(object):
         clamp = 5*np.random.rand(500, 1) + 10
         T_simulation = 25*np.ones((500, 1))
 
-        args = np.concatenate((coefficients, T_simulation, clamp), axis = 1)
+        args = np.concatenate((coefficients, clamp, T_simulation), axis = 1)
         return args
 
 teste = TrajectoryHandler()

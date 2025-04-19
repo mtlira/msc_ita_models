@@ -117,7 +117,7 @@ tr = trajectory_handler.TrajectoryHandler()
 
 r_tracking = None
 if trajectory_type == 'circle_xy':
-    r_tracking = tr.circle_xy_phibetapsi(w, 5, T_simulation, include_psi)
+    r_tracking = tr.circle_xy(w, 5, T_simulation, include_psi)
 
 if trajectory_type == 'circle_xz':
     r_tracking = tr.circle_xz(w, 5, T_simulation)

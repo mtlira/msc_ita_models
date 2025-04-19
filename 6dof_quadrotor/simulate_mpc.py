@@ -44,7 +44,10 @@ A, B, C = model.linearize()
 
 tr = trajectory_handler.TrajectoryHandler()
 
-num_points = 15
+# Parameters
+failed_simulations = 0
+total_simulations = 0
+dataset_id = 1
 
 simulation_metadata = {
     'sim_id': [],
@@ -95,47 +98,40 @@ def simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions
         return True, metadata
     return False, metadata
 
-def generate_dataset(dataset_name = None):
-    # Parameters
-    simulate_disturbances = True
-    failed_simulations = 0
-    total_simulations = 0
-    dataset_id = 1
-    if dataset_name is None: 
-        now = datetime.now()
-        current_time = now.strftime("%m_%d_%Hh-%Mm")
-        dataset_name = current_time
-    rst = Restriction(model, T_sample, N, M)
-    
-    global dataset_dataframe
-    
-    # 1. Restrictions vector
-    restrictions_performance = rst.restrictions_performance()
-
-    # 2. Generation of trajectories
-    T_simulation_point = 10
-    points_array = tr.generate_point_trajectories(num_points, T_simulation_point)
-    total_simulations += len(points_array)
-    if simulate_disturbances: total_simulations += len(points_array)
-
-
+def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_disturbances):
     # 3. Simulation of POINT trajectories
-    for point in points_array:
-        trajectory_type = 'point'
-        for restrictions, output_weights, control_weights, restrictions_metadata in restrictions_performance:
-            trajectory = tr.point(point[0], point[1], point[2], point[3])
+    global dataset_id
+    global total_simulations
+    global failed_simulations
+    global dataset_dataframe
+
+    total_simulations += len(args_vector) * len(restrictions_vector)
+    if simulate_disturbances: total_simulations *= 2
+
+    tr = trajectory_handler.TrajectoryHandler()
+    for args in args_vector:
+        for restrictions, output_weights, control_weights, restrictions_metadata in restrictions_vector:
+            trajectory = tr.generate_trajectory(trajectory_type, args)
             folder_name = f'{trajectory_type}/' + str(dataset_id)
-            disturb_input = False
 
             # Simulation without disturbances
             print(f'Simulation {dataset_id}/{total_simulations}')
-            simulation_success, simulation_metadata = simulate_mpc(X0, time_step, T_sample, T_simulation_point, trajectory, restrictions, output_weights, control_weights, dataset_name, folder_name, disturb_input = disturb_input)
+            T_simulation = args[-1]
+            simulation_success, simulation_metadata = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights, control_weights, dataset_name, folder_name, disturb_input = False)
+
+            if not simulation_success:
+                #restrictions_hover = restrictions.copy()
+                #restrictions_hover['y_max'][3:5] /= 2
+                #restrictions_hover['y_min'] = -restrictions_hover['y_max'][3:5]
+                output_weights_hover = np.copy(output_weights)
+                output_weights_hover[3:5] *= 4 # Divide delta_y_max by 2 for phi and theta
+                simulation_success, simulation_metadata = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights_hover, control_weights, dataset_name, folder_name, disturb_input = False)
 
             simulation_metadata = {
                 'sim_id': dataset_id,
                 'trajectory_type': trajectory_type,
-                'disturbed_inputs': disturb_input,
-                'simulation_time (s)': T_simulation_point,
+                'disturbed_inputs': False,
+                'simulation_time (s)': T_simulation,
                 'time_sample (s)': T_sample,
                 'N': N,
                 'M': M,
@@ -156,14 +152,13 @@ def generate_dataset(dataset_name = None):
             # Simulation with disturbances
             print(f'Simulation {dataset_id}/{total_simulations}')
             if simulate_disturbances:
-                disturb_input = True
-                simulation_success, simulation_metadata = simulate_mpc(X0, time_step, T_sample, T_simulation_point, trajectory, restrictions, output_weights, control_weights, dataset_name, folder_name, disturb_input = disturb_input)
+                simulation_success, simulation_metadata = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights, control_weights, dataset_name, folder_name, disturb_input = True)
                 
                 simulation_metadata = {
                     'sim_id': dataset_id,
                     'trajectory_type': trajectory_type,
-                    'disturbed_inputs': disturb_input,
-                    'simulation_time (s)': T_simulation_point,
+                    'disturbed_inputs': True,
+                    'simulation_time (s)': T_simulation,
                     'time_sample (s)': T_sample,
                     'N': N,
                     'M': M,
@@ -179,36 +174,30 @@ def generate_dataset(dataset_name = None):
                 if not simulation_success: failed_simulations += 1
                 dataset_id += 1
                 dataset_dataframe = pd.concat([dataset_dataframe, simulation_metadata])
+
+def generate_dataset(dataset_name = None):
+    if dataset_name is None:
+        now = datetime.now()
+        current_time = now.strftime("%m_%d_%Hh-%Mm")
+        dataset_name = current_time
+    rst = Restriction(model, T_sample, N, M)
+    
+    global dataset_dataframe
+    
+    # 1. Restrictions vector
+    restrictions_performance = rst.restrictions_performance()
+
+    # 2. Generation of trajectory batches
+    T_simulation_point = 10
+    num_points = 15
+    points_args = tr.generate_point_trajectories(num_points, T_simulation_point)
+    
+    # 3. Simulation of trajectory batches
+    simulate_batch('point', points_args, restrictions_performance, simulate_disturbances = True )
     
     dataset_dataframe.to_csv(f'{dataset_name}/dataset_metadata.csv', sep=',', index = False)
-            
-
-    #w = 2*np.pi*1/30
-    #temp_tr = tr.circle_xy(w,5, t_samples)
-    #simulate_mpc(X0, time_step, T_sample, T_simulation, temp_tr, restrictions_vector[0], dataset_name, str(dataset_id), disturb_input = True)
-    #dataset_id+=1
     
     print(f'Failed simulations: {failed_simulations}/{total_simulations}') # TODO: deixar mais generico (nao so pontos)
-
-    # for trajectory, T_sample, T_simulation in trajectories_array:
-    #     restrictions_vector = [
-    #         {
-    #         "delta_u_max": np.linalg.pinv(model.Gama) @ [10*m*g*T_sample, 0, 0, 0],
-    #         "delta_u_min": np.linalg.pinv(model.Gama) @ [-10*m*g*T_sample, 0, 0, 0],
-    #         "u_max": np.linalg.pinv(model.Gama) @ [m*g, 0, 0, 0],
-    #         "u_min": np.linalg.pinv(model.Gama) @ [-m*g, 0, 0, 0],
-    #         "y_max": 100*np.ones(3),
-    #         "y_min": -100*np.ones(3)
-    #         }
-    #     ]
-
-    #     for restriction in restrictions_vector:
-    #         dataset_name = current_time
-    #         folder_name = str(dataset_id)
-    #         simulate_mpc(time_step, T_sample, T_simulation, trajectory, restriction, dataset_name, folder_name)
-    #         dataset_id += 1
-
-#def create_metadata(dataframe, dataset_dict, sim_id, trajectory_type, ):
 
 try:
     now = datetime.now()
