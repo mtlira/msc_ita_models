@@ -220,9 +220,9 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_d
                     if not simulation_success: failed_simulations += 1
                     dataset_id += 1
                     dataset_dataframe = pd.concat([dataset_dataframe, simulation_metadata])
-                else:
-                    dataset_id += 1
-                    if simulate_disturbances: dataset_id += 1
+            else:
+                dataset_id += 1
+                if simulate_disturbances: dataset_id += 1
 
 def generate_dataset(dataset_name = None):
     if dataset_name is None:
@@ -237,15 +237,14 @@ def generate_dataset(dataset_name = None):
     restrictions_performance = rst.restrictions_performance()
 
     # 2. Generation of trajectory batches
-    T_simulation_point = 10
-    num_points = 15
-    points_args = tr.generate_point_trajectories(num_points, T_simulation_point)
+    #T_simulation_point = 10
+    #num_points = 15
+    #points_args = tr.generate_point_trajectories(num_points, T_simulation_point)
     circle_xy_args = tr.generate_circle_trajectories()
     
     # 3. Simulation of trajectory batches
     #simulate_batch('point', points_args, restrictions_performance, simulate_disturbances = True)
-    simulate_batch('circle_xy', circle_xy_args, restrictions_performance, simulate_disturbances = True)
-
+    simulate_batch('circle_xy', circle_xy_args, restrictions_performance, simulate_disturbances = True, checkpoint_id = 27)
 
     dataset_dataframe.to_csv(f'{dataset_name}/dataset_metadata.csv', sep=',', index = False)
     
