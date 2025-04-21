@@ -110,7 +110,7 @@ def simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions
         return True, metadata
     return False, metadata
 
-def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_disturbances):
+def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_disturbances, checkpoint_id = None):
     # 3. Simulation of POINT trajectories
     global dataset_id
     global total_simulations
@@ -123,74 +123,27 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_d
     tr = trajectory_handler.TrajectoryHandler()
     for args in args_vector:
         for restrictions, output_weights, control_weights, restrictions_metadata in restrictions_vector:
-            trajectory = tr.generate_trajectory(trajectory_type, args)
-            folder_name = f'{trajectory_type}/' + str(dataset_id)
+            if checkpoint_id is None or dataset_id >= checkpoint_id:
+                trajectory = tr.generate_trajectory(trajectory_type, args)
+                folder_name = f'{trajectory_type}/' + str(dataset_id)
 
-            # Simulation without disturbances
-            print(f'Simulation {dataset_id}/{total_simulations}')
-            T_simulation = args[-1]
-            simulation_success, simulation_metadata = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights, control_weights, dataset_name, folder_name, disturb_input = False)
+                # Simulation without disturbances
+                print(f'Simulation {dataset_id}/{total_simulations}')
+                T_simulation = args[-1]
+                simulation_success, simulation_metadata = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights, control_weights, dataset_name, folder_name, disturb_input = False)
 
-            if not simulation_success:
-                #restrictions_hover = restrictions.copy()
-                #restrictions_hover['y_max'][3:5] /= 2
-                #restrictions_hover['y_min'] = -restrictions_hover['y_max'][3:5]
-                output_weights_hover = np.copy(output_weights)
-                output_weights_hover[3:5] *= 4 # Divide delta_y_max by 2 for phi and theta
-                simulation_success, simulation_metadata = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights_hover, control_weights, dataset_name, folder_name, disturb_input = False)
-
-            simulation_metadata = {
-                'sim_id': dataset_id,
-                'trajectory_type': trajectory_type,
-                'disturbed_inputs': False,
-                'simulation_time (s)': T_simulation,
-                'time_sample (s)': T_sample,
-                'N': N,
-                'M': M,
-                'success': simulation_success,
-                'RMSe': simulation_metadata['RMSe'] if simulation_success else 'nan',
-                'execution_time (s)': simulation_metadata['execution_time'] if simulation_success else 'nan',
-                'operation': restrictions_metadata['operation'],
-                'failed_rotors': restrictions_metadata['failed_rotors'],
-                'ang_speed_percentages (%)': restrictions_metadata['ang_speed_percentages'],
-                'min_phi (rad)': simulation_metadata['min_phi'] if simulation_success else 'nan',
-                'max_phi (rad)': simulation_metadata['max_phi'] if simulation_success else 'nan',
-                'mean_phi (rad)': simulation_metadata['mean_phi'] if simulation_success else 'nan',
-                'std_phi (rad)': simulation_metadata['std_phi'] if simulation_success else 'nan',
-                'min_theta (rad)': simulation_metadata['min_theta'] if simulation_success else 'nan',
-                'max_theta (rad)': simulation_metadata['max_theta'] if simulation_success else 'nan',
-                'mean_theta (rad)': simulation_metadata['mean_theta'] if simulation_success else 'nan',
-                'std_theta (rad)': simulation_metadata['std_theta'] if simulation_success else 'nan',
-                'min_psi (rad)': simulation_metadata['min_psi'] if simulation_success else 'nan',
-                'max_psi (rad)': simulation_metadata['max_psi'] if simulation_success else 'nan',
-                'mean_psi (rad)': simulation_metadata['mean_psi'] if simulation_success else 'nan',
-                'std_psi (rad)': simulation_metadata['std_psi'] if simulation_success else 'nan',
-            }
-            simulation_metadata = pd.DataFrame([simulation_metadata])
-
-            if not simulation_success: failed_simulations += 1
-            dataset_id += 1
-            folder_name = f'{trajectory_type}/' + str(dataset_id)
-            dataset_dataframe = pd.concat([dataset_dataframe, simulation_metadata])
-
-            # Simulation with disturbances
-            print(f'Simulation {dataset_id}/{total_simulations}')
-            if simulate_disturbances:
-                simulation_success, simulation_metadata = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights, control_weights, dataset_name, folder_name, disturb_input = True)
-                
                 if not simulation_success:
                     #restrictions_hover = restrictions.copy()
                     #restrictions_hover['y_max'][3:5] /= 2
                     #restrictions_hover['y_min'] = -restrictions_hover['y_max'][3:5]
                     output_weights_hover = np.copy(output_weights)
                     output_weights_hover[3:5] *= 4 # Divide delta_y_max by 2 for phi and theta
-                    simulation_success, simulation_metadata = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights_hover, control_weights, dataset_name, folder_name, disturb_input = True)
-
+                    simulation_success, simulation_metadata = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights_hover, control_weights, dataset_name, folder_name, disturb_input = False)
 
                 simulation_metadata = {
                     'sim_id': dataset_id,
                     'trajectory_type': trajectory_type,
-                    'disturbed_inputs': True,
+                    'disturbed_inputs': False,
                     'simulation_time (s)': T_simulation,
                     'time_sample (s)': T_sample,
                     'N': N,
@@ -218,7 +171,58 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_d
 
                 if not simulation_success: failed_simulations += 1
                 dataset_id += 1
+                folder_name = f'{trajectory_type}/' + str(dataset_id)
                 dataset_dataframe = pd.concat([dataset_dataframe, simulation_metadata])
+
+                # Simulation with disturbances
+                print(f'Simulation {dataset_id}/{total_simulations}')
+                if simulate_disturbances:
+                    simulation_success, simulation_metadata = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights, control_weights, dataset_name, folder_name, disturb_input = True)
+                    
+                    if not simulation_success:
+                        #restrictions_hover = restrictions.copy()
+                        #restrictions_hover['y_max'][3:5] /= 2
+                        #restrictions_hover['y_min'] = -restrictions_hover['y_max'][3:5]
+                        output_weights_hover = np.copy(output_weights)
+                        output_weights_hover[3:5] *= 4 # Divide delta_y_max by 2 for phi and theta
+                        simulation_success, simulation_metadata = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights_hover, control_weights, dataset_name, folder_name, disturb_input = True)
+
+
+                    simulation_metadata = {
+                        'sim_id': dataset_id,
+                        'trajectory_type': trajectory_type,
+                        'disturbed_inputs': True,
+                        'simulation_time (s)': T_simulation,
+                        'time_sample (s)': T_sample,
+                        'N': N,
+                        'M': M,
+                        'success': simulation_success,
+                        'RMSe': simulation_metadata['RMSe'] if simulation_success else 'nan',
+                        'execution_time (s)': simulation_metadata['execution_time'] if simulation_success else 'nan',
+                        'operation': restrictions_metadata['operation'],
+                        'failed_rotors': restrictions_metadata['failed_rotors'],
+                        'ang_speed_percentages (%)': restrictions_metadata['ang_speed_percentages'],
+                        'min_phi (rad)': simulation_metadata['min_phi'] if simulation_success else 'nan',
+                        'max_phi (rad)': simulation_metadata['max_phi'] if simulation_success else 'nan',
+                        'mean_phi (rad)': simulation_metadata['mean_phi'] if simulation_success else 'nan',
+                        'std_phi (rad)': simulation_metadata['std_phi'] if simulation_success else 'nan',
+                        'min_theta (rad)': simulation_metadata['min_theta'] if simulation_success else 'nan',
+                        'max_theta (rad)': simulation_metadata['max_theta'] if simulation_success else 'nan',
+                        'mean_theta (rad)': simulation_metadata['mean_theta'] if simulation_success else 'nan',
+                        'std_theta (rad)': simulation_metadata['std_theta'] if simulation_success else 'nan',
+                        'min_psi (rad)': simulation_metadata['min_psi'] if simulation_success else 'nan',
+                        'max_psi (rad)': simulation_metadata['max_psi'] if simulation_success else 'nan',
+                        'mean_psi (rad)': simulation_metadata['mean_psi'] if simulation_success else 'nan',
+                        'std_psi (rad)': simulation_metadata['std_psi'] if simulation_success else 'nan',
+                    }
+                    simulation_metadata = pd.DataFrame([simulation_metadata])
+
+                    if not simulation_success: failed_simulations += 1
+                    dataset_id += 1
+                    dataset_dataframe = pd.concat([dataset_dataframe, simulation_metadata])
+                else:
+                    dataset_id += 1
+                    if simulate_disturbances: dataset_id += 1
 
 def generate_dataset(dataset_name = None):
     if dataset_name is None:
