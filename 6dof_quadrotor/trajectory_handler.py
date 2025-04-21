@@ -160,7 +160,7 @@ class TrajectoryHandler(object):
         print('Number of circle trajectories:', num_circles)
         print('len(args)', len(args))
 
-        #return args
+        return args
 
 
     def generate_line_trajectories(self):

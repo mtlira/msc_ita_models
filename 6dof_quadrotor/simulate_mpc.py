@@ -153,18 +153,18 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_d
                 'operation': restrictions_metadata['operation'],
                 'failed_rotors': restrictions_metadata['failed_rotors'],
                 'ang_speed_percentages (%)': restrictions_metadata['ang_speed_percentages'],
-                'min_phi (rad)': simulation_metadata['min_phi'],
-                'max_phi (rad)': simulation_metadata['max_phi'],
-                'mean_phi (rad)': simulation_metadata['mean_phi'],
-                'std_phi (rad)': simulation_metadata['std_phi'],
-                'min_theta (rad)': simulation_metadata['min_theta'],
-                'max_theta (rad)': simulation_metadata['max_theta'],
-                'mean_theta (rad)': simulation_metadata['mean_theta'],
-                'std_theta (rad)': simulation_metadata['std_theta'],
-                'min_psi (rad)': simulation_metadata['min_psi'],
-                'max_psi (rad)': simulation_metadata['max_psi'],
-                'mean_psi (rad)': simulation_metadata['mean_psi'],
-                'std_psi (rad)': simulation_metadata['std_psi'],
+                'min_phi (rad)': simulation_metadata['min_phi'] if simulation_success else 'nan',
+                'max_phi (rad)': simulation_metadata['max_phi'] if simulation_success else 'nan',
+                'mean_phi (rad)': simulation_metadata['mean_phi'] if simulation_success else 'nan',
+                'std_phi (rad)': simulation_metadata['std_phi'] if simulation_success else 'nan',
+                'min_theta (rad)': simulation_metadata['min_theta'] if simulation_success else 'nan',
+                'max_theta (rad)': simulation_metadata['max_theta'] if simulation_success else 'nan',
+                'mean_theta (rad)': simulation_metadata['mean_theta'] if simulation_success else 'nan',
+                'std_theta (rad)': simulation_metadata['std_theta'] if simulation_success else 'nan',
+                'min_psi (rad)': simulation_metadata['min_psi'] if simulation_success else 'nan',
+                'max_psi (rad)': simulation_metadata['max_psi'] if simulation_success else 'nan',
+                'mean_psi (rad)': simulation_metadata['mean_psi'] if simulation_success else 'nan',
+                'std_psi (rad)': simulation_metadata['std_psi'] if simulation_success else 'nan',
             }
             simulation_metadata = pd.DataFrame([simulation_metadata])
 
@@ -178,6 +178,15 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_d
             if simulate_disturbances:
                 simulation_success, simulation_metadata = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights, control_weights, dataset_name, folder_name, disturb_input = True)
                 
+                if not simulation_success:
+                    #restrictions_hover = restrictions.copy()
+                    #restrictions_hover['y_max'][3:5] /= 2
+                    #restrictions_hover['y_min'] = -restrictions_hover['y_max'][3:5]
+                    output_weights_hover = np.copy(output_weights)
+                    output_weights_hover[3:5] *= 4 # Divide delta_y_max by 2 for phi and theta
+                    simulation_success, simulation_metadata = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights_hover, control_weights, dataset_name, folder_name, disturb_input = True)
+
+
                 simulation_metadata = {
                     'sim_id': dataset_id,
                     'trajectory_type': trajectory_type,
@@ -192,18 +201,18 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_d
                     'operation': restrictions_metadata['operation'],
                     'failed_rotors': restrictions_metadata['failed_rotors'],
                     'ang_speed_percentages (%)': restrictions_metadata['ang_speed_percentages'],
-                    'min_phi (rad)': simulation_metadata['min_phi'],
-                    'max_phi (rad)': simulation_metadata['max_phi'],
-                    'mean_phi (rad)': simulation_metadata['mean_phi'],
-                    'std_phi (rad)': simulation_metadata['std_phi'],
-                    'min_theta (rad)': simulation_metadata['min_theta'],
-                    'max_theta (rad)': simulation_metadata['max_theta'],
-                    'mean_theta (rad)': simulation_metadata['mean_theta'],
-                    'std_theta (rad)': simulation_metadata['std_theta'],
-                    'min_psi (rad)': simulation_metadata['min_psi'],
-                    'max_psi (rad)': simulation_metadata['max_psi'],
-                    'mean_psi (rad)': simulation_metadata['mean_psi'],
-                    'std_psi (rad)': simulation_metadata['std_psi'],
+                    'min_phi (rad)': simulation_metadata['min_phi'] if simulation_success else 'nan',
+                    'max_phi (rad)': simulation_metadata['max_phi'] if simulation_success else 'nan',
+                    'mean_phi (rad)': simulation_metadata['mean_phi'] if simulation_success else 'nan',
+                    'std_phi (rad)': simulation_metadata['std_phi'] if simulation_success else 'nan',
+                    'min_theta (rad)': simulation_metadata['min_theta'] if simulation_success else 'nan',
+                    'max_theta (rad)': simulation_metadata['max_theta'] if simulation_success else 'nan',
+                    'mean_theta (rad)': simulation_metadata['mean_theta'] if simulation_success else 'nan',
+                    'std_theta (rad)': simulation_metadata['std_theta'] if simulation_success else 'nan',
+                    'min_psi (rad)': simulation_metadata['min_psi'] if simulation_success else 'nan',
+                    'max_psi (rad)': simulation_metadata['max_psi'] if simulation_success else 'nan',
+                    'mean_psi (rad)': simulation_metadata['mean_psi'] if simulation_success else 'nan',
+                    'std_psi (rad)': simulation_metadata['std_psi'] if simulation_success else 'nan',
                 }
                 simulation_metadata = pd.DataFrame([simulation_metadata])
 
@@ -227,10 +236,13 @@ def generate_dataset(dataset_name = None):
     T_simulation_point = 10
     num_points = 15
     points_args = tr.generate_point_trajectories(num_points, T_simulation_point)
+    circle_xy_args = tr.generate_circle_trajectories()
     
     # 3. Simulation of trajectory batches
-    simulate_batch('point', points_args, restrictions_performance, simulate_disturbances = True )
-    
+    #simulate_batch('point', points_args, restrictions_performance, simulate_disturbances = True)
+    simulate_batch('circle_xy', circle_xy_args, restrictions_performance, simulate_disturbances = True)
+
+
     dataset_dataframe.to_csv(f'{dataset_name}/dataset_metadata.csv', sep=',', index = False)
     
     print(f'Failed simulations: {failed_simulations}/{total_simulations}') # TODO: deixar mais generico (nao so pontos)

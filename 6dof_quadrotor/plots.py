@@ -287,6 +287,7 @@ def plot_inputs(u_vector, t, omega_vector = None, save_path=None):
             axs[1,1].set_xlabel('t (s)')
             plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
             if save_path is not None: plt.savefig(save_path + 'inputs-rotors2.png')
+    plt.close('all')
 
 def plot_delays(X_nonlinear, trajectory, t, X_linear = False):
     samples_indexes = np.rint(np.linspace(0,1,11)*(len(t)-1)).astype('int')
