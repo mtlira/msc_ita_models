@@ -460,15 +460,43 @@ class mpc(object):
         end_time = time.time()
         
         # Metadata
+        X_vector = np.array(X_vector)
         execution_time = (end_time - start_time) - waste_time
 
-        position = np.array(X_vector)[:, 9:]
+        position = X_vector[:, 9:]
         delta_position = trajectory[:len(position),:3] - position
         RMSe = np.sqrt(np.mean(delta_position**2))
 
+        min_phi = np.min(X_vector[:,0])
+        max_phi = np.max(X_vector[:,0])
+        mean_phi = np.mean(X_vector[:,0])
+        std_phi = np.std(X_vector[:,0])
+
+        min_theta = np.min(X_vector[:,1])
+        max_theta = np.max(X_vector[:,1])
+        mean_theta = np.mean(X_vector[:,1])
+        std_theta = np.std(X_vector[:,1])
+
+        min_psi = np.min(X_vector[:,2])
+        max_psi = np.max(X_vector[:,2])
+        mean_psi = np.mean(X_vector[:,2])
+        std_psi = np.std(X_vector[:,2])
+
         metadata = {
             'execution_time': execution_time,
-            'RMSe': RMSe
+            'RMSe': RMSe,
+            'min_phi': min_phi,
+            'max_phi': max_phi,
+            'mean_phi': mean_phi,
+            'std_phi': std_phi,
+            'min_theta': min_theta,
+            'max_theta': max_theta,
+            'mean_theta': mean_theta,
+            'std_theta': std_theta,
+            'min_psi': min_psi,
+            'max_psi': max_psi,
+            'mean_psi': mean_psi,
+            'std_psi': std_psi,
         }
 
 

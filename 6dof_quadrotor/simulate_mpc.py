@@ -62,7 +62,19 @@ simulation_metadata = {
     'execution_time (s)': [],
     'operation': [],
     'failed_rotors': [],
-    'ang_speed_percentages (%)': []
+    'ang_speed_percentages (%)': [],
+    'min_phi (rad)': [],
+    'max_phi (rad)': [],
+    'mean_phi (rad)': [],
+    'std_phi (rad)': [],
+    'min_theta (rad)': [],
+    'max_theta (rad)': [],
+    'mean_theta (rad)': [],
+    'std_theta (rad)': [],
+    'min_psi (rad)': [],
+    'max_psi (rad)': [],
+    'mean_psi (rad)': [],
+    'std_psi (rad)': [],
 }
 dataset_dataframe = pd.DataFrame(simulation_metadata)
 dataset_dataframe['success'] = dataset_dataframe['success'].astype(bool)
@@ -141,6 +153,18 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_d
                 'operation': restrictions_metadata['operation'],
                 'failed_rotors': restrictions_metadata['failed_rotors'],
                 'ang_speed_percentages (%)': restrictions_metadata['ang_speed_percentages'],
+                'min_phi (rad)': simulation_metadata['min_phi'],
+                'max_phi (rad)': simulation_metadata['max_phi'],
+                'mean_phi (rad)': simulation_metadata['mean_phi'],
+                'std_phi (rad)': simulation_metadata['std_phi'],
+                'min_theta (rad)': simulation_metadata['min_theta'],
+                'max_theta (rad)': simulation_metadata['max_theta'],
+                'mean_theta (rad)': simulation_metadata['mean_theta'],
+                'std_theta (rad)': simulation_metadata['std_theta'],
+                'min_psi (rad)': simulation_metadata['min_psi'],
+                'max_psi (rad)': simulation_metadata['max_psi'],
+                'mean_psi (rad)': simulation_metadata['mean_psi'],
+                'std_psi (rad)': simulation_metadata['std_psi'],
             }
             simulation_metadata = pd.DataFrame([simulation_metadata])
 
@@ -168,6 +192,18 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_d
                     'operation': restrictions_metadata['operation'],
                     'failed_rotors': restrictions_metadata['failed_rotors'],
                     'ang_speed_percentages (%)': restrictions_metadata['ang_speed_percentages'],
+                    'min_phi (rad)': simulation_metadata['min_phi'],
+                    'max_phi (rad)': simulation_metadata['max_phi'],
+                    'mean_phi (rad)': simulation_metadata['mean_phi'],
+                    'std_phi (rad)': simulation_metadata['std_phi'],
+                    'min_theta (rad)': simulation_metadata['min_theta'],
+                    'max_theta (rad)': simulation_metadata['max_theta'],
+                    'mean_theta (rad)': simulation_metadata['mean_theta'],
+                    'std_theta (rad)': simulation_metadata['std_theta'],
+                    'min_psi (rad)': simulation_metadata['min_psi'],
+                    'max_psi (rad)': simulation_metadata['max_psi'],
+                    'mean_psi (rad)': simulation_metadata['mean_psi'],
+                    'std_psi (rad)': simulation_metadata['std_psi'],
                 }
                 simulation_metadata = pd.DataFrame([simulation_metadata])
 
