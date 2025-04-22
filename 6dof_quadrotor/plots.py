@@ -41,7 +41,10 @@ def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None, omega_vec
     axs[1,2].set_ylabel('r (rad/s)')
     fig.legend(legend[0:-1])
     plt.subplots_adjust(left=0.083, bottom=0.083, right=0.948, top=0.914, wspace=0.23, hspace=0.31)
-    if save_path is not None: plt.savefig(save_path + 'x_angular.png')
+    if save_path is not None: 
+        plt.savefig(save_path + 'x_angular.png')
+        del fig
+        del axs
 
     # Translation
     fig, axs = plt.subplots(2, 3)
@@ -85,7 +88,10 @@ def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None, omega_vec
     axs[1,2].set_ylabel('z (m)')
     fig.legend(legend)
     plt.subplots_adjust(left=0.083, bottom=0.083, right=0.948, top=0.914, wspace=0.23, hspace=0.31)
-    if save_path is not None: plt.savefig(save_path + 'x_linear.png')
+    if save_path is not None: 
+        plt.savefig(save_path + 'x_linear.png')
+        del fig
+        del axs
 
     fig = plt.figure()
     axs = plt.axes(projection='3d')
@@ -98,7 +104,10 @@ def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None, omega_vec
     axs.set_title('3D Plot')
     fig.legend(legend)
     if equal_scales: axs.set_aspect('equal', adjustable='box')
-    if save_path is not None: plt.savefig(save_path + '3D.png')
+    if save_path is not None: 
+        plt.savefig(save_path + '3D.png')
+        del fig
+        del axs
 
     plot_inputs(u_vector, t, omega_vector, save_path)
     if save_path is None: plt.show()
@@ -238,7 +247,10 @@ def plot_inputs(u_vector, t, omega_vector = None, save_path=None):
     axs[1,1].set_xlabel('t (s)')
     plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
 
-    if save_path is not None: plt.savefig(save_path + 'inputs-forces.png')
+    if save_path is not None: 
+        plt.savefig(save_path + 'inputs-forces.png')
+        del fig
+        del axs
 
     if omega_vector is not None:
         fig, axs = plt.subplots(2, 2)
@@ -262,7 +274,10 @@ def plot_inputs(u_vector, t, omega_vector = None, save_path=None):
         axs[1,1].set_ylabel('$\\omega_4 (rad/s)$')
         axs[1,1].set_xlabel('t (s)')
         plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
-        if save_path is not None: plt.savefig(save_path + 'inputs-rotors1.png')
+        if save_path is not None: 
+            plt.savefig(save_path + 'inputs-rotors1.png')
+            del fig
+            del axs
 
         if np.shape(omega_vector)[1] == 8:
             fig, axs = plt.subplots(2, 2)
@@ -286,8 +301,10 @@ def plot_inputs(u_vector, t, omega_vector = None, save_path=None):
             axs[1,1].set_ylabel('$\\omega_8 (rad/s)$')
             axs[1,1].set_xlabel('t (s)')
             plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
-            if save_path is not None: plt.savefig(save_path + 'inputs-rotors2.png')
-    plt.close('all')
+            if save_path is not None: 
+                plt.savefig(save_path + 'inputs-rotors2.png')
+                del fig
+                del axs
 
 def plot_delays(X_nonlinear, trajectory, t, X_linear = False):
     samples_indexes = np.rint(np.linspace(0,1,11)*(len(t)-1)).astype('int')
