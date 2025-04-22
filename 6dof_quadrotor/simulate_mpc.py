@@ -110,7 +110,7 @@ def simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions
         return True, metadata
     return False, metadata
 
-def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_disturbances, checkpoint_id = None):
+def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_disturbances, dataset_save_path, checkpoint_id = None):
     # 3. Simulation of POINT trajectories
     global dataset_id
     global total_simulations
@@ -220,6 +220,8 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_d
                     if not simulation_success: failed_simulations += 1
                     dataset_id += 1
                     dataset_dataframe = pd.concat([dataset_dataframe, simulation_metadata])
+                if int(dataset_id) % 50 <= 1:
+                    dataset_dataframe.to_csv(dataset_save_path, sep=',', index = False)
             else:
                 dataset_id += 1
                 if simulate_disturbances: dataset_id += 1
@@ -229,7 +231,10 @@ def generate_dataset(dataset_name = None):
         now = datetime.now()
         current_time = now.strftime("%m_%d_%Hh-%Mm")
         dataset_name = current_time
+    dataset_save_path = f'simulations/{dataset_name}/dataset_metadata.csv'
+    
     rst = Restriction(model, T_sample, N, M)
+
     
     global dataset_dataframe
     
@@ -244,9 +249,9 @@ def generate_dataset(dataset_name = None):
     
     # 3. Simulation of trajectory batches
     #simulate_batch('point', points_args, restrictions_performance, simulate_disturbances = True)
-    simulate_batch('circle_xy', circle_xy_args, restrictions_performance, simulate_disturbances = True, checkpoint_id = 27)
+    simulate_batch('circle_xy', circle_xy_args, restrictions_performance, simulate_disturbances = True, dataset_save_path=dataset_save_path, checkpoint_id = 99)
 
-    dataset_dataframe.to_csv(f'{dataset_name}/dataset_metadata.csv', sep=',', index = False)
+    dataset_dataframe.to_csv(dataset_save_path, sep=',', index = False)
     
     print(f'Failed simulations: {failed_simulations}/{total_simulations}') # TODO: deixar mais generico (nao so pontos)
 
