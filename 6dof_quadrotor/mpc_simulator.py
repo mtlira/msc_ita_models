@@ -21,7 +21,7 @@ class MPCSimulator(object):
         t_samples = np.arange(0,T_simulation, T_sample)
 
         Bw = B @ model.Gama
-        MPC = mpc.mpc(M, N, A, Bw, C, time_step, T_sample, output_weights, control_weights, restrictions)
+        MPC = mpc.MPC(M, N, A, Bw, C, time_step, T_sample, output_weights, control_weights, restrictions)
         MPC.initialize_matrices()
         #try:
         x_mpc_rotors, u_rotors, omega_vector, NN_dataset, metadata = MPC.simulate_future_rotors(model, X0, t_samples, trajectory, omega_eq**2, generate_dataset=True, disturb_input=disturb_input)

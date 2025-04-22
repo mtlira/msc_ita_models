@@ -40,7 +40,7 @@ X_eq = np.zeros(12)
 
 # f_t está no eixo do corpo
 
-trajectory_type = 'circle_xy'
+trajectory_type = 'line'
 include_psi = True
 
 # Open-loop Inputs
@@ -126,7 +126,7 @@ if trajectory_type == 'point':
     r_tracking = tr.point(0, 0, 0, T_simulation, include_psi)
 
 if trajectory_type == 'line':
-    r_tracking = tr.line(3, 3, -3, T_simulation, 15)
+    r_tracking = tr.line(1, 1, -1, T_simulation, 20)
 
 if trajectory_type == 'helicoidal':
     r_tracking = tr.helicoidal(w,T_simulation)
@@ -198,7 +198,7 @@ control_weights = 1 / (M*restrictions['delta_u_max']**2)
 #output_weights = [1,1,3] # Deve variar a cada passo de simulação?
 #control_weights = [3,1,1,1]
 
-MPC = mpc.mpc(M, N, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions)
+MPC = mpc.MPC(M, N, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions)
 MPC.initialize_matrices()
 
 #x_classic, u_classic = MPC.simulate_future(model.f2,X0, t_samples, r_tracking, u_eq)
@@ -245,7 +245,7 @@ if not include_psi:
     output_weights2 = output_weights2[:-1]
 
 Bw = B @ model.Gama
-MPC2 = mpc.mpc(M, N, A, Bw, C, time_step, T_sample, output_weights2, control_weights2, restrictions2)
+MPC2 = mpc.MPC(M, N, A, Bw, C, time_step, T_sample, output_weights2, control_weights2, restrictions2)
 MPC2.initialize_matrices()
 x_mpc_rotors, u_rotors, omega_vector, NN_dataset, _ = MPC2.simulate_future_rotors(model, X0, t_samples, r_tracking, omega_eq**2, generate_dataset=False, disturb_input=False)
 

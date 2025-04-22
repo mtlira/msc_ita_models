@@ -3,7 +3,7 @@ import numpy as np
 from scipy import signal
 
 # Linearization: https://www.youtube.com/watch?v=9jO9q4jZrSI&pp=ygUWbGluZWFyaXplZCBzdGF0ZSBzcGFjZQ%3D%3D
-def linearize(f_sym, X_eq, U_eq):
+def linearize(f_sym, X_eq, U_eq = None):
     '''
     Linearizes the model state-space function f_sym = x_dot around the equilibrium point defined by X_eq and U_eq, returning the state-space
     matrices A and B.

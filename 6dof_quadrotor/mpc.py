@@ -6,8 +6,9 @@ from scipy.signal import StateSpace, cont2discrete, lsim
 import cvxopt
 from linearize import discretize
 import time
+from linearize import *
 
-class mpc(object):
+class MPC(object):
     def __init__(self, M, N, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions):
         self.M = M
         self.N = N
@@ -891,3 +892,38 @@ class mpc(object):
         #     sys_d = cont2discrete((self.A,self.B,self.C, np.zeros((self.q,self.p))), self.T_sample, 'zoh')
         #     Ad, Bd, Cd, _, _ = sys_d
         #     return Ad, Bd, Cd
+
+class GainSchedulingMPC(object):
+    def __init__(self, model, phi_grid_deg, theta_grid_deg, M, N, time_step, T_sample, output_weights, control_weights, restrictions):
+        self.model = model
+        self.phi_grid_deg = phi_grid_deg
+        self.theta_grid_deg = theta_grid_deg
+        self.model = {}
+        for phi in phi_grid_deg:
+            for theta in theta_grid_deg:
+                U = np.array([self.model.m * self.model.g/(np.cos(phi*np.pi/180)*np.cos(theta*np.pi/180)), 0, 0, 0])
+                X = np.array([phi, theta, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+                A, B, C = self.model.linearize(X=X, U=U)
+                self.model[(phi, theta)] = MPC(M, N, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions)
+                self.model[(phi, theta)].initialize_matrices()
+        
+
+
+## TESTE - DELETAR DEPOIS ###########################################################################
+### MULTIROTOR PARAMETERS ###
+# from parameters.octorotor_parameters import m, g, I_x, I_y, I_z, l, b, d, thrust_to_weight, num_rotors
+
+# ### SIMULATION PARAMETERS ###
+# from parameters.simulation_parameters import time_step, T_sample, N, M
+# T_simulation = 30
+# import multirotor
+# import restriction_handler
+# model = multirotor.Multirotor(m, g, I_x, I_y, I_z, b, l, d, num_rotors, thrust_to_weight)
+# rst = restriction_handler.Restriction(model, T_sample, N, M)
+
+# restriction, output_weights, control_weights, _ = rst.restriction('normal')
+
+# phi_grid = [-15, 0, 15]
+# theta_grid = [-15, 0, 15]
+# teste = GainSchedulingMPC(model, phi_grid, theta_grid, M, N, time_step, T_sample, output_weights, control_weights)
+        

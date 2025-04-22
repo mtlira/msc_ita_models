@@ -201,8 +201,11 @@ class Multirotor(object):
         w_vector = np.sqrt(self.m*self.g/(self.num_rotors*self.b))*np.ones(self.num_rotors)
         return w_vector
     
-    def linearize(self):
-        A, B = linearize(self.f_sym, self.X_eq, self.u_eq)
+    def linearize(self, X = None, U = None):
+        'If X and U are not given, linearization will be done around the equilibrium point'
+        if X is None: X = self.X_eq
+        if U is None: U = self.u_eq
+        A, B = linearize(self.f_sym, X, U)
         C = np.array([[0,0,0,0,0,0,0,0,0,1,0,0],
                     [0,0,0,0,0,0,0,0,0,0,1,0],
                     [0,0,0,0,0,0,0,0,0,0,0,1],
