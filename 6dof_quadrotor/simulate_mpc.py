@@ -233,24 +233,45 @@ def generate_dataset(dataset_name = None):
         dataset_name = current_time
     dataset_save_path = f'simulations/{dataset_name}/dataset_metadata.csv'
     
+    generate_point = False
+    generate_circle_xy = False
+    generate_circle_xz = True
+    generate_line = False
+    generate_lissajous_xy = False
+    
     rst = Restriction(model, T_sample, N, M)
 
-    
     global dataset_dataframe
     
     # 1. Restrictions vector
     restrictions_performance = rst.restrictions_performance()
 
-    # 2. Generation of trajectory batches
-    #T_simulation_point = 10
-    #num_points = 15
-    #points_args = tr.generate_point_trajectories(num_points, T_simulation_point)
-    circle_xy_args = tr.generate_circle_trajectories()
+    # 2. Generation of trajectory batches and simulation of batches
+    if generate_point:
+        T_simulation_point = 10
+        num_points = 15
+        points_args = tr.generate_point_trajectories(num_points, T_simulation_point)
+        simulate_batch('point', points_args, restrictions_performance, simulate_disturbances = True)
     
-    # 3. Simulation of trajectory batches
-    #simulate_batch('point', points_args, restrictions_performance, simulate_disturbances = True)
-    simulate_batch('circle_xy', circle_xy_args, restrictions_performance, simulate_disturbances = True, dataset_save_path=dataset_save_path, checkpoint_id = 1773)
+    if generate_circle_xy:
+        circle_xy_args = tr.generate_circle_xy_trajectories()
+        simulate_batch('circle_xy', circle_xy_args, restrictions_performance, simulate_disturbances = True, dataset_save_path=dataset_save_path)
 
+    if generate_line:
+        num_lines = 50
+        line_args = tr.generate_line_trajectories(num_lines)
+        simulate_batch('line', line_args, restrictions_performance, simulate_disturbances = True, dataset_save_path=dataset_save_path)
+
+    if generate_circle_xz:
+        circle_xz_args = tr.generate_circle_xz_trajectories()
+        simulate_batch('circle_xz', circle_xz_args, restrictions_performance, simulate_disturbances = True, dataset_save_path=dataset_save_path, checkpoint_id = 301)
+
+    if generate_lissajous_xy:
+        lissajous_xy_args = tr.generate_lissajous_xy_trajectories()
+        simulate_batch('lissajous_xy', lissajous_xy_args, restrictions_performance, simulate_disturbances = True, dataset_save_path=dataset_save_path)
+
+
+    # Save dataset
     dataset_dataframe.to_csv(dataset_save_path, sep=',', index = False)
     
     print(f'Failed simulations: {failed_simulations}/{total_simulations}') # TODO: deixar mais generico (nao so pontos)
