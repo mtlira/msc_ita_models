@@ -43,8 +43,8 @@ class Multirotor(object):
         self.num_rotors = num_rotors
 
         #if I_rotor is not None:
-        #    t_z_eq = d*self.get_omega_eq()[0]**2
-        self.angular_acceleration = self.get_omega_eq()[0]/0.3
+        #    t_z_eq = d*self.get_omega_eq_hover()[0]**2
+        self.angular_acceleration = self.get_omega_eq_hover()[0]/0.3
 
         # [u] = Gama * [w]
         if num_rotors == 4:
@@ -196,9 +196,13 @@ class Multirotor(object):
         u = self.Gama @ w_vector**2
         return u
     
-    def get_omega_eq(self):
+    def get_omega_eq_hover(self):
         #w_vector = np.sqrt(np.linalg.pinv(self.Gama) @ u)
         w_vector = np.sqrt(self.m*self.g/(self.num_rotors*self.b))*np.ones(self.num_rotors)
+        return w_vector
+    
+    def get_omega(self, u):
+        w_vector = np.sqrt(np.linalg.pinv(self.Gama) @ u)
         return w_vector
     
     def linearize(self, X = None, U = None):

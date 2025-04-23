@@ -77,7 +77,7 @@ u_eq = [m*g, 0, 0, 0]
 model = multirotor.Multirotor(m, g, I_x, I_y, I_z, b, l, d, num_rotors = 4)
 
 # deletar #################################3
-omega_eq = model.get_omega_eq()
+omega_eq = model.get_omega_eq_hover()
 print('omegas_eq',omega_eq)
 #############################################
 

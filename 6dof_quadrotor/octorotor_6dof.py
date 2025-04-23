@@ -40,7 +40,7 @@ X_eq = np.zeros(12)
 
 # f_t está no eixo do corpo
 
-trajectory_type = 'line'
+trajectory_type = 'circle_xy'
 include_psi = True
 
 # Open-loop Inputs
@@ -72,7 +72,7 @@ model = multirotor.Multirotor(m, g, I_x, I_y, I_z, b, l, d, num_rotors, thrust_t
 
 
 # deletar #################################3
-omega_eq = model.get_omega_eq()
+omega_eq = model.get_omega_eq_hover()
 print('omegas_eq',omega_eq)
 #############################################
 
@@ -112,12 +112,15 @@ u_max = [
 ########################################################################################
 # LQR - tracking
 
-w = 2*np.pi*1/10
+w = 2*np.pi*1/2.5
 tr = trajectory_handler.TrajectoryHandler()
 
 r_tracking = None
 if trajectory_type == 'circle_xy':
-    r_tracking = tr.circle_xy(w, 5, T_simulation, include_psi)
+    r_tracking = tr.circle_xy(w, 0.5, T_simulation, include_psi)
+
+if trajectory_type == 'lissajous_xy':
+    r_tracking = tr.lissajous_xy(w, 2, T_simulation, include_psi)
 
 if trajectory_type == 'circle_xz':
     r_tracking = tr.circle_xz(w, 5, T_simulation)
@@ -198,7 +201,7 @@ control_weights = 1 / (M*restrictions['delta_u_max']**2)
 #output_weights = [1,1,3] # Deve variar a cada passo de simulação?
 #control_weights = [3,1,1,1]
 
-MPC = mpc.MPC(M, N, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions)
+MPC = mpc.MPC(M, N, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions, omega_eq**2)
 MPC.initialize_matrices()
 
 #x_classic, u_classic = MPC.simulate_future(model.f2,X0, t_samples, r_tracking, u_eq)
@@ -231,7 +234,7 @@ MPC.initialize_matrices()
 # Testing restriction handler class
 rst = Restriction(model, T_sample, N, M)
 
-failed_rotors = [2]
+failed_rotors = []
 restrictions2, output_weights2, control_weights2, _ = rst.restriction('total_failure', failed_rotors)
 #if len(failed_rotors) >= 2: 
 #    r_tracking = r_tracking[:, : 5]
@@ -245,9 +248,10 @@ if not include_psi:
     output_weights2 = output_weights2[:-1]
 
 Bw = B @ model.Gama
-MPC2 = mpc.MPC(M, N, A, Bw, C, time_step, T_sample, output_weights2, control_weights2, restrictions2)
+#output_weights2[3:5] *= 4
+MPC2 = mpc.MPC(M, N, A, Bw, C, time_step, T_sample, output_weights2, control_weights2, restrictions2, omega_eq**2)
 MPC2.initialize_matrices()
-x_mpc_rotors, u_rotors, omega_vector, NN_dataset, _ = MPC2.simulate_future_rotors(model, X0, t_samples, r_tracking, omega_eq**2, generate_dataset=False, disturb_input=False)
+x_mpc_rotors, u_rotors, omega_vector, NN_dataset, _ = MPC2.simulate_future_rotors(model, X0, t_samples, r_tracking, generate_dataset=False, disturb_input=False)
 
 if x_mpc_rotors is not None:
     #plot_states(X_mpc_nonlinear_future, t_samples[:np.shape(x_mpc_rotors)[0]], x_mpc_rotors, r_tracking, u_rotors, omega_vector, equal_scales=True, legend=['Force/Moment optimization','Angular speed optimization'])

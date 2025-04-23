@@ -33,7 +33,7 @@ from parameters.simulation_parameters import time_step, T_sample, N, M
 
 # Input and state values at the equilibrium condition
 u_eq = [m*g, 0, 0, 0]
-omega_eq = model.get_omega_eq()
+omega_eq = model.get_omega_eq_hover()
 X_eq = np.zeros(12)
 
 # Initial condition
@@ -92,10 +92,10 @@ def simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions
     t_samples = np.arange(0,T_simulation, T_sample)
 
     Bw = B @ model.Gama
-    MPC = mpc.MPC(M, N, A, Bw, C, time_step, T_sample, output_weights, control_weights, restrictions)
+    MPC = mpc.MPC(M, N, A, Bw, C, time_step, T_sample, output_weights, control_weights, restrictions, omega_eq**2)
     MPC.initialize_matrices()
     #try:
-    x_mpc_rotors, u_rotors, omega_vector, NN_dataset, metadata = MPC.simulate_future_rotors(model, X0, t_samples, trajectory, omega_eq**2, generate_dataset=True, disturb_input=disturb_input)
+    x_mpc_rotors, u_rotors, omega_vector, NN_dataset, metadata = MPC.simulate_future_rotors(model, X0, t_samples, trajectory, generate_dataset=True, disturb_input=disturb_input)
     #except Exception as error:
     #    x_mpc_rotors, u_rotors, omega_vector, NN_dataset, metadata = None, None, None, None, None
     #    print('exception:', error)
@@ -249,7 +249,7 @@ def generate_dataset(dataset_name = None):
     
     # 3. Simulation of trajectory batches
     #simulate_batch('point', points_args, restrictions_performance, simulate_disturbances = True)
-    simulate_batch('circle_xy', circle_xy_args, restrictions_performance, simulate_disturbances = True, dataset_save_path=dataset_save_path, checkpoint_id = 99)
+    simulate_batch('circle_xy', circle_xy_args, restrictions_performance, simulate_disturbances = True, dataset_save_path=dataset_save_path, checkpoint_id = 1773)
 
     dataset_dataframe.to_csv(dataset_save_path, sep=',', index = False)
     

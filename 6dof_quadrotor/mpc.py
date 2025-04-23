@@ -9,7 +9,7 @@ import time
 from linearize import *
 
 class MPC(object):
-    def __init__(self, M, N, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions):
+    def __init__(self, M, N, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions, u_ref):
         self.M = M
         self.N = N
         self.A = A
@@ -20,6 +20,7 @@ class MPC(object):
         self.output_weights = output_weights
         self.control_weights = control_weights
         self.restrictions = restrictions
+        self.u_ref = u_ref
 
         # p - Number of controls
         # q - Number of outputs
@@ -313,7 +314,7 @@ class MPC(object):
             #delta_u_initial = np.tile(delta_u_k,self.M)
         return np.array(X_vector), np.array(u_vector)
     
-    def simulate_future_rotors(self, model, X0, t_samples, trajectory, u_eq, generate_dataset = False, disturb_input = False):
+    def simulate_future_rotors(self, model, X0, t_samples, trajectory, generate_dataset = False, disturb_input = False):
         """
         Output of the MPC are the angular speeds that are the input of the multirotor.
         Takes into account future trajectory reference from trajectory[k] until trajectory[k+N-1]
@@ -335,7 +336,7 @@ class MPC(object):
         u_minus_1 = np.zeros(p)
         x_k = X0
         u_k_minus_1 = u_minus_1
-        omega_k = model.get_omega_eq()
+        omega_k = model.get_omega_eq_hover()
         #alpha = model.angular_acceleration (Not being used at the moment)
         #alpha_neg = -alpha
         X_vector = [X0]
@@ -399,7 +400,7 @@ class MPC(object):
             u_k = u_k_minus_1 + delta_u_k # TODO: confirmar se tem esse u_eq
 
             # omega**2 --> u
-            omega_squared = np.clip(u_k + u_eq, 0, None)
+            omega_squared = np.clip(u_k + self.u_ref, 0, None)
             omega_k = np.sqrt(omega_squared)
             uu_k = model.Gama @ omega_squared
 
@@ -452,7 +453,7 @@ class MPC(object):
                 ref_N_relative = ref_N_position - position_k
 
                 # Clarification: u is actually (u - ueq) and delta_u is (u-ueq)[k] - (u-ueq)[k-1] in this MPC formulation (i.e., u is in reference to u_eq, not 0)
-                NN_sample = np.concatenate((NN_sample, x_k_old[0:9], ref_N_relative, self.restrictions['u_max'] + u_eq, u_k), axis = 0) #TODO: depois, acrescentar restrições
+                NN_sample = np.concatenate((NN_sample, x_k_old[0:9], ref_N_relative, self.restrictions['u_max'] + self.u_ref, u_k), axis = 0) #TODO: depois, acrescentar restrições
 
                 NN_dataset.append(NN_sample)
                 end_waste_time = time.time()
@@ -894,36 +895,239 @@ class MPC(object):
         #     return Ad, Bd, Cd
 
 class GainSchedulingMPC(object):
-    def __init__(self, model, phi_grid_deg, theta_grid_deg, M, N, time_step, T_sample, output_weights, control_weights, restrictions):
+    def __init__(self, model, phi_grid_deg, theta_grid_deg, M, N, time_step, T_sample, output_weights, control_weights, restrictions, include_psi = True):
         self.model = model
         self.phi_grid_deg = phi_grid_deg
         self.theta_grid_deg = theta_grid_deg
-        self.model = {}
+        self.linear_model = {}
+        self.M = M
+        self.N = N
+        self.time_step = time_step
+        self.T_sample = T_sample
+
+        if not include_psi:
+            restrictions['y_max'] = restrictions['y_max'][:-1]
+            restrictions['y_min'] = restrictions['y_min'][:-1]
+            output_weights = output_weights[:-1]
+
         for phi in phi_grid_deg:
             for theta in theta_grid_deg:
-                U = np.array([self.model.m * self.model.g/(np.cos(phi*np.pi/180)*np.cos(theta*np.pi/180)), 0, 0, 0])
-                X = np.array([phi, theta, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+                U = np.array([self.model.m * self.model.g/(np.cos(0*phi*np.pi/180)*np.cos(0*theta*np.pi/180)), 0, 0, 0])
+                omega_squared_ref = self.model.get_omega(U)**2
+                X = np.array([phi*np.pi/180, theta*np.pi/180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
                 A, B, C = self.model.linearize(X=X, U=U)
-                self.model[(phi, theta)] = MPC(M, N, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions)
-                self.model[(phi, theta)].initialize_matrices()
-        
+                if not include_psi: 
+                    C = C[:-1]
+                Bw = B @ self.model.Gama
+                self.linear_model[(phi, theta)] = MPC(M, N, A, Bw, C, time_step, T_sample, output_weights, control_weights, restrictions, omega_squared_ref)
+                self.linear_model[(phi, theta)].initialize_matrices()
 
+    def choose_model(self, phi_rad, theta_rad):
+        closest_phi_deg = min(self.phi_grid_deg, key=lambda x:abs(x*np.pi/180 - phi_rad))
+        closest_theta_deg = min(self.theta_grid_deg, key=lambda x:abs(x*np.pi/180 - theta_rad))
+        #print(closest_phi_deg, closest_theta_deg)
+        return self.linear_model[(closest_phi_deg, closest_theta_deg)]
+
+    def simulate_future_rotors(self, model, X0, t_samples, trajectory, generate_dataset = False, disturb_input = False):
+        """
+        Output of the MPC are the angular speeds that are the input of the multirotor.
+        Takes into account future trajectory reference from trajectory[k] until trajectory[k+N-1]\n
+        Gets the linear model closest to the current operating point regarding pitch and roll angles at every iteration
+        """
+
+        start_time = time.time()
+
+        p = len(self.linear_model[(0,0)].u_ref)
+        q = np.shape(trajectory)[1]
+
+        # Disturb logic (state disturbance)
+        disturb_frequency = 0.1
+
+        u_minus_1 = np.zeros(p)
+        x_k = X0
+        u_k_minus_1 = u_minus_1
+        omega_k = model.get_omega_eq_hover()
+        #alpha = model.angular_acceleration (Not being used at the moment)
+        #alpha_neg = -alpha
+        X_vector = [X0]
+        u_vector = []
+        omega_vector = []
+        cvxopt.solvers.options['show_progress'] = False
+
+        # NN Dataset
+        NN_dataset = [] if generate_dataset else None
+
+        for k in range(0, len(t_samples)-1): # TODO: confirmar se é -1 mesmo:
+            linear_model = self.choose_model(x_k[0], x_k[1])
+            ref_N = trajectory[k:k+self.N].reshape(-1) # TODO validar se termina em k+N-1 ou em k+N
+            if np.shape(ref_N)[0] < q*self.N:
+                ref_N = np.concatenate((ref_N, np.tile(trajectory[-1].reshape(-1), self.N - int(np.shape(ref_N)[0]/q))), axis = 0) # padding de trajectory[-1] em ref_N quando trajectory[k+N] ultrapassa ultimo elemento
+            #ref_N = np.tile(trajectory[k,:], self.N)
+            epsilon_k = np.concatenate((x_k, u_k_minus_1), axis = 0)
+            f = linear_model.phi @ epsilon_k
+            fqp = 2*np.transpose(linear_model.Gn) @ (f - ref_N)
+            
+            # Update delta_u restrictions
+            #print(self.restrictions['delta_u_min'])
+            #self.restrictions['delta_u_max'] = (2*omega_k + alpha*self.T_sample)*alpha * self.T_sample
+            #self.restrictions['delta_u_min'] = (2*omega_k + alpha_neg*self.T_sample)*alpha_neg * self.T_sample
+
+            # bqp
+            bqp = np.concatenate((
+                np.tile(linear_model.restrictions['delta_u_max'], self.M), # delta_u_max_M
+                - np.tile(linear_model.restrictions['delta_u_min'], self.M), # -delta_u_min_M
+                np.tile(linear_model.restrictions['u_max'] - u_k_minus_1, self.M),
+                np.tile(u_k_minus_1 - linear_model.restrictions['u_min'], self.M),
+                np.tile(linear_model.restrictions['y_max'], self.N) - f,
+                f - np.tile(linear_model.restrictions['y_min'], self.N)
+            ), axis = 0)
+
+            # optimization
+            #cost_function = lambda x: 0.5*np.transpose(x) @ Hqp @ x + np.transpose(fqp) @ x
+
+            #constraints_dict = {
+            #    'type': 'ineq',
+            #    'fun': lambda x: -(self.Aqp @ x - bqp)
+            #}
+            #opt = {'maxiter': 1000}
+            #res = minimize(fun= cost_function, x0=delta_u_initial, constraints=constraints_dict)#, options=opt) ######################### TODO: verificar opt ######################
+            #print('Hqp',np.max(np.abs(Hqp - Hqp.T)))
+           
+            # METODO 2 #######################################
+            Hqp = linear_model.Hqp.astype(np.double)
+            fqp = fqp.astype(np.double)
+            linear_model.Aqp = linear_model.Aqp.astype(np.double)
+            bqp = bqp.astype(np.double)
+            res = cvxopt.solvers.qp(cvxopt.matrix(Hqp), cvxopt.matrix(fqp), cvxopt.matrix(linear_model.Aqp), cvxopt.matrix(bqp))
+            res = np.array(res['x']).reshape((Hqp.shape[1],))
+            ##################################################
+
+
+            #print('res.x',res.x)
+            #print('res2.x',np.array(res2['x']).reshape((Hqp.shape[1],)))
+            delta_u_k = np.concatenate((np.eye(p), np.zeros((p, p*(self.M - 1)))), axis = 1) @ res # optimal delta_u_k
+            u_k = u_k_minus_1 + delta_u_k # TODO: confirmar se tem esse u_eq
+
+            # omega**2 --> u
+            omega_squared = np.clip(u_k + linear_model.u_ref, 0, None)
+            omega_k = np.sqrt(omega_squared)
+            uu_k = model.Gama @ omega_squared
+
+            # Apply INPUT disturbance if enabled
+            if disturb_input and k>0:
+                probability = np.random.rand()
+                if probability > disturb_frequency:
+                    uu_k = self.add_input_disturbance(uu_k, model)                
+
+            # Apply control u_k in the multi-rotor
+            f_t_k, t_x_k, t_y_k, t_z_k = uu_k # Attention for u_eq (solved the problem)
+            t_simulation = np.arange(t_samples[k], t_samples[k+1], linear_model.T)
+            #t_simulation2 = np.arange(0,t_samples[1], self.T)
+            #x_k = odeint(f_model, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
+            
+            # Add disturbance to STATE if enabled
+            # if disturb_state and k > 0:
+            #     probability = np.random.rand()
+            #     if probability > disturb_frequency:
+            #         x_k = self.add_state_disturbance(x_k)
+
+            # x[k+1] = f(x[k], u[k])
+            x_k_old = x_k # Used only to mount nn_sample array
+            x_k = odeint(model.f2, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
+            x_k = x_k[-1]
+            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 10 or np.max(np.abs(x_k[0:2])) > 1.75:
+                print('Simulation exploded.')
+                print(f'x_{k} =',x_k)
+                return None, None, None, None, None
+            
+            X_vector.append(x_k)
+            u_k_minus_1 = u_k
+            u_vector.append(uu_k)
+            omega_vector.append(omega_k)
+            #delta_u_initial = np.tile(delta_u_k,self.M)
+
+            # Storing dataset samples
+            waste_time = 0
+            if generate_dataset:
+                start_waste_time = time.time()
+                NN_sample = np.array([])
+
+                # Calculating reference values relative to multirotor's current position at instant k
+                ref_N_position = trajectory[k:k+self.N, 0:3].reshape(-1) # TODO validar se termina em k+N-1 ou em k+N
+                q_neuralnetwork = 3 # For the NN, only x, y and z counts as effective references, since the angle references are all 0
+                if np.shape(ref_N_position)[0] < q_neuralnetwork*self.N:
+                    ref_N_position = np.concatenate((ref_N_position, np.tile(trajectory[-1, :3].reshape(-1), self.N - int(np.shape(ref_N_position)[0]/q_neuralnetwork))), axis = 0) # padding de trajectory[-1] em ref_N quando trajectory[k+N] ultrapassa ultimo elemento
+                position_k = x_k_old[9:]
+                position_k = np.tile(position_k, self.N).reshape(-1)
+                ref_N_relative = ref_N_position - position_k
+
+                # Clarification: u is actually (u - ueq) and delta_u is (u-ueq)[k] - (u-ueq)[k-1] in this MPC formulation (i.e., u is in reference to u_eq, not 0)
+                NN_sample = np.concatenate((NN_sample, x_k_old[0:9], ref_N_relative, self.restrictions['u_max'] + linear_model.u_ref, u_k), axis = 0) #TODO: depois, acrescentar restrições
+
+                NN_dataset.append(NN_sample)
+                end_waste_time = time.time()
+                waste_time += end_waste_time - start_waste_time
+
+        end_time = time.time()
+        
+        # Metadata
+        X_vector = np.array(X_vector)
+        execution_time = (end_time - start_time) - waste_time
+
+        position = X_vector[:, 9:]
+        delta_position = trajectory[:len(position),:3] - position
+        RMSe = np.sqrt(np.mean(delta_position**2))
+
+        min_phi = np.min(X_vector[:,0])
+        max_phi = np.max(X_vector[:,0])
+        mean_phi = np.mean(X_vector[:,0])
+        std_phi = np.std(X_vector[:,0])
+
+        min_theta = np.min(X_vector[:,1])
+        max_theta = np.max(X_vector[:,1])
+        mean_theta = np.mean(X_vector[:,1])
+        std_theta = np.std(X_vector[:,1])
+
+        min_psi = np.min(X_vector[:,2])
+        max_psi = np.max(X_vector[:,2])
+        mean_psi = np.mean(X_vector[:,2])
+        std_psi = np.std(X_vector[:,2])
+
+        metadata = {
+            'execution_time': execution_time,
+            'RMSe': RMSe,
+            'min_phi': min_phi,
+            'max_phi': max_phi,
+            'mean_phi': mean_phi,
+            'std_phi': std_phi,
+            'min_theta': min_theta,
+            'max_theta': max_theta,
+            'mean_theta': mean_theta,
+            'std_theta': std_theta,
+            'min_psi': min_psi,
+            'max_psi': max_psi,
+            'mean_psi': mean_psi,
+            'std_psi': std_psi,
+        }
+
+
+        return np.array(X_vector), np.array(u_vector), np.array(omega_vector), np.asarray(NN_dataset), metadata
 
 ## TESTE - DELETAR DEPOIS ###########################################################################
 ### MULTIROTOR PARAMETERS ###
-# from parameters.octorotor_parameters import m, g, I_x, I_y, I_z, l, b, d, thrust_to_weight, num_rotors
+from parameters.octorotor_parameters import m, g, I_x, I_y, I_z, l, b, d, thrust_to_weight, num_rotors
 
 # ### SIMULATION PARAMETERS ###
-# from parameters.simulation_parameters import time_step, T_sample, N, M
-# T_simulation = 30
-# import multirotor
-# import restriction_handler
-# model = multirotor.Multirotor(m, g, I_x, I_y, I_z, b, l, d, num_rotors, thrust_to_weight)
-# rst = restriction_handler.Restriction(model, T_sample, N, M)
+from parameters.simulation_parameters import time_step, T_sample, N, M
+T_simulation = 30
+import multirotor
+import restriction_handler
+model = multirotor.Multirotor(m, g, I_x, I_y, I_z, b, l, d, num_rotors, thrust_to_weight)
+rst = restriction_handler.Restriction(model, T_sample, N, M)
 
-# restriction, output_weights, control_weights, _ = rst.restriction('normal')
+restriction, output_weights, control_weights, _ = rst.restriction('normal')
 
-# phi_grid = [-15, 0, 15]
-# theta_grid = [-15, 0, 15]
-# teste = GainSchedulingMPC(model, phi_grid, theta_grid, M, N, time_step, T_sample, output_weights, control_weights)
-        
+phi_grid = [-15, 0, 15]
+theta_grid = [-15, 0, 15]
+teste = GainSchedulingMPC(model, phi_grid, theta_grid, M, N, time_step, T_sample, output_weights, control_weights, restriction)
+print(teste.linear_model)

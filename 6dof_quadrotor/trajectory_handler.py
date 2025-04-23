@@ -48,7 +48,7 @@ class TrajectoryHandler(object):
 
         return r_circle_xy
     
-    def circle_xz(self, w, r, T_simulation):
+    def circle_xz(self, w, r, T_simulation, include_psi = True):
         t = np.arange(0, T_simulation, T_sample)
         r_circle_xz = np.array([r*np.sin(w*t),
                         np.zeros(len(t)),
@@ -57,9 +57,26 @@ class TrajectoryHandler(object):
                         0*t,
                         0*t
                        ]).transpose()
+        
+        if not include_psi:
+            r_circle_xz = r_circle_xz[:, :-1]
 
         return r_circle_xz
+    
+    def lissajous_xy(self, w, r, T_simulation, include_psi = True):
+        t = np.arange(0, T_simulation, T_sample)
+        r_lissajous_xy = np.array([r*np.sin(w*t + np.pi/2) - r,
+                       (r*np.sin(2/3*w*t)),
+                       np.zeros(len(t)),
+                       0*t,
+                       0*t,
+                       0*t
+                       ]).transpose()    
+        
+        if not include_psi:
+            r_lissajous_xy = r_lissajous_xy[:, :-1]    
 
+        return r_lissajous_xy
     
     def helicoidal(self, w, T_simulation):
         t = np.arange(0, T_simulation, T_sample)
@@ -157,8 +174,6 @@ class TrajectoryHandler(object):
                 #args = np.concatenate((args, [[2*np.pi/period, radius, 1.3*period]]), axis = 0)
                 args.append([2*np.pi/period, radius, 1.25*period])
         num_circles = len(short_radius_vector) * len(short_period_vector) + len(long_radius_vector) * len(long_period_vector)
-        print('Number of circle trajectories:', num_circles)
-        print('len(args)', len(args))
 
         return args
 
