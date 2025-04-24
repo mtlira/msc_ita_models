@@ -65,8 +65,8 @@ class TrajectoryHandler(object):
     
     def lissajous_xy(self, w, r, T_simulation, include_psi = True):
         t = np.arange(0, T_simulation, T_sample)
-        r_lissajous_xy = np.array([r*np.sin(w*t + np.pi/2) - r,
-                       (r*np.sin(2/3*w*t)),
+        r_lissajous_xy = np.array([r*np.sin(-w*t + np.pi/2) - r,
+                       (r*np.sin(-2/3*w*t)),
                        np.zeros(len(t)),
                        0*t,
                        0*t,
@@ -106,6 +106,9 @@ class TrajectoryHandler(object):
         
         if trajectory_type == 'circle_xy':
             return self.circle_xy(args[0], args[1], args[2])
+        
+        if trajectory_type == 'lissajous_xy':
+            return self.lissajous_xy(args[0], args[1], args[2])
         
         if trajectory_type == 'circle_xz':
             return self.circle_xz(args[0], args[1], args[2])
@@ -212,7 +215,7 @@ class TrajectoryHandler(object):
     def generate_lissajous_xy_trajectories(self):
         short_radius_vector = np.arange(1, 5, 1)
         long_radius_vector = np.arange(5, 10, 1)
-        short_period_vector = np.arange(2, 8, 1)
+        short_period_vector = np.arange(4, 8, 1)
         long_period_vector = np.arange(10, 20, 1)
 
         w_short_vector = 2*np.pi/short_period_vector

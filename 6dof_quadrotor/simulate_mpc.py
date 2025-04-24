@@ -119,7 +119,6 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_d
 
     total_simulations += len(args_vector) * len(restrictions_vector)
     if simulate_disturbances: total_simulations *= 2
-
     tr = trajectory_handler.TrajectoryHandler()
     for args in args_vector:
         for restrictions, output_weights, control_weights, restrictions_metadata in restrictions_vector:
@@ -175,8 +174,8 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_d
                 dataset_dataframe = pd.concat([dataset_dataframe, simulation_metadata])
 
                 # Simulation with disturbances
-                print(f'Simulation {dataset_id}/{total_simulations}')
                 if simulate_disturbances:
+                    print(f'Simulation {dataset_id}/{total_simulations}')
                     simulation_success, simulation_metadata = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights, control_weights, dataset_name, folder_name, disturb_input = True)
                     
                     if not simulation_success:
@@ -235,9 +234,10 @@ def generate_dataset(dataset_name = None):
     
     generate_point = False
     generate_circle_xy = False
-    generate_circle_xz = True
+    generate_circle_xz = False
     generate_line = False
     generate_lissajous_xy = False
+    simulate_fault_tolerance = True
     
     rst = Restriction(model, T_sample, N, M)
 
@@ -245,6 +245,7 @@ def generate_dataset(dataset_name = None):
     
     # 1. Restrictions vector
     restrictions_performance = rst.restrictions_performance()
+    restrictions_fault_tolerance = rst.restrictions_fault_tolerance()
 
     # 2. Generation of trajectory batches and simulation of batches
     if generate_point:
@@ -268,11 +269,15 @@ def generate_dataset(dataset_name = None):
 
     if generate_lissajous_xy:
         lissajous_xy_args = tr.generate_lissajous_xy_trajectories()
-        simulate_batch('lissajous_xy', lissajous_xy_args, restrictions_performance, simulate_disturbances = True, dataset_save_path=dataset_save_path)
+        simulate_batch('lissajous_xy', lissajous_xy_args, restrictions_performance, simulate_disturbances = False, dataset_save_path=dataset_save_path)
 
+    if simulate_fault_tolerance:
+        fault_tolerance_args = [[0, 0, 0, 15], [0,0,1,15], [0,0,-1,15]]
+        simulate_batch('point', fault_tolerance_args, restrictions_fault_tolerance, simulate_disturbances = True, dataset_save_path = dataset_save_path)
 
     # Save dataset
-    dataset_dataframe.to_csv(dataset_save_path, sep=',', index = False)
+    if len(dataset_dataframe) > 2:
+        dataset_dataframe.to_csv(dataset_save_path, sep=',', index = False)
     
     print(f'Failed simulations: {failed_simulations}/{total_simulations}') # TODO: deixar mais generico (nao so pontos)
 
@@ -282,6 +287,7 @@ try:
     dataset_name = current_time
     generate_dataset(dataset_name)
 except:
+    print('There was an error')
     save_path = f'simulations/{dataset_name}/'
     Path(save_path).mkdir(parents=True, exist_ok=True)
     dataset_dataframe.to_csv(save_path + '/dataset_metadata.csv', sep=',', index = False)

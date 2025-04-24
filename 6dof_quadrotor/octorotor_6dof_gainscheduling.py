@@ -25,7 +25,7 @@ print('d =', d)
 
 ### SIMULATION PARAMETERS ###
 from parameters.simulation_parameters import time_step, T_sample, N, M
-T_simulation = 30
+T_simulation = 15
 
 t = np.arange(0,T_simulation, time_step)
 t_samples = np.arange(0,T_simulation, T_sample)
@@ -40,7 +40,7 @@ X_eq = np.zeros(12)
 
 # f_t está no eixo do corpo
 
-trajectory_type = 'circle_xy'
+trajectory_type = 'lissajous_xy'
 include_psi = True
 
 # Open-loop Inputs
@@ -112,7 +112,7 @@ u_max = [
 ########################################################################################
 # LQR - tracking
 
-w = 2*np.pi*1/2.5
+w = 2*np.pi*1/5
 tr = trajectory_handler.TrajectoryHandler()
 
 r_tracking = None

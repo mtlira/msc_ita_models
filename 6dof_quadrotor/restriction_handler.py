@@ -92,6 +92,31 @@ class Restriction(object):
 
         return restrictions
     
+    def restrictions_fault_tolerance(self):
+        restrictions = []
+
+        # Normal operation
+        #restrictions.append(self.restriction('normal'))
+
+        # Single total failures
+        #for i in range(self.model.num_rotors): # Already accounted for in performance simulations
+        #    restrictions.append(self.restriction('total_failure', [i]))
+
+        # 2 total failures of all rotors
+        for combination in itertools.combinations(range(self.model.num_rotors), 2):
+            restrictions.append(self.restriction('total_failure', combination))
+
+        # 3 total failures of all rotors
+        for combination in itertools.combinations(range(self.model.num_rotors), 3):
+            restrictions.append(self.restriction('total_failure', combination))
+
+        # 4 total failures of all rotors
+        for combination in itertools.combinations(range(self.model.num_rotors), 4):
+            restrictions.append(self.restriction('total_failure', combination))
+        
+        return restrictions
+
+    
     # def generate_restrictions(self):
 
     #     restrictions = []
