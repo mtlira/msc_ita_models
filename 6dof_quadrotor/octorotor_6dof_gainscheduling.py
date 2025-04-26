@@ -25,7 +25,7 @@ print('d =', d)
 
 ### SIMULATION PARAMETERS ###
 from parameters.simulation_parameters import time_step, T_sample, N, M
-T_simulation = 15
+T_simulation = 30
 
 t = np.arange(0,T_simulation, time_step)
 t_samples = np.arange(0,T_simulation, T_sample)
@@ -40,7 +40,7 @@ X_eq = np.zeros(12)
 
 # f_t está no eixo do corpo
 
-trajectory_type = 'point'
+trajectory_type = 'circle_xy'
 include_psi = True
 
 # Open-loop Inputs
@@ -117,7 +117,7 @@ tr = trajectory_handler.TrajectoryHandler()
 
 r_tracking = None
 if trajectory_type == 'circle_xy':
-    r_tracking = tr.circle_xy(w, 0.5, T_simulation, include_psi)
+    r_tracking = tr.circle_xy(w, 5, T_simulation, include_psi)
 
 if trajectory_type == 'lissajous_xy':
     r_tracking = tr.lissajous_xy(w, 2, T_simulation, include_psi)
@@ -234,7 +234,7 @@ MPC.initialize_matrices()
 # Testing restriction handler class
 rst = Restriction(model, T_sample, N, M)
 
-failed_rotors = [0,7]
+failed_rotors = []
 restrictions2, output_weights2, control_weights2, _ = rst.restriction('total_failure', failed_rotors)
 #if len(failed_rotors) >= 2: 
 #    r_tracking = r_tracking[:, : 5]
