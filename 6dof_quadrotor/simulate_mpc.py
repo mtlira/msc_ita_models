@@ -82,33 +82,38 @@ dataset_dataframe['disturbed_inputs'] = dataset_dataframe['disturbed_inputs'].as
 
 # MPC Implementation
 
-def simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights, control_weights, dataset_name, folder_name, disturb_input=False):
+def simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights, control_weights, dataset_name=None, folder_name=None, disturb_input=False):
     '''
     Executes a control simulation with MPC given the time step, time sample, total simulation time and the desired trajectory.\n
     dataset_name: name of dataset folder the current simulation will belong to\n
     folder_name: name of the folder that will store the simulation results\n
     (obs: the folder hierarchy is dataset_name/folder_name/)
     '''
+    if dataset_name is None or folder_name is None: generate_dataset = False
+    else: generate_dataset = True
+
     t_samples = np.arange(0,T_simulation, T_sample)
 
     Bw = B @ model.Gama
     MPC = mpc.MPC(M, N, A, Bw, C, time_step, T_sample, output_weights, control_weights, restrictions, omega_eq**2)
     MPC.initialize_matrices()
-    #try:
-    x_mpc_rotors, u_rotors, omega_vector, NN_dataset, metadata = MPC.simulate_future_rotors(model, X0, t_samples, trajectory, generate_dataset=True, disturb_input=disturb_input)
-    #except Exception as error:
-    #    x_mpc_rotors, u_rotors, omega_vector, NN_dataset, metadata = None, None, None, None, None
-    #    print('exception:', error)
+    try:
+        x_mpc_rotors, u_rotors, omega_vector, NN_dataset, metadata = MPC.simulate_future_rotors(model, X0, t_samples, trajectory, generate_dataset=generate_dataset, disturb_input=disturb_input)
+    except Exception as error:
+        x_mpc_rotors, u_rotors, omega_vector, NN_dataset, metadata = None, None, None, None, None
+        print('exception:', error)
 
+    simulation_data = (x_mpc_rotors, u_rotors, omega_vector, NN_dataset)
     if x_mpc_rotors is not None:
-        save_path = 'simulations/{}/{}/'.format(dataset_name, folder_name)
+        save_path = 'simulations/{}/{}/'.format(dataset_name, folder_name) if dataset_name is not None else None
         #now = datetime.now()
         #current_time = now.strftime("%m_%d_%Hh-%Mm")
-        Path(save_path).mkdir(parents=True, exist_ok=True)
-        plot_states(x_mpc_rotors, t_samples[:np.shape(x_mpc_rotors)[0]], trajectory=trajectory, u_vector=u_rotors, omega_vector=omega_vector, equal_scales=True, legend=['Force/Moment optimization'], save_path=save_path)
-        np.savetxt(save_path + "dataset.csv", NN_dataset, delimiter=",")
-        return True, metadata
-    return False, metadata
+        if dataset_name is not None:
+            Path(save_path).mkdir(parents=True, exist_ok=True)
+            np.savetxt(save_path + "dataset.csv", NN_dataset, delimiter=",")
+        plot_states(x_mpc_rotors, t_samples[:np.shape(x_mpc_rotors)[0]], trajectory=trajectory, u_vector=u_rotors, omega_vector=omega_vector, equal_scales=True, legend=['MPC', 'Trajectory'], save_path=save_path)
+        return True, metadata, simulation_data
+    return False, None, None
 
 def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_disturbances, dataset_save_path, checkpoint_id = None):
     # 3. Simulation of POINT trajectories
@@ -129,7 +134,7 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_d
                 # Simulation without disturbances
                 print(f'Simulation {dataset_id}/{total_simulations}')
                 T_simulation = args[-1]
-                simulation_success, simulation_metadata = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights, control_weights, dataset_name, folder_name, disturb_input = False)
+                simulation_success, simulation_metadata, _ = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights, control_weights, dataset_name, folder_name, disturb_input = False)
 
                 if not simulation_success:
                     #restrictions_hover = restrictions.copy()
@@ -137,7 +142,7 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_d
                     #restrictions_hover['y_min'] = -restrictions_hover['y_max'][3:5]
                     output_weights_hover = np.copy(output_weights)
                     output_weights_hover[3:5] *= 4 # Divide delta_y_max by 2 for phi and theta
-                    simulation_success, simulation_metadata = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights_hover, control_weights, dataset_name, folder_name, disturb_input = False)
+                    simulation_success, simulation_metadata, _ = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights_hover, control_weights, dataset_name, folder_name, disturb_input = False)
 
                 simulation_metadata = {
                     'sim_id': dataset_id,
@@ -176,7 +181,7 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_d
                 # Simulation with disturbances
                 if simulate_disturbances:
                     print(f'Simulation {dataset_id}/{total_simulations}')
-                    simulation_success, simulation_metadata = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights, control_weights, dataset_name, folder_name, disturb_input = True)
+                    simulation_success, simulation_metadata, _ = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights, control_weights, dataset_name, folder_name, disturb_input = True)
                     
                     if not simulation_success:
                         #restrictions_hover = restrictions.copy()
@@ -281,14 +286,15 @@ def generate_dataset(dataset_name = None):
     
     print(f'Failed simulations: {failed_simulations}/{total_simulations}') # TODO: deixar mais generico (nao so pontos)
 
-try:
-    now = datetime.now()
-    current_time = now.strftime("%m_%d_%Hh-%Mm")
-    dataset_name = current_time
-    generate_dataset(dataset_name)
-except:
-    print('There was an error')
-    save_path = f'simulations/{dataset_name}/'
-    Path(save_path).mkdir(parents=True, exist_ok=True)
-    dataset_dataframe.to_csv(save_path + '/dataset_metadata.csv', sep=',', index = False)
+if __name__ == '__main__':
+    try:
+        now = datetime.now()
+        current_time = now.strftime("%m_%d_%Hh-%Mm")
+        dataset_name = current_time
+        generate_dataset(dataset_name)
+    except:
+        print('There was an error')
+        save_path = f'simulations/{dataset_name}/'
+        Path(save_path).mkdir(parents=True, exist_ok=True)
+        dataset_dataframe.to_csv(save_path + '/dataset_metadata.csv', sep=',', index = False)
  

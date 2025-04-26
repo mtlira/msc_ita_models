@@ -15,7 +15,7 @@ def group_datasets(folder_path):
 
     for subdir, _, files in os.walk(folder_path):
         for file in files:
-            if '.csv' in file and 'global' not in subdir:
+            if 'dataset.csv' in file and 'global' not in subdir and 'normalization' not in file:
                 dataframe_dir = os.path.join(subdir, file)
                 dataframe = pd.read_csv(dataframe_dir, header = None)
                 #global_dataset = dataframe if len(dataframe) == 0 else pd.concat((global_dataset, dataframe), axis = 0, ignore_index = True)
@@ -58,7 +58,7 @@ def group_datasets(folder_path):
 
         np.savetxt(save_path + 'normalization_data.csv', np.array([mean_row, std_row]), delimiter=",")
 
-    global_dataset.to_csv(save_path + 'global_dataset.csv', header = False, index = False)
+    #global_dataset.to_csv(save_path + 'global_dataset.csv', header = False, index = False)
 
 def split_dataset(save_folder, dataset_name, train_percentage):
     '''Splits the global dataset into training and test datasets'''
@@ -79,9 +79,20 @@ def split_dataset(save_folder, dataset_name, train_percentage):
     # Saving
     training_dataset.to_csv(save_folder + 'train_dataset.csv', sep=',', header = False, index = False)
     test_dataset.to_csv(save_folder + 'test_dataset.csv', sep=',', header = False, index = False)
+
+def csv2npy(mother_folder_path):
+    for subdir, _, files in os.walk(mother_folder_path):
+        for file in files:
+            if file == 'dataset.csv':
+                dataframe_dir = os.path.join(subdir, file)
+                dataframe = pd.read_csv(dataframe_dir, header = None)
+                data_bin = dataframe.to_numpy(dtype=np.float32)   # Set dtype when converting to NumPy
+                np.save(os.path.join(subdir, 'dataset.npy'), data_bin)
+
                                 
-group_datasets('dataset_canon/canon_N_90_M_10_hover_only/')
-split_dataset('dataset_canon/canon_N_90_M_10_hover_only/global_dataset/', 'global_dataset.csv', 0.8)
+#group_datasets('teste/')
+csv2npy('../Datasets/')
+#split_dataset('dataset_canon/canon_N_90_M_10_hover_only/global_dataset/', 'global_dataset.csv', 0.8)
 
 # Teste de validação
 #check = pd.read_csv('dataset_canon/canon_N_50_M_20/global_dataset.csv', header = None)

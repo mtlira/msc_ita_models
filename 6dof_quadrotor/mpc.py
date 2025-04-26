@@ -426,7 +426,7 @@ class MPC(object):
             x_k_old = x_k # Used only to mount nn_sample array
             x_k = odeint(model.f2, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
             x_k = x_k[-1]
-            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 10 or np.max(np.abs(x_k[0:2])) > 1.75:
+            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 10: #or np.max(np.abs(x_k[0:2])) > 1.75:
                 print('Simulation exploded.')
                 print(f'x_{k} =',x_k)
                 return None, None, None, None, None
@@ -1035,7 +1035,7 @@ class GainSchedulingMPC(object):
             x_k_old = x_k # Used only to mount nn_sample array
             x_k = odeint(model.f2, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
             x_k = x_k[-1]
-            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 10 or np.max(np.abs(x_k[0:2])) > 1.75:
+            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 10:# or np.max(np.abs(x_k[0:2])) > 2.5: #TODO: unificar criterio de saida para todos os metodos
                 print('Simulation exploded.')
                 print(f'x_{k} =',x_k)
                 return None, None, None, None, None
@@ -1113,21 +1113,22 @@ class GainSchedulingMPC(object):
 
         return np.array(X_vector), np.array(u_vector), np.array(omega_vector), np.asarray(NN_dataset), metadata
 
-## TESTE - DELETAR DEPOIS ###########################################################################
-### MULTIROTOR PARAMETERS ###
-from parameters.octorotor_parameters import m, g, I_x, I_y, I_z, l, b, d, thrust_to_weight, num_rotors
+if __name__ == '__main__':
+    ## TESTE - DELETAR DEPOIS ###########################################################################
+    ### MULTIROTOR PARAMETERS ###
+    from parameters.octorotor_parameters import m, g, I_x, I_y, I_z, l, b, d, thrust_to_weight, num_rotors
 
-# ### SIMULATION PARAMETERS ###
-from parameters.simulation_parameters import time_step, T_sample, N, M
-T_simulation = 30
-import multirotor
-import restriction_handler
-model = multirotor.Multirotor(m, g, I_x, I_y, I_z, b, l, d, num_rotors, thrust_to_weight)
-rst = restriction_handler.Restriction(model, T_sample, N, M)
+    # ### SIMULATION PARAMETERS ###
+    from parameters.simulation_parameters import time_step, T_sample, N, M
+    T_simulation = 30
+    import multirotor
+    import restriction_handler
+    model = multirotor.Multirotor(m, g, I_x, I_y, I_z, b, l, d, num_rotors, thrust_to_weight)
+    rst = restriction_handler.Restriction(model, T_sample, N, M)
 
-restriction, output_weights, control_weights, _ = rst.restriction('normal')
+    restriction, output_weights, control_weights, _ = rst.restriction('normal')
 
-phi_grid = [-15, 0, 15]
-theta_grid = [-15, 0, 15]
-teste = GainSchedulingMPC(model, phi_grid, theta_grid, M, N, time_step, T_sample, output_weights, control_weights, restriction)
-print(teste.linear_model)
+    phi_grid = [-15, 0, 15]
+    theta_grid = [-15, 0, 15]
+    teste = GainSchedulingMPC(model, phi_grid, theta_grid, M, N, time_step, T_sample, output_weights, control_weights, restriction)
+    print(teste.linear_model)

@@ -40,7 +40,7 @@ X_eq = np.zeros(12)
 
 # f_t está no eixo do corpo
 
-trajectory_type = 'lissajous_xy'
+trajectory_type = 'point'
 include_psi = True
 
 # Open-loop Inputs
@@ -234,7 +234,7 @@ MPC.initialize_matrices()
 # Testing restriction handler class
 rst = Restriction(model, T_sample, N, M)
 
-failed_rotors = []
+failed_rotors = [0,7]
 restrictions2, output_weights2, control_weights2, _ = rst.restriction('total_failure', failed_rotors)
 #if len(failed_rotors) >= 2: 
 #    r_tracking = r_tracking[:, : 5]
@@ -252,8 +252,8 @@ Bw = B @ model.Gama
 #MPC2.initialize_matrices()
 #x_mpc_rotors, u_rotors, omega_vector, NN_dataset, _ = MPC2.simulate_future_rotors(model, X0, t_samples, r_tracking, omega_eq**2, generate_dataset=False, disturb_input=False)
 
-phi_grid = np.array([-60, -45, -30, -15, 0, 15, 30, 45, 60])
-theta_grid = np.array([-60, -45, -30, -15, 0, 15, 30, 45, 60])
+phi_grid = np.array([-75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75])
+theta_grid = np.array([-75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75])
 #output_weights2[3:5] *= 4
 gain_mpc = mpc.GainSchedulingMPC(model, phi_grid, theta_grid, M, N, time_step, T_sample, output_weights2, control_weights2, restrictions2, include_psi = include_psi)
 x_mpc_rotors, u_rotors, omega_vector, NN_dataset, _ = gain_mpc.simulate_future_rotors(model, X0, t_samples, r_tracking, generate_dataset = False, disturb_input = False)

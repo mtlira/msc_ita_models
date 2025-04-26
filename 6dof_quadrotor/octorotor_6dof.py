@@ -112,12 +112,12 @@ u_max = [
 ########################################################################################
 # LQR - tracking
 
-w = 2*np.pi*1/2.5
+w = 2*np.pi*1/10
 tr = trajectory_handler.TrajectoryHandler()
 
 r_tracking = None
 if trajectory_type == 'circle_xy':
-    r_tracking = tr.circle_xy(w, 0.5, T_simulation, include_psi)
+    r_tracking = tr.circle_xy(w, 5, T_simulation, include_psi)
 
 if trajectory_type == 'lissajous_xy':
     r_tracking = tr.lissajous_xy(w, 2, T_simulation, include_psi)
@@ -234,7 +234,7 @@ MPC.initialize_matrices()
 # Testing restriction handler class
 rst = Restriction(model, T_sample, N, M)
 
-failed_rotors = []
+failed_rotors = [0]
 restrictions2, output_weights2, control_weights2, _ = rst.restriction('total_failure', failed_rotors)
 #if len(failed_rotors) >= 2: 
 #    r_tracking = r_tracking[:, : 5]
