@@ -35,7 +35,7 @@ class Restriction(object):
         delta_u_min = (2*omega_eq + alpha*self.time_sample)*alpha * self.time_sample
 
         # Order: x, y, z, phi, beta, psi
-        y_max = np.array([50, 50, 50, 1.5, 1.5, 20]) # Tune in case of unsatisfactory simulation results
+        y_max = np.array([50, 50, 50, 1.4, 1.4, 1.4]) # Tune in case of unsatisfactory simulation results
         #if operation_mode == 'normal' or len(rotors_idx) <= 1: y_max = np.concatenate((y_max, [1000]), axis = 0) # Adding psi = 0 reference in normal operation (In fault mode, yaw control is sacrificed)
         y_min = (-1) * y_max
 
@@ -49,7 +49,7 @@ class Restriction(object):
         }
 
         # Order: x, y, z, phi, beta, psi
-        delta_y_max = np.array([1, 1, 1, 1.2, 1.2, 1.2]) # Tune in case of unsatisfactory simulation results
+        delta_y_max = np.array([1, 1, 1, 1, 1, 1.2]) # Tune in case of unsatisfactory simulation results
         #delta_y_max = np.array([1, 1, 1, 0.6, 0.6, 1.2]) # Tune in case of unsatisfactory simulation results
         #if operation_mode == 'normal' or len(rotors_idx) <= 1: delta_y_max = np.concatenate((delta_y_max, [1.2]), axis = 0) # Adding psi = 0 reference in normal operation (In fault mode for more than 1 rotor, yaw control is sacrificed)
 
