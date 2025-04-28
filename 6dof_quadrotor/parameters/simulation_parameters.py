@@ -5,6 +5,7 @@ M = 10
 
 include_phi_theta_reference = True
 include_psi_reference = True
+gain_scheduling = True
 
 num_reference_outputs = 6 # x, y, z, phi, beta, psi
 

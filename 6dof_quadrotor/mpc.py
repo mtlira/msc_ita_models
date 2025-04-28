@@ -914,6 +914,12 @@ class MPC(object):
         #     sys_d = cont2discrete((self.A,self.B,self.C, np.zeros((self.q,self.p))), self.T_sample, 'zoh')
         #     Ad, Bd, Cd, _, _ = sys_d
         #     return Ad, Bd, Cd
+    
+    def RMSe(self, position, trajectory):
+        delta_position = trajectory - position   # shape (N, 3)
+        squared_norms = np.sum(delta_position**2, axis=1)  # Sum over x, y, z for each time step
+        RMSe = np.sqrt(np.mean(squared_norms))
+        return RMSe
 
 class GainSchedulingMPC(object):
     def __init__(self, model, phi_grid_deg, theta_grid_deg, M, N, time_step, T_sample, output_weights, control_weights,\
@@ -1052,7 +1058,7 @@ class GainSchedulingMPC(object):
             if disturb_input and k>0:
                 probability = np.random.rand()
                 if probability > disturb_frequency:
-                    uu_k = self.add_input_disturbance(uu_k, model)                
+                    uu_k = linear_model.add_input_disturbance(uu_k, model)                
 
             # Apply control u_k in the multi-rotor
             f_t_k, t_x_k, t_y_k, t_z_k = uu_k # Attention for u_eq (solved the problem)
@@ -1097,7 +1103,7 @@ class GainSchedulingMPC(object):
                 ref_N_relative = ref_N_position - position_k
 
                 # Clarification: u is actually (u - ueq) and delta_u is (u-ueq)[k] - (u-ueq)[k-1] in this MPC formulation (i.e., u is in reference to u_eq, not 0)
-                NN_sample = np.concatenate((NN_sample, x_k_old[0:9], ref_N_relative, self.restrictions['u_max'] + linear_model.u_ref, u_k), axis = 0) #TODO: depois, acrescentar restrições
+                NN_sample = np.concatenate((NN_sample, x_k_old[0:9], ref_N_relative, linear_model.restrictions['u_max'] + linear_model.u_ref, u_k), axis = 0) #TODO: depois, acrescentar restrições
 
                 NN_dataset.append(NN_sample)
                 end_waste_time = time.time()
@@ -1112,6 +1118,9 @@ class GainSchedulingMPC(object):
         position = X_vector[:, 9:]
         delta_position = trajectory[:len(position),:3] - position
         RMSe = np.sqrt(np.mean(delta_position**2))
+        #RMSe = linear_model.RMSe(position, trajectory[:len(position),:3])
+
+        #print('RMSe',RMSe, '\nWrong RMSe',RMSe_wrong)
 
         min_phi = np.min(X_vector[:,0])
         max_phi = np.max(X_vector[:,0])

@@ -54,7 +54,7 @@ class ControlAllocationDataset_Binary(Dataset):
         self.dataset = np.concatenate(self.dataset, axis = 0)
         self.num_inputs = len(self.dataset[0]) - num_outputs
         
-        print(f'\tLoaded {len(self.dataset)} datasets')
+        print(f'\tLoaded {len(self.dataset)} samples')
         print(f'\tSample length: {len(self.dataset[0])}')
         print(f'\tDataset size: {self.dataset.nbytes / 1024**2} MB')
 
@@ -244,7 +244,7 @@ if __name__ == '__main__':
     pass
     #Teste
     #teste = ControlAllocationDataset_Split('teste/', False, num_rotors)
-    teste = ControlAllocationDataset_Binary('teste/', False, num_rotors)
+    teste = ControlAllocationDataset_Binary('simulations/04_27_00h-26m/', False, num_rotors)
     print('first sample\n',teste.__getitem__(0))
     print(teste.num_inputs,teste.num_outputs)
 
