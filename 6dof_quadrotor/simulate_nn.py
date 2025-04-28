@@ -6,23 +6,25 @@ import torch
 from scipy.integrate import odeint
 from plots import plot_states
 import pandas as pd
+import restriction_handler
+from simulate_mpc import simulate_mpc
 
 use_optuna_model = True
 
 ### MULTIROTOR PARAMETERS ###
-from parameters.quadrotor_parameters import m, g, I_x, I_y, I_z, l, b, d
+from parameters.octorotor_parameters import m, g, I_x, I_y, I_z, l, b, d, num_rotors, thrust_to_weight
 
 ### Create model of multirotor ###
-multirotor_model = multirotor.Multirotor(m, g, I_x, I_y, I_z, b, l, d)
+multirotor_model = multirotor.Multirotor(m, g, I_x, I_y, I_z, b, l, d, num_rotors, thrust_to_weight)
 
 num_neurons_hidden_layers = 128 # TODO: AUTOMATIZAR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #nn_weights_folder = 'dataset_canon/canon_N_90_M_10_hover_only/global_dataset/'
 #weights_file_name = 'model_weights.pth'
 
 ### SIMULATION PARAMETERS ###
-from parameters.simulation_parameters import time_step, T_sample, N, num_outputs
-q = num_outputs # Number of MPC outputs (x, y z)
-num_inputs = 279 # TODO: AUTOMATIZAR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+from parameters.simulation_parameters import time_step, T_sample, N, M
+q_neuralnetwork = 3 # Number of MPC outputs (x, y z)
+num_inputs = 205 - num_rotors # TODO: AUTOMATIZAR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 T_simulation = 30 # Total simulation time
 t_samples = np.arange(0,T_simulation, T_sample)
 t_samples_extended = np.arange(0,2*T_simulation, T_sample)
@@ -31,26 +33,21 @@ t_samples_extended = np.arange(0,2*T_simulation, T_sample)
 X0 = np.array([0,0,0,0,0,0,0,0,0,0,0,0])
 
 # Input and state values at the equilibrium condition
-u_eq = [m*g, 0, 0, 0]
+#u_eq = [m*g, 0, 0, 0]
 omega_eq = multirotor_model.get_omega_eq_hover()
 omega_squared_eq = omega_eq**2
 print('omega_squared_eq',omega_squared_eq)
 
 # Trajectory
-w=2*np.pi*1/30
+w=2*np.pi*1/10
 tr = trajectory_handler.TrajectoryHandler()
-#trajectory = tr.line(2, 2, -1, t_samples_extended)
-trajectory = tr.circle_xy(w,4,t_samples_extended)
-#trajectory = tr.point(0,0,-1,t_samples)
+#trajectory = tr.line(2, 2, -1, 15, T_simulation)
+#trajectory = tr.circle_xy(w,5,T_simulation)
+trajectory = tr.point(0,0,0,T_simulation)
+#trajectory = tr.lissajous_xy(w, 3, T_simulation)
 
-restrictions = { #TODO: CORRIGIR!!!!!!!!!!!!!!!!!!!!!!!
-"delta_u_max": np.linalg.pinv(multirotor_model.Gama) @ [10*m*g*T_sample, 0, 0, 0],
-"delta_u_min": np.linalg.pinv(multirotor_model.Gama) @ [-10*m*g*T_sample, 0, 0, 0],
-"u_max": np.linalg.pinv(multirotor_model.Gama) @ [m*g, 0, 0, 0],
-"u_min": np.linalg.pinv(multirotor_model.Gama) @ [-m*g, 0, 0, 0],
-"y_max": 100*np.ones(3),
-"y_min": -100*np.ones(3)
-}
+rst = restriction_handler.Restriction(multirotor_model, T_sample, N, M)
+restriction, output_weights, control_weights, _ = rst.restriction('total_failure', [0,7])
 
 def simulate_neural_network(nn_weights_folder, file_name, t_samples):
 
@@ -68,12 +65,12 @@ def simulate_neural_network(nn_weights_folder, file_name, t_samples):
         print('N was not imported correctly.')
         return
     # 1. Load Neural Network model
-    device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
-    print(f"Using {device} device")
+    #device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
+    #print(f"Using {device} device")
     if use_optuna_model:
-        nn_model = NeuralNetwork_optuna(num_inputs, num_outputs, num_neurons_hidden_layers).to(device)
+        nn_model = NeuralNetwork_optuna(num_inputs, num_rotors)
     else:
-        nn_model = NeuralNetwork(num_inputs, num_outputs, num_neurons_hidden_layers).to(device)
+        nn_model = NeuralNetwork(num_inputs, num_rotors, num_neurons_hidden_layers)
     nn_model.load_state_dict(torch.load(nn_weights_path, weights_only=True))
     nn_model.eval()
 
@@ -90,23 +87,26 @@ def simulate_neural_network(nn_weights_folder, file_name, t_samples):
         # Mount input tensor to feed NN
         nn_input = np.array([])
 
-        ref_N = trajectory[k:k+N].reshape(-1) # TODO validar se termina em k+N-1 ou em k+N
-        if np.shape(ref_N)[0] < q*N:
+        ref_N = trajectory[k:k+N, 0:3].reshape(-1) # TODO validar se termina em k+N-1 ou em k+N
+        if np.shape(ref_N)[0] < q_neuralnetwork*N:
             #print('kpi',N - int(np.shape(ref_N)[0]/q))
-            ref_N = np.concatenate((ref_N, np.tile(trajectory[-1].reshape(-1), N - int(np.shape(ref_N)[0]/q))), axis = 0) # padding de trajectory[-1] em ref_N quando trajectory[k+N] ultrapassa ultimo elemento
+            ref_N = np.concatenate((ref_N, np.tile(trajectory[-1, :3].reshape(-1), N - int(np.shape(ref_N)[0]/q_neuralnetwork))), axis = 0) # padding de trajectory[-1] em ref_N quando trajectory[k+N] ultrapassa ultimo elemento
 
         # Calculating reference values relative to multirotor's current position at instant k
         position_k = np.tile(x_k[9:], N).reshape(-1)
         ref_N_relative = ref_N - position_k
 
         # Clarification: u is actually (u - ueq) and delta_u is (u-ueq)[k] - (u-ueq)[k-1] in this MPC formulation (i.e., u is in reference to u_eq, not 0)
-        nn_input = np.concatenate((nn_input, x_k[0:9], ref_N_relative), axis = 0)
+        nn_input = np.concatenate((nn_input, x_k[0:9], ref_N_relative, restriction['u_max'] + omega_squared_eq), axis = 0)
 
         # Normalization of the input
-        for i_column in range(num_inputs):
-            mean = normalization_df.iloc[0, i_column]
-            std = normalization_df.iloc[1, i_column]
-            nn_input[i_column] = (nn_input[i_column] - mean)/std
+        #for i_column in range(num_inputs):
+        #    mean = normalization_df.iloc[0, i_column]
+        #    std = normalization_df.iloc[1, i_column]
+        #    nn_input[i_column] = (nn_input[i_column] - mean)/std
+        mean = normalization_df.iloc[0, :num_inputs]
+        std = normalization_df.iloc[1, :num_inputs]
+        nn_input = np.array((nn_input - mean) / std)
 
         nn_input = nn_input.astype('float32')
 
@@ -114,18 +114,22 @@ def simulate_neural_network(nn_weights_folder, file_name, t_samples):
         delta_omega_squared = nn_model(torch.from_numpy(nn_input)).detach().numpy()
 
         # De-normalization of the output
-        for i_output in range(num_outputs):
-            mean = normalization_df.iloc[0, num_inputs + i_output]
-            std = normalization_df.iloc[1, num_inputs + i_output]
-            delta_omega_squared[i_output] = mean + std*delta_omega_squared[i_output]
- 
+        #for i_output in range(num_outputs):
+        #    mean = normalization_df.iloc[0, num_inputs + i_output]
+        #    std = normalization_df.iloc[1, num_inputs + i_output]
+        #    delta_omega_squared[i_output] = mean + std*delta_omega_squared[i_output]
+        mean = normalization_df.iloc[0, num_inputs:]
+        std = normalization_df.iloc[1, num_inputs:]
+        delta_omega_squared = mean + std*delta_omega_squared
+
         # Applying multirotor restrictions
-        delta_omega_squared = np.clip(delta_omega_squared, restrictions['u_min'], restrictions['u_max'])
+        delta_omega_squared = np.clip(delta_omega_squared, restriction['u_min'], restriction['u_max'])
+        # TODO: Add restrição de rate change (ang acceleration)
         
         omega_squared = omega_squared_eq + delta_omega_squared
 
-        # Fixing infinitesimal negative values
-        omega_squared = np.clip(omega_squared, a_min=0, a_max=None)
+        # Fixing infinitesimal values out that violate the constraints
+        omega_squared = np.clip(omega_squared, a_min=0, a_max=restriction['u_max'] + omega_squared_eq)
 
         # omega**2 --> u
         #print('omega_squared',omega_squared)
@@ -145,20 +149,21 @@ def simulate_neural_network(nn_weights_folder, file_name, t_samples):
 
     return np.array(X_vector), np.array(u_vector), np.array(omega_vector)
 
-nn_weights_folder_mse = 'training_results/25-04-05 - Hover focused dataset N90 M10 - MSELoss/'
-if use_optuna_model: weights_file_name_mse = 'model_weights_MSELoss_optuna.pth'
-else: weights_file_name_mse = 'model_weights_MSELoss.pth'
+nn_weights_folder_mse = '../Datasets/Training datasets - v0/'
+weights_file_name_mse = 'model_weights_octorotor.pth'
 
 #nn_weights_folder_l1 = 'training_results/25-04-05 - Hover focused dataset N90 M10 - L1Loss/'
 #weights_file_name_l1 = 'model_weights_L1Loss.pth'
 
-x_mse, u_vector_mse, omega_vector_mse = simulate_neural_network(nn_weights_folder_mse, weights_file_name_mse, t_samples)
+x_nn, u_nn, omega_nn = simulate_neural_network(nn_weights_folder_mse, weights_file_name_mse, t_samples)
+_, _, simulation_data = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restriction, output_weights, control_weights)
+x_mpc, u_mpc, omega_mpc, _ = simulation_data if simulation_data is not None else [None, None, None, None]
 
 #use_optuna_model = False
 
 #x_mse2, u_vector_mse2, omega_vector_mse2 = simulate_neural_network(nn_weights_folder_mse, weights_file_name_mse, t_samples)
-
-plot_states(x_mse, t_samples[:np.shape(x_mse)[0]], trajectory=trajectory[:len(t_samples)], u_vector=u_vector_mse, omega_vector=omega_vector_mse)
+legend = ['Neural Network', 'MPC', 'Trajectory'] if x_mpc is not None else ['Neural Network', 'Trajectory']
+plot_states(x_nn, t_samples[:np.shape(x_nn)[0]], X_lin=x_mpc, trajectory=trajectory[:len(t_samples)], u_vector=u_nn, omega_vector=omega_nn, legend=legend, equal_scales=True)
 #plot_states(x_l1, t_samples[:np.shape(x_l1)[0]], trajectory=trajectory, u_vector=u_vector_l1, omega_vector=omega_vector_l1)
 
 #plot_states(x_mse, t_samples[:np.shape(x_l1)[0]], trajectory=trajectory, u_vector=u_vector_mse, X_lin=x_l1, legend=['MSE', 'MAE'])

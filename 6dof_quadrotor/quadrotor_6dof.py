@@ -29,7 +29,7 @@ KI = 3
 phi_setpoint = 0
 
 ### SIMULATION PARAMETERS ###
-from parameters.simulation_parameters import time_step, T_sample, N, M
+from parameters.simulation_parameters import time_step, T_sample, N, M, include_phi_theta_reference, include_psi_reference
 T_simulation = 30
 
 t = np.arange(0,T_simulation, time_step)
@@ -46,7 +46,6 @@ X_eq = np.zeros(12)
 # f_t está no eixo do corpo
 
 trajectory_type = 'point'
-include_psi = False
 num_rotors = 4
 
 # Open-loop Inputs
@@ -83,7 +82,7 @@ print('omegas_eq',omega_eq)
 
 A, B, C = model.linearize()
 
-if include_psi:
+if include_psi_reference:
     C = np.concatenate((C, np.array([[0,0,1,0,0,0,0,0,0,0,0,0]])), axis = 0)
 
 #_, _, x_lin = openloop_sim_linear(A, B, t, X0, X_eq, u_eq, u_sim)
@@ -122,13 +121,13 @@ tr = trajectory_handler.TrajectoryHandler()
 
 r_tracking = None
 if trajectory_type == 'circle_xy':
-    r_tracking = tr.circle_xy(w, 5, T_simulation, include_psi = include_psi)
+    r_tracking = tr.circle_xy(w, 5, T_simulation,include_psi = include_psi_reference)
 
 if trajectory_type == 'circle_xz':
     r_tracking = tr.circle_xz(w, 5, T_simulation)
 
 if trajectory_type == 'point':
-    r_tracking = tr.point(0, 0, 0, T_simulation, include_psi = include_psi)
+    r_tracking = tr.point(0, 0, 0, T_simulation, include_psi = include_psi_reference)
 
 if trajectory_type == 'line':
     r_tracking = tr.line(1, 1, -1, T_simulation, 15)
@@ -183,15 +182,15 @@ restrictions = {
     "delta_u_min": np.array([-3*m*g*T_sample, -1*m*g*T_sample, -1*m*g*T_sample, -1*m*g*T_sample]),
     "u_max": [m*g, m*g, m*g, m*g],
     "u_min": [-m*g, -m*g, -m*g, -m*g],
-    "y_max": np.array([5, 5, 10, 1e3]) if include_psi else np.array([2, 2, 5]),
-    "y_min": np.array([-5, -5, -10, -1e3]) if include_psi else np.array([-2, -2, -5]),
+    "y_max": np.array([5, 5, 10, 1e3]) if include_psi_reference else np.array([2, 2, 5]),
+    "y_min": np.array([-5, -5, -10, -1e3]) if include_psi_reference else np.array([-2, -2, -5]),
 }
 
 #teste = np.array([1,2,3])
 #print('1/teste=',1/teste)
 #print('1/teste^2=',1/(teste**2))
 
-delta_y_max = np.array([2, 2, 5, 1e3]) if include_psi else np.array([3, 3, 3])
+delta_y_max = np.array([2, 2, 5, 1e3]) if include_psi_reference else np.array([3, 3, 3])
 #delta_y_max = 1e-6*np.ones(3)
 
 
@@ -224,8 +223,8 @@ restrictions2 = {
     "delta_u_min": np.linalg.pinv(model.Gama) @ [-10*m*g*T_sample, 0, 0, 0],
     "u_max": u_max,
     "u_min": u_min,
-    "y_max": np.array([10, 10, 10, 1e6]) if include_psi else np.array([3, 3, 3]),
-    "y_min": np.array([-10, -10, -10, 1e6]) if include_psi else np.array([-3, -3, -3])
+    "y_max": np.array([10, 10, 10, 1e6]) if include_psi_reference else np.array([3, 3, 3]),
+    "y_min": np.array([-10, -10, -10, 1e6]) if include_psi_reference else np.array([-3, -3, -3])
 }
 
 output_weights2 = 1 / (N*delta_y_max**2) # Deve variar a cada passo de simulação?

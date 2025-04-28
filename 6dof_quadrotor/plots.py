@@ -1,48 +1,60 @@
 import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
 import numpy as np
 
 def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None, omega_vector = None, equal_scales=False, legend = [], save_path = None):
+    handles = []
+    
     # Rotation
     fig, axs = plt.subplots(2, 3)
     axs[0,0].plot(t,X[:,0])
     if X_lin is not None: axs[0,0].plot(t,X_lin[:,0])
+    if trajectory is not None: axs[0,2].plot(np.nan, np.nan, 'g--')
     axs[0,0].set_title('$\\phi(t)$')
     axs[0,0].set_xlabel('t (s)')
     axs[0,0].set_ylabel('$\\phi (rad)$')
 
     axs[0,1].plot(t,(-1)*X[:,1])
     if X_lin is not None: axs[0,1].plot(t,(-1)*X_lin[:,1])
+    if trajectory is not None: axs[0,2].plot(np.nan, np.nan, 'g--')
     axs[0,1].set_title('$\\theta(t)$')
     axs[0,1].set_xlabel('t (s)')
     axs[0,1].set_ylabel('$\\theta (rad)$')
 
     axs[0,2].plot(t,(-1)*X[:,2])
     if X_lin is not None: axs[0,2].plot(t,(-1)*X_lin[:,2])
+    if trajectory is not None: axs[0,2].plot(np.nan, np.nan, 'g--')
     axs[0,2].set_title('$\\psi(t)$')
     axs[0,2].set_xlabel('t (s)')
     axs[0,2].set_ylabel('$\\psi$ (rad)')
 
     axs[1,0].plot(t,X[:,3])
     if X_lin is not None: axs[1,0].plot(t,X_lin[:,3])
+    if trajectory is not None: axs[0,2].plot(np.nan, np.nan, 'g--')
     axs[1,0].set_title('p(t)')
     axs[1,0].set_xlabel('t (s)')
     axs[1,0].set_ylabel('p (rad/s)')
 
     axs[1,1].plot(t,(-1)*X[:,4])
     if X_lin is not None: axs[1,1].plot(t,(-1)*X_lin[:,4])
+    if trajectory is not None: axs[0,2].plot(np.nan, np.nan, 'g--')
     axs[1,1].set_title('q(t)')
     axs[1,1].set_xlabel('t (s)')
     axs[1,1].set_ylabel('q (rad/s)')
 
     axs[1,2].plot(t,(-1)*X[:,5])
     if X_lin is not None: axs[1,2].plot(t,(-1)*X_lin[:,5])
+    if trajectory is not None: axs[0,2].plot(np.nan, np.nan, 'g--')
     axs[1,2].set_title('r(t)')
     axs[1,2].set_xlabel('t (s)')
     axs[1,2].set_ylabel('r (rad/s)')
-    fig.legend(legend[0:-1])
+    fig.legend(legend if trajectory is None else legend[:-1]) # Because there is no reference in angle values
     plt.subplots_adjust(left=0.083, bottom=0.083, right=0.948, top=0.914, wspace=0.23, hspace=0.31)
+    
     if save_path is not None: 
         plt.savefig(save_path + 'x_angular.png')
+        for ax in axs.reshape(-1): ax.cla()
+        plt.close(fig)
         del fig
         del axs
 
@@ -50,25 +62,28 @@ def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None, omega_vec
     fig, axs = plt.subplots(2, 3)
     axs[0,0].plot(t,X[:,6])
     if X_lin is not None: axs[0,0].plot(t,X_lin[:,6])
+    if trajectory is not None: axs[0,2].plot(np.nan, np.nan, 'g--')
     axs[0,0].set_title('u(t)')
     axs[0,0].set_xlabel('t (s)')
     axs[0,0].set_ylabel('u (m/s)')
 
     axs[0,1].plot(t,(-1)*X[:,7])
     if X_lin is not None: axs[0,1].plot(t,(-1)*X_lin[:,7])
+    if trajectory is not None: axs[0,2].plot(np.nan, np.nan, 'g--')
     axs[0,1].set_title('v(t)')
     axs[0,1].set_xlabel('t (s)')
     axs[0,1].set_ylabel('v (m/s)')
 
     axs[0,2].plot(t,(-1)*X[:,8])
     if X_lin is not None: axs[0,2].plot(t,(-1)*X_lin[:,8])
+    if trajectory is not None: axs[0,2].plot(np.nan, np.nan, 'g--')
     axs[0,2].set_title('w(t)')
     axs[0,2].set_xlabel('t (s)')
     axs[0,2].set_ylabel('w (m/s)')
 
-    axs[1,0].plot(t,X[:,9])
-    if X_lin is not None: axs[1,0].plot(t,X_lin[:,9])
-    if trajectory is not None: axs[1,0].plot(t,trajectory[:,0], 'g--')
+    handles.append(axs[1,0].plot(t,X[:,9])[0])
+    if X_lin is not None: handles.append(axs[1,0].plot(t,X_lin[:,9])[0])
+    if trajectory is not None: handles.append(axs[1,0].plot(t,trajectory[:,0], 'g--')[0])
     axs[1,0].set_title('x(t)')
     axs[1,0].set_xlabel('t (s)')
     axs[1,0].set_ylabel('x (m)')
@@ -86,10 +101,21 @@ def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None, omega_vec
     axs[1,2].set_title('z(t)')
     axs[1,2].set_xlabel('t (s)')
     axs[1,2].set_ylabel('z (m)')
-    fig.legend(legend)
+
+    for i in range(len(handles)):
+        handles[i] = mlines.Line2D([], [],
+                                 color=handles[i].get_color(),
+                                 linestyle=handles[i].get_linestyle(),
+                                 label=f'c{i+1}' if i >= len(legend) else legend[i])
+    
+    fig.legend(handles=handles)
     plt.subplots_adjust(left=0.083, bottom=0.083, right=0.948, top=0.914, wspace=0.23, hspace=0.31)
+
+
     if save_path is not None: 
         plt.savefig(save_path + 'x_linear.png')
+        for ax in axs.reshape(-1): ax.cla()
+        plt.close(fig)
         del fig
         del axs
 
@@ -102,126 +128,20 @@ def plot_states(X,t, X_lin = None, trajectory = None, u_vector = None, omega_vec
     axs.set_ylabel('y (m)')
     axs.set_zlabel('z (m)')
     axs.set_title('3D Plot')
-    fig.legend(legend)
+    fig.legend(handles=handles)
     if equal_scales: axs.set_aspect('equal', adjustable='box')
+
+
     if save_path is not None: 
         plt.savefig(save_path + '3D.png')
+        axs.cla()
+        plt.close(fig)
         del fig
         del axs
 
     plot_inputs(u_vector, t, omega_vector, save_path)
     if save_path is None: plt.show()
     plt.close('all')
-
-def plot_states_speed(X,t, X_lin = None, trajectory = None, u_vector = None, omega_vector = None, equal_scales=False):
-    # Rotation
-    fig, axs = plt.subplots(2, 3)
-    axs[0,0].plot(t,X[:,0])
-    if X_lin is not None: axs[0,0].plot(t,X_lin[:,0])
-    axs[0,0].set_title('$\\phi(t)$')
-    axs[0,0].set_xlabel('t (s)')
-    axs[0,0].set_ylabel('$\\phi (rad)$')
-
-    axs[0,1].plot(t,X[:,1])
-    if X_lin is not None: axs[0,1].plot(t,X_lin[:,1])
-    axs[0,1].set_title('$\\theta(t)$')
-    axs[0,1].set_xlabel('t (s)')
-    axs[0,1].set_ylabel('$\\theta (rad)$')
-
-    axs[0,2].plot(t,X[:,2])
-    if X_lin is not None: axs[0,2].plot(t,X_lin[:,2])
-    axs[0,2].set_title('$\\psi(t)$')
-    axs[0,2].set_xlabel('t (s)')
-    axs[0,2].set_ylabel('$\\psi$ (rad)')
-
-    axs[1,0].plot(t,X[:,3])
-    if X_lin is not None: axs[1,0].plot(t,X_lin[:,3])
-    axs[1,0].set_title('p(t)')
-    axs[1,0].set_xlabel('t (s)')
-    axs[1,0].set_ylabel('p (rad/s)')
-
-    axs[1,1].plot(t,(-1)*X[:,4])
-    if X_lin is not None: axs[1,1].plot(t,(-1)*X_lin[:,4])
-    axs[1,1].set_title('q(t)')
-    axs[1,1].set_xlabel('t (s)')
-    axs[1,1].set_ylabel('q (rad/s)')
-
-    axs[1,2].plot(t,(-1)*X[:,5])
-    if X_lin is not None: axs[1,2].plot(t,(-1)*X_lin[:,5])
-    axs[1,2].set_title('r(t)')
-    axs[1,2].set_xlabel('t (s)')
-    axs[1,2].set_ylabel('r (rad/s)')
-    if X_lin is not None: fig.legend(['Non-linear','Linear'])
-    plt.subplots_adjust(left=0.083, bottom=0.083, right=0.948, top=0.914, wspace=0.23, hspace=0.31)
-
-    # Translation
-    fig, axs = plt.subplots(2, 3)
-    axs[0,0].plot(t,X[:,6])
-    if X_lin is not None: axs[0,0].plot(t,X_lin[:,6])
-    axs[0,0].set_title('u(t)')
-    axs[0,0].set_xlabel('t (s)')
-    axs[0,0].set_ylabel('u (m/s)')
-
-    axs[0,1].plot(t,(-1)*X[:,7])
-    if X_lin is not None: axs[0,1].plot(t,(-1)*X_lin[:,7])
-    axs[0,1].set_title('v(t)')
-    axs[0,1].set_xlabel('t (s)')
-    axs[0,1].set_ylabel('v (m/s)')
-
-    axs[0,2].plot(t,(-1)*X[:,8])
-    if X_lin is not None: axs[0,2].plot(t,(-1)*X_lin[:,8])
-    axs[0,2].set_title('w(t)')
-    axs[0,2].set_xlabel('t (s)')
-    axs[0,2].set_ylabel('w (m/s)')
-
-    axs[1,0].plot(t,X[:,9])
-    if X_lin is not None: axs[1,0].plot(t,X_lin[:,9])
-    if trajectory is not None: axs[1,0].plot(t,trajectory[:,3])
-    axs[1,0].set_title('x(t)')
-    axs[1,0].set_xlabel('t (s)')
-    axs[1,0].set_ylabel('x (m)')
-
-    axs[1,1].plot(t,(-1)*X[:,10])
-    if X_lin is not None: axs[1,1].plot(t,(-1)*X_lin[:,10])
-    if trajectory is not None: axs[1,1].plot(t,-trajectory[:,4])
-    axs[1,1].set_title('y(t)')
-    axs[1,1].set_xlabel('t (s)')
-    axs[1,1].set_ylabel('y (m)')
-
-    axs[1,2].plot(t,(-1)*X[:,11])
-    if X_lin is not None: axs[1,2].plot(t,(-1)*X_lin[:,11])
-    if trajectory is not None: axs[1,2].plot(t,-trajectory[:,5])
-    axs[1,2].set_title('z(t)')
-    axs[1,2].set_xlabel('t (s)')
-    axs[1,2].set_ylabel('z (m)')
-
-    legend = []
-    if X_lin is not None: legend = ['Non-linear','Linear']
-    if trajectory is not None: legend.append('Trajectory')
-    fig.legend(legend)
-    plt.subplots_adjust(left=0.083, bottom=0.083, right=0.948, top=0.914, wspace=0.23, hspace=0.31)
-
-    fig = plt.figure()
-    axs = plt.axes(projection='3d')
-    axs.plot3D(X[:,9], X[:,10]*(-1), X[:,11]*(-1))
-    if X_lin is not None: axs.plot3D(X_lin[:,9], X_lin[:,10]*(-1), X_lin[:,11]*(-1))
-    if trajectory is not None: axs.plot3D(trajectory[:,3], -trajectory[:,4], -trajectory[:,5], 'g--')
-    axs.set_xlabel('x (m)')
-    axs.set_ylabel('y (m)')
-    axs.set_zlabel('z (m)')
-    axs.set_title('3D Plot')
-    legend = []
-    if X_lin is not None: legend = ['Non-linear','Linear']
-    if trajectory is not None: legend.append('Trajectory')
-    fig.legend(legend)
-    if equal_scales: axs.set_aspect('equal', adjustable='box')
-
-    if u_vector is not None and omega_vector is not None:
-        plot_inputs(u_vector, t, omega_vector)
-    if u_vector is not None and omega_vector is None:
-        plot_inputs(u_vector, t)
-    plt.show()
-
 
 def plot_inputs(u_vector, t, omega_vector = None, save_path=None):
     t = t[0:-1]
@@ -247,8 +167,11 @@ def plot_inputs(u_vector, t, omega_vector = None, save_path=None):
     axs[1,1].set_xlabel('t (s)')
     plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
 
+
     if save_path is not None: 
         plt.savefig(save_path + 'inputs-forces.png')
+        for ax in axs.reshape(-1): ax.cla()
+        plt.close(fig)
         del fig
         del axs
 
@@ -274,8 +197,12 @@ def plot_inputs(u_vector, t, omega_vector = None, save_path=None):
         axs[1,1].set_ylabel('$\\omega_4 (rad/s)$')
         axs[1,1].set_xlabel('t (s)')
         plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
+        
+
         if save_path is not None: 
             plt.savefig(save_path + 'inputs-rotors1.png')
+            for ax in axs.reshape(-1): ax.cla()
+            plt.close(fig)
             del fig
             del axs
 
@@ -301,8 +228,12 @@ def plot_inputs(u_vector, t, omega_vector = None, save_path=None):
             axs[1,1].set_ylabel('$\\omega_8 (rad/s)$')
             axs[1,1].set_xlabel('t (s)')
             plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
+
+
             if save_path is not None: 
                 plt.savefig(save_path + 'inputs-rotors2.png')
+                for ax in axs.reshape(-1): ax.cla()
+                plt.close(fig)
                 del fig
                 del axs
 

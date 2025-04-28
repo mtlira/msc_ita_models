@@ -9,18 +9,39 @@ import time
 from linearize import *
 
 class MPC(object):
-    def __init__(self, M, N, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions, u_ref):
+    def __init__(self, M, N, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions, u_ref,\
+                  include_psi_reference = True, include_phi_theta_reference = True):
         self.M = M
         self.N = N
         self.A = A
         self.B = B
-        self.C = C
         self.T = time_step # Simulation time step
         self.T_sample = T_sample # Controller time sample
-        self.output_weights = output_weights
-        self.control_weights = control_weights
-        self.restrictions = restrictions
         self.u_ref = u_ref
+        
+        #print('flag1', restrictions['y_max'])
+        _restrictions = restrictions.copy()
+        _output_weights = np.copy(output_weights)
+        _C = np.copy(C)
+
+        if not include_psi_reference:
+            _restrictions['y_max'] = _restrictions['y_max'][:-1]
+            _restrictions['y_min'] = _restrictions['y_min'][:-1]
+            _output_weights =  _output_weights[:-1]
+            _C = _C[:-1]
+        #print('flag2', restrictions['y_max'])
+
+        if not include_phi_theta_reference:
+            _restrictions['y_max'] = _restrictions['y_max'][:-2]
+            _restrictions['y_min'] = _restrictions['y_min'][:-2]
+            _output_weights =  _output_weights[:-2]
+            _C = np.delete(_C, (3,4), axis = 0)
+        #print('flag3', restrictions['y_max'])
+
+        self.output_weights = _output_weights
+        self.control_weights = control_weights
+        self.restrictions = _restrictions
+        self.C = _C
 
         # p - Number of controls
         # q - Number of outputs
@@ -426,7 +447,7 @@ class MPC(object):
             x_k_old = x_k # Used only to mount nn_sample array
             x_k = odeint(model.f2, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
             x_k = x_k[-1]
-            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 10 or np.max(np.abs(x_k[0:2])) > 1.75:
+            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 10: #or np.max(np.abs(x_k[0:2])) > 1.75:
                 print('Simulation exploded.')
                 print(f'x_{k} =',x_k)
                 return None, None, None, None, None
@@ -893,9 +914,16 @@ class MPC(object):
         #     sys_d = cont2discrete((self.A,self.B,self.C, np.zeros((self.q,self.p))), self.T_sample, 'zoh')
         #     Ad, Bd, Cd, _, _ = sys_d
         #     return Ad, Bd, Cd
+    
+    def RMSe(self, position, trajectory):
+        delta_position = trajectory - position   # shape (N, 3)
+        squared_norms = np.sum(delta_position**2, axis=1)  # Sum over x, y, z for each time step
+        RMSe = np.sqrt(np.mean(squared_norms))
+        return RMSe
 
 class GainSchedulingMPC(object):
-    def __init__(self, model, phi_grid_deg, theta_grid_deg, M, N, time_step, T_sample, output_weights, control_weights, restrictions, include_psi = True):
+    def __init__(self, model, phi_grid_deg, theta_grid_deg, M, N, time_step, T_sample, output_weights, control_weights,\
+                  restrictions, include_psi_reference = True, include_phi_theta_reference = True):
         self.model = model
         self.phi_grid_deg = phi_grid_deg
         self.theta_grid_deg = theta_grid_deg
@@ -905,10 +933,15 @@ class GainSchedulingMPC(object):
         self.time_step = time_step
         self.T_sample = T_sample
 
-        if not include_psi:
-            restrictions['y_max'] = restrictions['y_max'][:-1]
-            restrictions['y_min'] = restrictions['y_min'][:-1]
-            output_weights = output_weights[:-1]
+        # if not include_psi_reference:
+        #     restrictions['y_max'] = restrictions['y_max'][:-1]
+        #     restrictions['y_min'] = restrictions['y_min'][:-1]
+        #     output_weights = output_weights[:-1]
+
+        # if not include_phi_theta_reference:
+        #     restrictions['y_max'] = restrictions['y_max'][:-2]
+        #     restrictions['y_min'] = restrictions['y_min'][:-2]
+        #     output_weights = output_weights[:-2]
 
         for phi in phi_grid_deg:
             for theta in theta_grid_deg:
@@ -916,10 +949,13 @@ class GainSchedulingMPC(object):
                 omega_squared_ref = self.model.get_omega(U)**2
                 X = np.array([phi*np.pi/180, theta*np.pi/180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
                 A, B, C = self.model.linearize(X=X, U=U)
-                if not include_psi: 
-                    C = C[:-1]
+                #if not include_psi_reference: 
+                #    C = C[:-1]
+                #if not include_phi_theta_reference:
+                #    C = C[:-2]
                 Bw = B @ self.model.Gama
-                self.linear_model[(phi, theta)] = MPC(M, N, A, Bw, C, time_step, T_sample, output_weights, control_weights, restrictions, omega_squared_ref)
+                self.linear_model[(phi, theta)] = MPC(M, N, A, Bw, C, time_step, T_sample, output_weights, control_weights,\
+                     restrictions, omega_squared_ref, include_psi_reference, include_phi_theta_reference)
                 self.linear_model[(phi, theta)].initialize_matrices()
 
     def choose_model(self, phi_rad, theta_rad):
@@ -937,8 +973,10 @@ class GainSchedulingMPC(object):
 
         start_time = time.time()
 
-        p = len(self.linear_model[(0,0)].u_ref)
-        q = np.shape(trajectory)[1]
+        #p = len(self.linear_model[(0,0)].u_ref)
+        #q = len(self.linear_model[(0,0)].C)
+        p = self.linear_model[(0,0)].p
+        q = self.linear_model[(0,0)].q
 
         # Disturb logic (state disturbance)
         disturb_frequency = 0.1
@@ -956,7 +994,7 @@ class GainSchedulingMPC(object):
 
         # NN Dataset
         NN_dataset = [] if generate_dataset else None
-
+        #print('q = ',q)
         for k in range(0, len(t_samples)-1): # TODO: confirmar se é -1 mesmo:
             linear_model = self.choose_model(x_k[0], x_k[1])
             ref_N = trajectory[k:k+self.N].reshape(-1) # TODO validar se termina em k+N-1 ou em k+N
@@ -973,6 +1011,9 @@ class GainSchedulingMPC(object):
             #self.restrictions['delta_u_min'] = (2*omega_k + alpha_neg*self.T_sample)*alpha_neg * self.T_sample
 
             # bqp
+            #print('linear_model.restrictions\n', linear_model.restrictions['y_max'])
+            #print('f\n', len(f))
+            #print('N=',self.N)
             bqp = np.concatenate((
                 np.tile(linear_model.restrictions['delta_u_max'], self.M), # delta_u_max_M
                 - np.tile(linear_model.restrictions['delta_u_min'], self.M), # -delta_u_min_M
@@ -1017,7 +1058,7 @@ class GainSchedulingMPC(object):
             if disturb_input and k>0:
                 probability = np.random.rand()
                 if probability > disturb_frequency:
-                    uu_k = self.add_input_disturbance(uu_k, model)                
+                    uu_k = linear_model.add_input_disturbance(uu_k, model)                
 
             # Apply control u_k in the multi-rotor
             f_t_k, t_x_k, t_y_k, t_z_k = uu_k # Attention for u_eq (solved the problem)
@@ -1035,7 +1076,7 @@ class GainSchedulingMPC(object):
             x_k_old = x_k # Used only to mount nn_sample array
             x_k = odeint(model.f2, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
             x_k = x_k[-1]
-            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 10 or np.max(np.abs(x_k[0:2])) > 1.75:
+            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 10:# or np.max(np.abs(x_k[0:2])) > 2.5: #TODO: unificar criterio de saida para todos os metodos
                 print('Simulation exploded.')
                 print(f'x_{k} =',x_k)
                 return None, None, None, None, None
@@ -1062,7 +1103,7 @@ class GainSchedulingMPC(object):
                 ref_N_relative = ref_N_position - position_k
 
                 # Clarification: u is actually (u - ueq) and delta_u is (u-ueq)[k] - (u-ueq)[k-1] in this MPC formulation (i.e., u is in reference to u_eq, not 0)
-                NN_sample = np.concatenate((NN_sample, x_k_old[0:9], ref_N_relative, self.restrictions['u_max'] + linear_model.u_ref, u_k), axis = 0) #TODO: depois, acrescentar restrições
+                NN_sample = np.concatenate((NN_sample, x_k_old[0:9], ref_N_relative, linear_model.restrictions['u_max'] + linear_model.u_ref, u_k), axis = 0) #TODO: depois, acrescentar restrições
 
                 NN_dataset.append(NN_sample)
                 end_waste_time = time.time()
@@ -1077,6 +1118,9 @@ class GainSchedulingMPC(object):
         position = X_vector[:, 9:]
         delta_position = trajectory[:len(position),:3] - position
         RMSe = np.sqrt(np.mean(delta_position**2))
+        #RMSe = linear_model.RMSe(position, trajectory[:len(position),:3])
+
+        #print('RMSe',RMSe, '\nWrong RMSe',RMSe_wrong)
 
         min_phi = np.min(X_vector[:,0])
         max_phi = np.max(X_vector[:,0])
@@ -1113,21 +1157,22 @@ class GainSchedulingMPC(object):
 
         return np.array(X_vector), np.array(u_vector), np.array(omega_vector), np.asarray(NN_dataset), metadata
 
-## TESTE - DELETAR DEPOIS ###########################################################################
-### MULTIROTOR PARAMETERS ###
-from parameters.octorotor_parameters import m, g, I_x, I_y, I_z, l, b, d, thrust_to_weight, num_rotors
+if __name__ == '__main__':
+    ## TESTE - DELETAR DEPOIS ###########################################################################
+    ### MULTIROTOR PARAMETERS ###
+    from parameters.octorotor_parameters import m, g, I_x, I_y, I_z, l, b, d, thrust_to_weight, num_rotors
 
-# ### SIMULATION PARAMETERS ###
-from parameters.simulation_parameters import time_step, T_sample, N, M
-T_simulation = 30
-import multirotor
-import restriction_handler
-model = multirotor.Multirotor(m, g, I_x, I_y, I_z, b, l, d, num_rotors, thrust_to_weight)
-rst = restriction_handler.Restriction(model, T_sample, N, M)
+    # ### SIMULATION PARAMETERS ###
+    from parameters.simulation_parameters import time_step, T_sample, N, M
+    T_simulation = 30
+    import multirotor
+    import restriction_handler
+    model = multirotor.Multirotor(m, g, I_x, I_y, I_z, b, l, d, num_rotors, thrust_to_weight)
+    rst = restriction_handler.Restriction(model, T_sample, N, M)
 
-restriction, output_weights, control_weights, _ = rst.restriction('normal')
+    restriction, output_weights, control_weights, _ = rst.restriction('normal')
 
-phi_grid = [-15, 0, 15]
-theta_grid = [-15, 0, 15]
-teste = GainSchedulingMPC(model, phi_grid, theta_grid, M, N, time_step, T_sample, output_weights, control_weights, restriction)
-print(teste.linear_model)
+    phi_grid = [-15, 0, 15]
+    theta_grid = [-15, 0, 15]
+    teste = GainSchedulingMPC(model, phi_grid, theta_grid, M, N, time_step, T_sample, output_weights, control_weights, restriction)
+    print(teste.linear_model)

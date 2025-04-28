@@ -24,8 +24,8 @@ print('b =',b)
 print('d =', d)
 
 ### SIMULATION PARAMETERS ###
-from parameters.simulation_parameters import time_step, T_sample, N, M
-T_simulation = 15
+from parameters.simulation_parameters import time_step, T_sample, N, M, include_phi_theta_reference, include_psi_reference
+T_simulation = 30
 
 t = np.arange(0,T_simulation, time_step)
 t_samples = np.arange(0,T_simulation, T_sample)
@@ -40,8 +40,7 @@ X_eq = np.zeros(12)
 
 # f_t está no eixo do corpo
 
-trajectory_type = 'lissajous_xy'
-include_psi = True
+trajectory_type = 'circle_xy'
 
 # Open-loop Inputs
 def u_(t):
@@ -117,22 +116,22 @@ tr = trajectory_handler.TrajectoryHandler()
 
 r_tracking = None
 if trajectory_type == 'circle_xy':
-    r_tracking = tr.circle_xy(w, 0.5, T_simulation, include_psi)
+    r_tracking = tr.circle_xy(w, 5, T_simulation,include_psi_reference, include_phi_theta_reference)
 
 if trajectory_type == 'lissajous_xy':
-    r_tracking = tr.lissajous_xy(w, 2, T_simulation, include_psi)
+    r_tracking = tr.lissajous_xy(w, 2, T_simulation,include_psi_reference, include_phi_theta_reference)
 
 if trajectory_type == 'circle_xz':
-    r_tracking = tr.circle_xz(w, 5, T_simulation)
+    r_tracking = tr.circle_xz(w, 5, T_simulation, include_psi_reference, include_phi_theta_reference)
 
 if trajectory_type == 'point':
-    r_tracking = tr.point(0, 0, 0, T_simulation, include_psi)
+    r_tracking = tr.point(0, 0, 0, T_simulation,include_psi_reference, include_phi_theta_reference)
 
 if trajectory_type == 'line':
-    r_tracking = tr.line(1, 1, -1, T_simulation, 20)
+    r_tracking = tr.line(1, 1, -1, 20, T_simulation, include_psi_reference, include_phi_theta_reference)
 
 if trajectory_type == 'helicoidal':
-    r_tracking = tr.helicoidal(w,T_simulation)
+    r_tracking = tr.helicoidal(w,T_simulation, include_psi_reference, include_phi_theta_reference)
 
 #r_tracking = tr.point(0, 0, -1, t_samples)
 #r_tracking = tr.helicoidal(w,t_samples)
@@ -201,8 +200,8 @@ control_weights = 1 / (M*restrictions['delta_u_max']**2)
 #output_weights = [1,1,3] # Deve variar a cada passo de simulação?
 #control_weights = [3,1,1,1]
 
-MPC = mpc.MPC(M, N, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions, omega_eq**2)
-MPC.initialize_matrices()
+#MPC = mpc.MPC(M, N, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions, omega_eq**2)
+#MPC.initialize_matrices()
 
 #x_classic, u_classic = MPC.simulate_future(model.f2,X0, t_samples, r_tracking, u_eq)
 #plot_states(x_classic, t_samples, trajectory=r_tracking[:len(t_samples)], u_vector=u_classic)
@@ -241,7 +240,7 @@ restrictions2, output_weights2, control_weights2, _ = rst.restriction('total_fai
 #    _, _, C = model.linearize_fault_tolerant()
 
 # IF YOU WANT TO REMOVE PSI REFERENCE
-#if not include_psi:
+#if notinclude_psi_reference:
     #_, _, C = model.linearize_fault_tolerant()
     #restrictions2['y_max'] = restrictions['y_max'][:-1]
     #restrictions2['y_min'] = restrictions['y_min'][:-1]
@@ -252,10 +251,11 @@ Bw = B @ model.Gama
 #MPC2.initialize_matrices()
 #x_mpc_rotors, u_rotors, omega_vector, NN_dataset, _ = MPC2.simulate_future_rotors(model, X0, t_samples, r_tracking, omega_eq**2, generate_dataset=False, disturb_input=False)
 
-phi_grid = np.array([-60, -45, -30, -15, 0, 15, 30, 45, 60])
-theta_grid = np.array([-60, -45, -30, -15, 0, 15, 30, 45, 60])
+phi_grid = np.array([-75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75])
+theta_grid = np.array([-75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75])
 #output_weights2[3:5] *= 4
-gain_mpc = mpc.GainSchedulingMPC(model, phi_grid, theta_grid, M, N, time_step, T_sample, output_weights2, control_weights2, restrictions2, include_psi = include_psi)
+gain_mpc = mpc.GainSchedulingMPC(model, phi_grid, theta_grid, M, N, time_step, T_sample, output_weights2, control_weights2,\
+        restrictions2, include_psi_reference=include_psi_reference, include_phi_theta_reference=include_phi_theta_reference)
 x_mpc_rotors, u_rotors, omega_vector, NN_dataset, _ = gain_mpc.simulate_future_rotors(model, X0, t_samples, r_tracking, generate_dataset = False, disturb_input = False)
 
 if x_mpc_rotors is not None:
