@@ -5,6 +5,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
+from plots import DataAnalyser
+import time
+from scipy.integrate import odeint
 
 from parameters.octorotor_parameters import num_rotors
 
@@ -238,6 +241,153 @@ class EarlyStopper():
             return True
         else:
             return False
+
+class NeuralNetworkSimulator(object):
+    def __init__(self, model, N, M, num_inputs, num_rotors, q_eff, u_ref, time_step):
+        self.model = model
+        self.N = N
+        self.M = M
+        self.num_inputs = num_inputs
+        self.num_rotors = num_rotors
+        self.q_eff = q_eff # Number of effective reference coordinates for the neural network: 3 (x, y, z)
+        self.u_ref = u_ref # input around which the model was linearized (omega_squared_eq)
+        self.time_step = time_step
+
+    def simulate_neural_network(self, X0, nn_weights_folder, file_name, t_samples, trajectory, use_optuna_model, num_neurons_hidden_layers, restriction):
+        analyser = DataAnalyser()
+        nn_weights_path = nn_weights_folder + file_name
+        omega_squared_eq = self.u_ref
+
+        # 1. Load Neural Network model
+        #device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
+        #print(f"Using {device} device")
+        if use_optuna_model:
+            nn_model = NeuralNetwork_optuna(self.num_inputs, num_rotors)
+        else:
+            nn_model = NeuralNetwork(self.num_inputs, self.num_rotors, num_neurons_hidden_layers)
+        nn_model.load_state_dict(torch.load(nn_weights_path, weights_only=True))
+        nn_model.eval()
+
+        x_k = X0
+
+        X_vector = [X0]
+        u_vector = []
+        omega_vector = []
+            
+        normalization_df = pd.read_csv(nn_weights_folder + 'normalization_data.csv', header = None)
+
+        # Control loop
+        execution_time = 0
+        waste_time = 0
+        start_time = time.perf_counter()
+        for k in range(0, len(t_samples)-1): # TODO: confirmar se é -1 mesmo:
+            # Mount input tensor to feed NN
+            nn_input = np.array([])
+
+            ref_N = trajectory[k:k+self.N, 0:3].reshape(-1) # TODO validar se termina em k+N-1 ou em k+N
+            if np.shape(ref_N)[0] < self.q_eff*self.N:
+                #print('kpi',N - int(np.shape(ref_N)[0]/q))
+                ref_N = np.concatenate((ref_N, np.tile(trajectory[-1, :3].reshape(-1), self.N - int(np.shape(ref_N)[0]/self.q_eff))), axis = 0) # padding de trajectory[-1] em ref_N quando trajectory[k+N] ultrapassa ultimo elemento
+
+            # Calculating reference values relative to multirotor's current position at instant k
+            position_k = np.tile(x_k[9:], self.N).reshape(-1)
+            ref_N_relative = ref_N - position_k
+
+            # Clarification: u is actually (u - ueq) and delta_u is (u-ueq)[k] - (u-ueq)[k-1] in this MPC formulation (i.e., u is in reference to u_eq, not 0)
+            nn_input = np.concatenate((nn_input, x_k[0:9], ref_N_relative, restriction['u_max'] + omega_squared_eq), axis = 0)
+
+            # Normalization of the input
+            #for i_column in range(num_inputs):
+            #    mean = normalization_df.iloc[0, i_column]
+            #    std = normalization_df.iloc[1, i_column]
+            #    nn_input[i_column] = (nn_input[i_column] - mean)/std
+            mean = normalization_df.iloc[0, :self.num_inputs]
+            std = normalization_df.iloc[1, :self.num_inputs]
+            nn_input = np.array((nn_input - mean) / std)
+
+            nn_input = nn_input.astype('float32')
+
+            # Get NN output
+            delta_omega_squared = nn_model(torch.from_numpy(nn_input)).detach().numpy()
+
+            # De-normalization of the output
+            #for i_output in range(num_outputs):
+            #    mean = normalization_df.iloc[0, num_inputs + i_output]
+            #    std = normalization_df.iloc[1, num_inputs + i_output]
+            #    delta_omega_squared[i_output] = mean + std*delta_omega_squared[i_output]
+            mean = normalization_df.iloc[0, self.num_inputs:]
+            std = normalization_df.iloc[1, self.num_inputs:]
+            delta_omega_squared = mean + std*delta_omega_squared
+
+            # Applying multirotor restrictions
+            delta_omega_squared = np.clip(delta_omega_squared, restriction['u_min'], restriction['u_max'])
+            # TODO: Add restrição de rate change (ang acceleration)
+            
+            omega_squared = omega_squared_eq + delta_omega_squared
+
+            # Fixing infinitesimal values out that violate the constraints
+            omega_squared = np.clip(omega_squared, a_min=0, a_max=restriction['u_max'] + omega_squared_eq)
+
+            # omega**2 --> u
+            #print('omega_squared',omega_squared)
+            u_k = self.model.Gama @ (omega_squared)
+
+            f_t_k, t_x_k, t_y_k, t_z_k = u_k # Attention for u_eq (solved the problem)
+            t_simulation = np.arange(t_samples[k], t_samples[k+1], self.time_step)
+
+            # Update plant control (update x_k)
+            # x[k+1] = f(x[k], u[k])
+            x_k = odeint(self.model.f2, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
+            x_k = x_k[-1]
+
+            waste_start_time = time.perf_counter()
+            X_vector.append(x_k)
+            u_vector.append(u_k)
+            omega_vector.append(np.sqrt(omega_squared))
+            waste_end_time = time.perf_counter()
+            waste_time += waste_end_time - waste_start_time
+        
+        end_time = time.perf_counter()
+
+        X_vector = np.array(X_vector)
+        RMSe = analyser.RMSe(X_vector[:, 9:], trajectory[:len(X_vector), :3])
+        execution_time = (end_time - start_time) - waste_time
+
+        min_phi = np.min(X_vector[:,0])
+        max_phi = np.max(X_vector[:,0])
+        mean_phi = np.mean(X_vector[:,0])
+        std_phi = np.std(X_vector[:,0])
+
+        min_theta = np.min(X_vector[:,1])
+        max_theta = np.max(X_vector[:,1])
+        mean_theta = np.mean(X_vector[:,1])
+        std_theta = np.std(X_vector[:,1])
+
+        min_psi = np.min(X_vector[:,2])
+        max_psi = np.max(X_vector[:,2])
+        mean_psi = np.mean(X_vector[:,2])
+        std_psi = np.std(X_vector[:,2])
+
+        metadata = {
+            'num_iterations': len(t_samples)-1,    
+            'nn_execution_time': execution_time,
+            'nn_RMSe': RMSe,
+            'nn_min_phi': min_phi,
+            'nn_max_phi': max_phi,
+            'nn_mean_phi': mean_phi,
+            'nn_std_phi': std_phi,
+            'nn_min_theta': min_theta,
+            'nn_max_theta': max_theta,
+            'nn_mean_theta': mean_theta,
+            'nn_std_theta': std_theta,
+            'nn_min_psi': min_psi,
+            'nn_max_psi': max_psi,
+            'nn_mean_psi': mean_psi,
+            'nn_std_psi': std_psi,
+        }
+
+        return np.array(X_vector), np.array(u_vector), np.array(omega_vector), metadata
+
 
 
 if __name__ == '__main__':
