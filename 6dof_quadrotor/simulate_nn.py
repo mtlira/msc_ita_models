@@ -4,10 +4,11 @@ import multirotor
 from neural_network import NeuralNetwork, NeuralNetwork_optuna
 import torch
 from scipy.integrate import odeint
-from plots import plot_states
+from plots import DataAnalyser
 import pandas as pd
 import restriction_handler
 from simulate_mpc import simulate_mpc
+import time
 
 use_optuna_model = True
 
@@ -50,20 +51,9 @@ rst = restriction_handler.Restriction(multirotor_model, T_sample, N, M)
 restriction, output_weights, control_weights, _ = rst.restriction('total_failure', [0,7])
 
 def simulate_neural_network(nn_weights_folder, file_name, t_samples):
-
+    analyser = DataAnalyser()
     nn_weights_path = nn_weights_folder + file_name
 
-    # Import N used in neural network model
-    #N = 0
-    #cmd = 'from ' + nn_weights_folder.replace('/', '.') + 'nn_metadata import N'
-    #print('cmd=',cmd)
-    #exec(cmd)
-    #from dataset_canon.canon_N_50_M_20.global_dataset.nn_metadata import N, M
-
-    print('(Check value) N =', N)
-    if N == 0:
-        print('N was not imported correctly.')
-        return
     # 1. Load Neural Network model
     #device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
     #print(f"Using {device} device")
@@ -83,6 +73,9 @@ def simulate_neural_network(nn_weights_folder, file_name, t_samples):
     normalization_df = pd.read_csv(nn_weights_folder + 'normalization_data.csv', header = None)
 
     # Control loop
+    execution_time = 0
+    waste_time = 0
+    start_time = time.perf_counter()
     for k in range(0, len(t_samples)-1): # TODO: confirmar se é -1 mesmo:
         # Mount input tensor to feed NN
         nn_input = np.array([])
@@ -143,27 +136,72 @@ def simulate_neural_network(nn_weights_folder, file_name, t_samples):
         x_k = odeint(multirotor_model.f2, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
         x_k = x_k[-1]
 
+        waste_start_time = time.perf_counter()
         X_vector.append(x_k)
         u_vector.append(u_k)
         omega_vector.append(np.sqrt(omega_squared))
+        waste_end_time = time.perf_counter()
+        waste_time += waste_end_time - waste_start_time
+    
+    end_time = time.perf_counter()
 
-    return np.array(X_vector), np.array(u_vector), np.array(omega_vector)
+    X_vector = np.array(X_vector)
+    RMSe = analyser.RMSe(X_vector[:, 9:], trajectory[:len(X_vector), :3])
+    execution_time = (end_time - start_time) - waste_time
 
-nn_weights_folder_mse = '../Datasets/Training datasets - v0/'
-weights_file_name_mse = 'model_weights_octorotor.pth'
+    min_phi = np.min(X_vector[:,0])
+    max_phi = np.max(X_vector[:,0])
+    mean_phi = np.mean(X_vector[:,0])
+    std_phi = np.std(X_vector[:,0])
 
-#nn_weights_folder_l1 = 'training_results/25-04-05 - Hover focused dataset N90 M10 - L1Loss/'
-#weights_file_name_l1 = 'model_weights_L1Loss.pth'
+    min_theta = np.min(X_vector[:,1])
+    max_theta = np.max(X_vector[:,1])
+    mean_theta = np.mean(X_vector[:,1])
+    std_theta = np.std(X_vector[:,1])
 
-x_nn, u_nn, omega_nn = simulate_neural_network(nn_weights_folder_mse, weights_file_name_mse, t_samples)
-_, _, simulation_data = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restriction, output_weights, control_weights)
-x_mpc, u_mpc, omega_mpc, _ = simulation_data if simulation_data is not None else [None, None, None, None]
+    min_psi = np.min(X_vector[:,2])
+    max_psi = np.max(X_vector[:,2])
+    mean_psi = np.mean(X_vector[:,2])
+    std_psi = np.std(X_vector[:,2])
 
-#use_optuna_model = False
+    metadata = {
+        'num_iterations': len(t_samples)-1,    
+        'nn_execution_time': execution_time,
+        'nn_RMSe': RMSe,
+        'nn_min_phi': min_phi,
+        'nn_max_phi': max_phi,
+        'nn_mean_phi': mean_phi,
+        'nn_std_phi': std_phi,
+        'nn_min_theta': min_theta,
+        'nn_max_theta': max_theta,
+        'nn_mean_theta': mean_theta,
+        'nn_std_theta': std_theta,
+        'nn_min_psi': min_psi,
+        'nn_max_psi': max_psi,
+        'nn_mean_psi': mean_psi,
+        'nn_std_psi': std_psi,
+    }
 
-#x_mse2, u_vector_mse2, omega_vector_mse2 = simulate_neural_network(nn_weights_folder_mse, weights_file_name_mse, t_samples)
-legend = ['Neural Network', 'MPC', 'Trajectory'] if x_mpc is not None else ['Neural Network', 'Trajectory']
-plot_states(x_nn, t_samples[:np.shape(x_nn)[0]], X_lin=x_mpc, trajectory=trajectory[:len(t_samples)], u_vector=u_nn, omega_vector=omega_nn, legend=legend, equal_scales=True)
-#plot_states(x_l1, t_samples[:np.shape(x_l1)[0]], trajectory=trajectory, u_vector=u_vector_l1, omega_vector=omega_vector_l1)
+    return np.array(X_vector), np.array(u_vector), np.array(omega_vector), metadata
 
-#plot_states(x_mse, t_samples[:np.shape(x_l1)[0]], trajectory=trajectory, u_vector=u_vector_mse, X_lin=x_l1, legend=['MSE', 'MAE'])
+if __name__ == '__main__':
+
+    nn_weights_folder_mse = '../Datasets/Training datasets - v0/'
+    weights_file_name_mse = 'model_weights_octorotor.pth'
+    analyser = DataAnalyser()
+
+    #nn_weights_folder_l1 = 'training_results/25-04-05 - Hover focused dataset N90 M10 - L1Loss/'
+    #weights_file_name_l1 = 'model_weights_L1Loss.pth'
+
+    x_nn, u_nn, omega_nn = simulate_neural_network(nn_weights_folder_mse, weights_file_name_mse, t_samples)
+    _, _, simulation_data = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restriction, output_weights, control_weights)
+    x_mpc, u_mpc, omega_mpc, _ = simulation_data if simulation_data is not None else [None, None, None, None]
+
+    #use_optuna_model = False
+
+    #x_mse2, u_vector_mse2, omega_vector_mse2 = simulate_neural_network(nn_weights_folder_mse, weights_file_name_mse, t_samples)
+    legend = ['Neural Network', 'MPC', 'Trajectory'] if x_mpc is not None else ['Neural Network', 'Trajectory']
+    analyser.plot_states(x_nn, t_samples[:np.shape(x_nn)[0]], X_lin=x_mpc, trajectory=trajectory[:len(t_samples)], u_vector=u_nn, omega_vector=omega_nn, legend=legend, equal_scales=True)
+    #plot_states(x_l1, t_samples[:np.shape(x_l1)[0]], trajectory=trajectory, u_vector=u_vector_l1, omega_vector=omega_vector_l1)
+
+    #plot_states(x_mse, t_samples[:np.shape(x_l1)[0]], trajectory=trajectory, u_vector=u_vector_mse, X_lin=x_l1, legend=['MSE

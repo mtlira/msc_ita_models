@@ -43,6 +43,7 @@ X0 = np.array([0,0,0,0,0,0,0,0,0,0,0,0])
 A, B, C = model.linearize()
 
 tr = trajectory_handler.TrajectoryHandler()
+analyser = DataAnalyser()
 
 # Parameters
 failed_simulations = 0
@@ -76,9 +77,10 @@ simulation_metadata = {
     'mean_psi (rad)': [],
     'std_psi (rad)': [],
 }
+simulation_metadata = {}
 dataset_dataframe = pd.DataFrame(simulation_metadata)
-dataset_dataframe['success'] = dataset_dataframe['success'].astype(bool)
-dataset_dataframe['disturbed_inputs'] = dataset_dataframe['disturbed_inputs'].astype(bool)
+#dataset_dataframe['success'] = dataset_dataframe['success'].astype(bool)
+#dataset_dataframe['disturbed_inputs'] = dataset_dataframe['disturbed_inputs'].astype(bool)
 
 # MPC Implementation
 
@@ -125,7 +127,7 @@ def simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions
             Path(save_path).mkdir(parents=True, exist_ok=True)
             #np.savetxt(save_path + "dataset.csv", NN_dataset, delimiter=",")
             np.save(save_path + 'dataset.npy', NN_dataset.astype(np.float32))
-        plot_states(x_mpc_rotors, t_samples[:np.shape(x_mpc_rotors)[0]], trajectory=trajectory, u_vector=u_rotors, omega_vector=omega_vector, equal_scales=True, legend=['MPC', 'Trajectory'], save_path=save_path)
+        analyser.plot_states(x_mpc_rotors, t_samples[:np.shape(x_mpc_rotors)[0]], trajectory=trajectory, u_vector=u_rotors, omega_vector=omega_vector, equal_scales=True, legend=['MPC', 'Trajectory'], save_path=save_path)
         return True, metadata, simulation_data
     return False, None, None
 
@@ -159,34 +161,8 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_d
                 #    output_weights_hover[3:5] *= 4 # Divide delta_y_max by 2 for phi and theta
                 #    simulation_success, simulation_metadata, _ = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights_hover, control_weights, dataset_name, folder_name, disturb_input = False, gain_scheduling=True)
 
-                simulation_metadata = {
-                    'sim_id': dataset_id,
-                    'trajectory_type': trajectory_type,
-                    'disturbed_inputs': False,
-                    'simulation_time (s)': T_simulation,
-                    'time_sample (s)': T_sample,
-                    'N': N,
-                    'M': M,
-                    'success': simulation_success,
-                    'RMSe': simulation_metadata['RMSe'] if simulation_success else 'nan',
-                    'execution_time (s)': simulation_metadata['execution_time'] if simulation_success else 'nan',
-                    'operation': restrictions_metadata['operation'],
-                    'failed_rotors': restrictions_metadata['failed_rotors'],
-                    'ang_speed_percentages (%)': restrictions_metadata['ang_speed_percentages'],
-                    'min_phi (rad)': simulation_metadata['min_phi'] if simulation_success else 'nan',
-                    'max_phi (rad)': simulation_metadata['max_phi'] if simulation_success else 'nan',
-                    'mean_phi (rad)': simulation_metadata['mean_phi'] if simulation_success else 'nan',
-                    'std_phi (rad)': simulation_metadata['std_phi'] if simulation_success else 'nan',
-                    'min_theta (rad)': simulation_metadata['min_theta'] if simulation_success else 'nan',
-                    'max_theta (rad)': simulation_metadata['max_theta'] if simulation_success else 'nan',
-                    'mean_theta (rad)': simulation_metadata['mean_theta'] if simulation_success else 'nan',
-                    'std_theta (rad)': simulation_metadata['std_theta'] if simulation_success else 'nan',
-                    'min_psi (rad)': simulation_metadata['min_psi'] if simulation_success else 'nan',
-                    'max_psi (rad)': simulation_metadata['max_psi'] if simulation_success else 'nan',
-                    'mean_psi (rad)': simulation_metadata['mean_psi'] if simulation_success else 'nan',
-                    'std_psi (rad)': simulation_metadata['std_psi'] if simulation_success else 'nan',
-                }
-                simulation_metadata = pd.DataFrame([simulation_metadata])
+                simulation_metadata = wrap_metadata(dataset_id, trajectory_type, T_simulation, T_sample, N, M, simulation_success, \
+                                                    simulation_metadata, restrictions_metadata, False)
 
                 if not simulation_success: failed_simulations += 1
                 dataset_id += 1
@@ -209,34 +185,8 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, simulate_d
                     #    simulation_success, simulation_metadata = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights_hover, control_weights, dataset_name, folder_name, disturb_input = True)
 
 
-                    simulation_metadata = {
-                        'sim_id': dataset_id,
-                        'trajectory_type': trajectory_type,
-                        'disturbed_inputs': True,
-                        'simulation_time (s)': T_simulation,
-                        'time_sample (s)': T_sample,
-                        'N': N,
-                        'M': M,
-                        'success': simulation_success,
-                        'RMSe': simulation_metadata['RMSe'] if simulation_success else 'nan',
-                        'execution_time (s)': simulation_metadata['execution_time'] if simulation_success else 'nan',
-                        'operation': restrictions_metadata['operation'],
-                        'failed_rotors': restrictions_metadata['failed_rotors'],
-                        'ang_speed_percentages (%)': restrictions_metadata['ang_speed_percentages'],
-                        'min_phi (rad)': simulation_metadata['min_phi'] if simulation_success else 'nan',
-                        'max_phi (rad)': simulation_metadata['max_phi'] if simulation_success else 'nan',
-                        'mean_phi (rad)': simulation_metadata['mean_phi'] if simulation_success else 'nan',
-                        'std_phi (rad)': simulation_metadata['std_phi'] if simulation_success else 'nan',
-                        'min_theta (rad)': simulation_metadata['min_theta'] if simulation_success else 'nan',
-                        'max_theta (rad)': simulation_metadata['max_theta'] if simulation_success else 'nan',
-                        'mean_theta (rad)': simulation_metadata['mean_theta'] if simulation_success else 'nan',
-                        'std_theta (rad)': simulation_metadata['std_theta'] if simulation_success else 'nan',
-                        'min_psi (rad)': simulation_metadata['min_psi'] if simulation_success else 'nan',
-                        'max_psi (rad)': simulation_metadata['max_psi'] if simulation_success else 'nan',
-                        'mean_psi (rad)': simulation_metadata['mean_psi'] if simulation_success else 'nan',
-                        'std_psi (rad)': simulation_metadata['std_psi'] if simulation_success else 'nan',
-                    }
-                    simulation_metadata = pd.DataFrame([simulation_metadata])
+                    simulation_metadata = wrap_metadata(dataset_id, trajectory_type, T_simulation, T_sample, N, M, simulation_success, simulation_metadata, \
+                        restrictions_metadata, True)
 
                     if not simulation_success: failed_simulations += 1
                     dataset_id += 1
@@ -302,6 +252,39 @@ def generate_dataset(dataset_name = None):
         dataset_dataframe.to_csv(dataset_save_path, sep=',', index = False)
     
     print(f'Failed simulations: {failed_simulations}/{total_simulations}') # TODO: deixar mais generico (nao so pontos)
+
+def wrap_metadata(dataset_id, trajectory_type, T_simulation, T_sample, N, M, simulation_success, simulation_metadata, \
+                  restrictions_metadata, disturbed_inputs):
+    simulation_metadata = {
+        'sim_id': dataset_id,
+        'trajectory_type': trajectory_type,
+        'disturbed_inputs': disturbed_inputs,
+        'simulation_time (s)': T_simulation,
+        'time_sample (s)': T_sample,
+        'N': N,
+        'M': M,
+        'mpc_success': simulation_success,
+        'num_iterations': simulation_metadata['num_iterations'] if simulation_success else 'nan',   
+        'mpc_RMSe': simulation_metadata['mpc_RMSe'] if simulation_success else 'nan',
+        'mpc_execution_time (s)': simulation_metadata['mpc_execution_time'] if simulation_success else 'nan',
+        'operation': restrictions_metadata['operation'],
+        'failed_rotors': restrictions_metadata['failed_rotors'],
+        'ang_speed_percentages (%)': restrictions_metadata['ang_speed_percentages'],
+        'mpc_min_phi (rad)': simulation_metadata['mpc_min_phi'] if simulation_success else 'nan',
+        'mpc_max_phi (rad)': simulation_metadata['mpc_max_phi'] if simulation_success else 'nan',
+        'mpc_phi (rad)': simulation_metadata['mpc_mean_phi'] if simulation_success else 'nan',
+        'mpc_std_phi (rad)': simulation_metadata['mpc_std_phi'] if simulation_success else 'nan',
+        'mpc_min_theta (rad)': simulation_metadata['mpc_min_theta'] if simulation_success else 'nan',
+        'mpc_max_theta (rad)': simulation_metadata['mpc_max_theta'] if simulation_success else 'nan',
+        'mpc_mean_theta (rad)': simulation_metadata['mpc_mean_theta'] if simulation_success else 'nan',
+        'mpc_std_theta (rad)': simulation_metadata['mpc_std_theta'] if simulation_success else 'nan',
+        'mpc_min_psi (rad)': simulation_metadata['mpc_min_psi'] if simulation_success else 'nan',
+        'mpc_max_psi (rad)': simulation_metadata['mpc_max_psi'] if simulation_success else 'nan',
+        'mpc_mean_psi (rad)': simulation_metadata['mpc_mean_psi'] if simulation_success else 'nan',
+        'mpc_std_psi (rad)': simulation_metadata['mpc_std_psi'] if simulation_success else 'nan',
+    }
+    simulation_metadata = pd.DataFrame([simulation_metadata])
+    return simulation_metadata
 
 if __name__ == '__main__':
     try:

@@ -7,6 +7,7 @@ import cvxopt
 from linearize import discretize
 import time
 from linearize import *
+from plots import DataAnalyser
 
 class MPC(object):
     def __init__(self, M, N, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions, u_ref,\
@@ -341,7 +342,7 @@ class MPC(object):
         Takes into account future trajectory reference from trajectory[k] until trajectory[k+N-1]
         """
 
-        start_time = time.time()
+        analyser = DataAnalyser()
 
         p = self.p
         q = self.q
@@ -369,6 +370,9 @@ class MPC(object):
         # NN Dataset
         NN_dataset = [] if generate_dataset else None
 
+        execution_time = 0
+        waste_time = 0
+        start_time = time.perf_counter()
         for k in range(0, len(t_samples)-1): # TODO: confirmar se é -1 mesmo:
             ref_N = trajectory[k:k+self.N].reshape(-1) # TODO validar se termina em k+N-1 ou em k+N
             if np.shape(ref_N)[0] < q*self.N:
@@ -427,9 +431,12 @@ class MPC(object):
 
             # Apply INPUT disturbance if enabled
             if disturb_input and k>0:
+                waste_start_time = time.perf_counter()
                 probability = np.random.rand()
                 if probability > disturb_frequency:
-                    uu_k = self.add_input_disturbance(uu_k, model)                
+                    uu_k = self.add_input_disturbance(uu_k, model)
+                waste_end_time = time.perf_counter()
+                waste_time += waste_end_time - waste_start_time               
 
             # Apply control u_k in the multi-rotor
             f_t_k, t_x_k, t_y_k, t_z_k = uu_k # Attention for u_eq (solved the problem)
@@ -447,6 +454,9 @@ class MPC(object):
             x_k_old = x_k # Used only to mount nn_sample array
             x_k = odeint(model.f2, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
             x_k = x_k[-1]
+
+            waste_start_time= time.perf_counter()
+
             if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 10: #or np.max(np.abs(x_k[0:2])) > 1.75:
                 print('Simulation exploded.')
                 print(f'x_{k} =',x_k)
@@ -459,9 +469,7 @@ class MPC(object):
             #delta_u_initial = np.tile(delta_u_k,self.M)
 
             # Storing dataset samples
-            waste_time = 0
             if generate_dataset:
-                start_waste_time = time.time()
                 NN_sample = np.array([])
 
                 # Calculating reference values relative to multirotor's current position at instant k
@@ -477,18 +485,20 @@ class MPC(object):
                 NN_sample = np.concatenate((NN_sample, x_k_old[0:9], ref_N_relative, self.restrictions['u_max'] + self.u_ref, u_k), axis = 0) #TODO: depois, acrescentar restrições
 
                 NN_dataset.append(NN_sample)
-                end_waste_time = time.time()
-                waste_time += end_waste_time - start_waste_time
 
-        end_time = time.time()
+            waste_end_time = time.perf_counter()
+            waste_time += waste_end_time - waste_start_time
+
+        end_time = time.perf_counter()
         
         # Metadata
         X_vector = np.array(X_vector)
         execution_time = (end_time - start_time) - waste_time
 
         position = X_vector[:, 9:]
-        delta_position = trajectory[:len(position),:3] - position
-        RMSe = np.sqrt(np.mean(delta_position**2))
+        #delta_position = trajectory[:len(position),:3] - position
+        #RMSe = np.sqrt(np.mean(delta_position**2))
+        RMSe = analyser.RMSe(position, trajectory[:len(position),:3])
 
         min_phi = np.min(X_vector[:,0])
         max_phi = np.max(X_vector[:,0])
@@ -506,22 +516,22 @@ class MPC(object):
         std_psi = np.std(X_vector[:,2])
 
         metadata = {
-            'execution_time': execution_time,
-            'RMSe': RMSe,
-            'min_phi': min_phi,
-            'max_phi': max_phi,
-            'mean_phi': mean_phi,
-            'std_phi': std_phi,
-            'min_theta': min_theta,
-            'max_theta': max_theta,
-            'mean_theta': mean_theta,
-            'std_theta': std_theta,
-            'min_psi': min_psi,
-            'max_psi': max_psi,
-            'mean_psi': mean_psi,
-            'std_psi': std_psi,
+            'num_iterations': len(t_samples)-1,    
+            'mpc_execution_time': execution_time,
+            'mpc_RMSe': RMSe,
+            'mpc_min_phi': min_phi,
+            'mpc_max_phi': max_phi,
+            'mpc_mean_phi': mean_phi,
+            'mpc_std_phi': std_phi,
+            'mpc_min_theta': min_theta,
+            'mpc_max_theta': max_theta,
+            'mpc_mean_theta': mean_theta,
+            'mpc_std_theta': std_theta,
+            'mpc_min_psi': min_psi,
+            'mpc_max_psi': max_psi,
+            'mpc_mean_psi': mean_psi,
+            'mpc_std_psi': std_psi,
         }
-
 
         return np.array(X_vector), np.array(u_vector), np.array(omega_vector), np.asarray(NN_dataset), metadata
     
@@ -970,8 +980,7 @@ class GainSchedulingMPC(object):
         Takes into account future trajectory reference from trajectory[k] until trajectory[k+N-1]\n
         Gets the linear model closest to the current operating point regarding pitch and roll angles at every iteration
         """
-
-        start_time = time.time()
+        analyser = DataAnalyser()
 
         #p = len(self.linear_model[(0,0)].u_ref)
         #q = len(self.linear_model[(0,0)].C)
@@ -995,6 +1004,10 @@ class GainSchedulingMPC(object):
         # NN Dataset
         NN_dataset = [] if generate_dataset else None
         #print('q = ',q)
+
+        execution_time = 0
+        waste_time = 0
+        start_time = time.perf_counter()
         for k in range(0, len(t_samples)-1): # TODO: confirmar se é -1 mesmo:
             linear_model = self.choose_model(x_k[0], x_k[1])
             ref_N = trajectory[k:k+self.N].reshape(-1) # TODO validar se termina em k+N-1 ou em k+N
@@ -1056,9 +1069,12 @@ class GainSchedulingMPC(object):
 
             # Apply INPUT disturbance if enabled
             if disturb_input and k>0:
+                waste_start_time = time.perf_counter()
                 probability = np.random.rand()
                 if probability > disturb_frequency:
-                    uu_k = linear_model.add_input_disturbance(uu_k, model)                
+                    uu_k = linear_model.add_input_disturbance(uu_k, model)
+                waste_end_time = time.perf_counter()
+                waste_time += waste_end_time - waste_start_time
 
             # Apply control u_k in the multi-rotor
             f_t_k, t_x_k, t_y_k, t_z_k = uu_k # Attention for u_eq (solved the problem)
@@ -1076,11 +1092,14 @@ class GainSchedulingMPC(object):
             x_k_old = x_k # Used only to mount nn_sample array
             x_k = odeint(model.f2, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
             x_k = x_k[-1]
+
+            waste_start_time = time.perf_counter()
+
             if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 10:# or np.max(np.abs(x_k[0:2])) > 2.5: #TODO: unificar criterio de saida para todos os metodos
                 print('Simulation exploded.')
                 print(f'x_{k} =',x_k)
                 return None, None, None, None, None
-            
+                  
             X_vector.append(x_k)
             u_k_minus_1 = u_k
             u_vector.append(uu_k)
@@ -1088,9 +1107,7 @@ class GainSchedulingMPC(object):
             #delta_u_initial = np.tile(delta_u_k,self.M)
 
             # Storing dataset samples
-            waste_time = 0
             if generate_dataset:
-                start_waste_time = time.time()
                 NN_sample = np.array([])
 
                 # Calculating reference values relative to multirotor's current position at instant k
@@ -1106,19 +1123,20 @@ class GainSchedulingMPC(object):
                 NN_sample = np.concatenate((NN_sample, x_k_old[0:9], ref_N_relative, linear_model.restrictions['u_max'] + linear_model.u_ref, u_k), axis = 0) #TODO: depois, acrescentar restrições
 
                 NN_dataset.append(NN_sample)
-                end_waste_time = time.time()
-                waste_time += end_waste_time - start_waste_time
 
-        end_time = time.time()
+            waste_end_time = time.perf_counter()
+            waste_time += waste_end_time - waste_start_time
+
+        end_time = time.perf_counter()
         
         # Metadata
         X_vector = np.array(X_vector)
         execution_time = (end_time - start_time) - waste_time
 
         position = X_vector[:, 9:]
-        delta_position = trajectory[:len(position),:3] - position
-        RMSe = np.sqrt(np.mean(delta_position**2))
-        #RMSe = linear_model.RMSe(position, trajectory[:len(position),:3])
+        #delta_position = trajectory[:len(position),:3] - position
+        #RMSe = np.sqrt(np.mean(delta_position**2))
+        RMSe = analyser.RMSe(position, trajectory[:len(position),:3])
 
         #print('RMSe',RMSe, '\nWrong RMSe',RMSe_wrong)
 
@@ -1138,20 +1156,21 @@ class GainSchedulingMPC(object):
         std_psi = np.std(X_vector[:,2])
 
         metadata = {
-            'execution_time': execution_time,
-            'RMSe': RMSe,
-            'min_phi': min_phi,
-            'max_phi': max_phi,
-            'mean_phi': mean_phi,
-            'std_phi': std_phi,
-            'min_theta': min_theta,
-            'max_theta': max_theta,
-            'mean_theta': mean_theta,
-            'std_theta': std_theta,
-            'min_psi': min_psi,
-            'max_psi': max_psi,
-            'mean_psi': mean_psi,
-            'std_psi': std_psi,
+            'num_iterations': len(t_samples)-1,
+            'mpc_execution_time': execution_time,
+            'mpc_RMSe': RMSe,
+            'mpc_min_phi': min_phi,
+            'mpc_max_phi': max_phi,
+            'mpc_mean_phi': mean_phi,
+            'mpc_std_phi': std_phi,
+            'mpc_min_theta': min_theta,
+            'mpc_max_theta': max_theta,
+            'mpc_mean_theta': mean_theta,
+            'mpc_std_theta': std_theta,
+            'mpc_min_psi': min_psi,
+            'mpc_max_psi': max_psi,
+            'mpc_mean_psi': mean_psi,
+            'mpc_std_psi': std_psi,
         }
 
 
