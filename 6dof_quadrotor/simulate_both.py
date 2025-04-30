@@ -35,7 +35,7 @@ t_samples_extended = np.arange(0,2*T_simulation, T_sample)
 X0 = np.array([0,0,0,0,0,0,0,0,0,0,0,0])
 
 # Trajectory type
-trajectory_type = 'point'
+trajectory_type = 'circle_xy'
 disturb_input = False
 use_optuna_model = True
 
@@ -98,6 +98,9 @@ def simulate_mpc_nn(X0, multirotor_model, N, M, num_inputs, q_neuralnetwork, ome
         dataset_dataframe = pd.DataFrame(simulation_metadata)
         dataset_dataframe.to_csv(dataset_mother_folder + 'dataset_metadata.csv', sep=',')
 
+        legend = ['Neural Network', 'MPC', 'Trajectory'] if x_mpc is not None else ['Neural Network', 'Trajectory']
+        analyser.plot_states(x_nn, t_samples[:np.shape(x_nn)[0]], X_lin=x_mpc, trajectory=trajectory[:len(t_samples)], u_vector=[u_nn, u_mpc], omega_vector=[omega_nn, omega_mpc], legend=legend, equal_scales=True, save_path=simulation_save_path)
+        
 rst = restriction_handler.Restriction(multirotor_model, T_sample, N, M)
 restriction, output_weights, control_weights, restriction_metadata = rst.restriction('normal')
 
@@ -109,6 +112,5 @@ if __name__ == '__main__':
     dataset_mother_folder = nn_weights_folder
     weights_file_name = 'model_weights_octorotor.pth'
     analyser = DataAnalyser()
-    simulation_save_path = f'{dataset_mother_folder}comparative_simulations/{trajectory_type}/{str(dataset_id)}/'
 
     simulate_mpc_nn(X0, multirotor_model, N, M, num_inputs, q_neuralnetwork, omega_squared_eq, dataset_id, dataset_mother_folder, weights_file_name, time_step, T_sample, T_simulation, r_tracking, trajectory_type, restriction, restriction_metadata, output_weights, control_weights, gain_scheduling, disturb_input, num_neurons_hidden_layers, use_optuna_model)

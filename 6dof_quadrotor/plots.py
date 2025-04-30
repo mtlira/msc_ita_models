@@ -145,32 +145,50 @@ class DataAnalyser(object):
             del fig
             del axs
 
-        self.plot_inputs(u_vector, t, omega_vector, save_path)
+        if trajectory is not None: legend = legend[:-1]
+        self.plot_inputs(u_vector, t, legend, omega_vector, save_path)
         if save_path is None: plt.show()
         plt.close('all')
 
-    def plot_inputs(self, u_vector, t, omega_vector = None, save_path=None):
+    def plot_inputs(self, u_vector, t, legend, omega_vector = None, save_path=None):
         t = t[0:-1]
+        handles = []
+        if len(omega_vector[0]) <= 8: # It is a single input vector
+            omega_list = [omega_vector]
+            u_list = [u_vector]
+        else: 
+            u_list = u_vector
+            omega_list = omega_vector
+
         fig, axs = plt.subplots(2, 2)
-        axs[0,0].step(t,u_vector[:,0])
+        for u in u_list: handles.append(axs[0,0].step(t,u[:,0])[0])
         axs[0,0].set_title('f_t (t)')
         axs[0,0].set_ylabel('f_t (N)')
         axs[0,0].set_xlabel('t (s)')
 
-        axs[0,1].step(t,u_vector[:,1])
+        for u in u_list: axs[0,1].step(t,u[:,1])
         axs[0,1].set_title('$\\tau_x (t)$')
         axs[0,1].set_ylabel('$\\tau_x (N.m)$')
         axs[0,1].set_xlabel('t (s)')
 
-        axs[1,0].step(t,u_vector[:,2])
+        for u in u_list: axs[1,0].step(t,u[:,2])
         axs[1,0].set_title('$\\tau_y (t)$')
         axs[1,0].set_ylabel('$\\tau_y (N.m)$')
         axs[1,0].set_xlabel('t (s)')
 
-        axs[1,1].step(t,u_vector[:,3])
+        for u in u_list: axs[1,1].step(t,u[:,3])
         axs[1,1].set_title('$\\tau_z (t)$')
         axs[1,1].set_ylabel('$\\tau_z (N.m)$')
         axs[1,1].set_xlabel('t (s)')
+
+        for i in range(len(handles)):
+            handles[i] = mlines.Line2D([], [],
+                                    color=handles[i].get_color(),
+                                    linestyle=handles[i].get_linestyle(),
+                                    label=f'c{i+1}' if i >= len(legend) else legend[i])
+        
+        fig.legend(handles=handles)
+
         plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
 
 
@@ -183,25 +201,28 @@ class DataAnalyser(object):
 
         if omega_vector is not None:
             fig, axs = plt.subplots(2, 2)
-            axs[0,0].step(t,omega_vector[:,0])
+            for omega in omega_list: axs[0,0].step(t,omega[:,0])
             axs[0,0].set_title('$\\omega_1 (t)$')
             axs[0,0].set_ylabel('$\\omega_1 (rad/s)$')
             axs[0,0].set_xlabel('t (s)')
 
-            axs[0,1].step(t,omega_vector[:,1])
+            for omega in omega_list: axs[0,1].step(t,omega[:,1])
             axs[0,1].set_title('$\\omega_2 (t)$')
             axs[0,1].set_ylabel('$\\omega_2 (rad/s)$')
             axs[0,1].set_xlabel('t (s)')
 
-            axs[1,0].step(t,omega_vector[:,2])
+            for omega in omega_list: axs[1,0].step(t,omega[:,2])
             axs[1,0].set_title('$\\omega_3 (t)$')
             axs[1,0].set_ylabel('$\\omega_3 (rad/s)$')
             axs[1,0].set_xlabel('t (s)')
 
-            axs[1,1].step(t,omega_vector[:,3])
+            for omega in omega_list: axs[1,1].step(t,omega[:,3])
             axs[1,1].set_title('$\\omega_4 (t)$')
             axs[1,1].set_ylabel('$\\omega_4 (rad/s)$')
             axs[1,1].set_xlabel('t (s)')
+        
+            fig.legend(handles=handles)
+
             plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
             
 
@@ -212,29 +233,31 @@ class DataAnalyser(object):
                 del fig
                 del axs
 
-            if np.shape(omega_vector)[1] == 8:
+            if np.shape(omega_list[0])[1] == 8:
                 fig, axs = plt.subplots(2, 2)
-                axs[0,0].step(t,omega_vector[:,4])
+                for omega in omega_list: axs[0,0].step(t,omega[:,4])
                 axs[0,0].set_title('$\\omega_5 (t)$')
                 axs[0,0].set_ylabel('$\\omega_5 (rad/s)$')
                 axs[0,0].set_xlabel('t (s)')
 
-                axs[0,1].step(t,omega_vector[:,5])
+                for omega in omega_list: axs[0,1].step(t,omega[:,5])
                 axs[0,1].set_title('$\\omega_6 (t)$')
                 axs[0,1].set_ylabel('$\\omega_6 (rad/s)$')
                 axs[0,1].set_xlabel('t (s)')
 
-                axs[1,0].step(t,omega_vector[:,6])
+                for omega in omega_list: axs[1,0].step(t,omega[:,6])
                 axs[1,0].set_title('$\\omega_7 (t)$')
                 axs[1,0].set_ylabel('$\\omega_7 (rad/s)$')
                 axs[1,0].set_xlabel('t (s)')
 
-                axs[1,1].step(t,omega_vector[:,7])
+                for omega in omega_list: axs[1,1].step(t,omega[:,7])
                 axs[1,1].set_title('$\\omega_8 (t)$')
                 axs[1,1].set_ylabel('$\\omega_8 (rad/s)$')
                 axs[1,1].set_xlabel('t (s)')
-                plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
 
+                fig.legend(handles=handles)
+
+                plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
 
                 if save_path is not None: 
                     plt.savefig(save_path + 'inputs-rotors2.png')
