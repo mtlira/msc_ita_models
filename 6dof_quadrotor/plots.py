@@ -3,12 +3,13 @@ import matplotlib.lines as mlines
 import numpy as np
 import os
 import pandas as pd
+import seaborn as sns
 
 class DataAnalyser(object):
     def __init__(self):
         self.dataset = None
 
-    def plot_states(self, X,t, X_lin = None, trajectory = None, u_vector = None, omega_vector = None, equal_scales=False, legend = [], save_path = None):
+    def plot_states(self, X,t, X_lin = None, trajectory = None, u_vector = None, omega_vector = None, equal_scales=False, legend = [], save_path = None, plot = True):
         handles = []
         
         # Rotation
@@ -147,7 +148,7 @@ class DataAnalyser(object):
 
         if trajectory is not None: legend = legend[:-1]
         self.plot_inputs(u_vector, t, legend, omega_vector, save_path)
-        if save_path is None: plt.show()
+        if plot: plt.show()
         plt.close('all')
 
     def plot_inputs(self, u_vector, t, legend, omega_vector = None, save_path=None):
@@ -274,9 +275,93 @@ class DataAnalyser(object):
                     self.dataset = df if self.dataset is None else pd.concat([self.dataset, df])
         self.dataset.to_csv(mother_folder_path, sep='csv', index=False)
                 
-    def plot_rmse_histogram(self, mother_folder_path):
-        pass#if self.dataset is None: self.dataset = self.load_datasets(mother_folder_path)
+    def plot_rmse_histogram(self, dataset_path):
 
+        df = pd.read_csv(dataset_path + 'dataset_metadata.csv', sep=',')
+        min_value = np.min([np.min(df['mpc_RMSe']), np.min(df['nn_RMSe'])])
+        max_value = np.max([np.max(df['mpc_RMSe']), np.max(df['nn_RMSe'])])
+        bins = np.linspace(min_value, max_value, 30)
+
+        plt.figure(figsize=(8,5))
+        sns.histplot(df['mpc_RMSe'], bins=bins, color='royalblue', label='MPC', kde=True, stat='density', alpha=0.6)
+        sns.histplot(df['nn_RMSe'], bins=bins, color='darkorange', label='Neural Network', kde=True, stat='density', alpha=0.6)
+        plt.axvline(np.mean(df['mpc_RMSe']), color='royalblue', linestyle='--', linewidth=2)
+        plt.axvline(np.mean(df['nn_RMSe']), color='darkorange', linestyle='--', linewidth=2)
+        plt.xlabel('RMSE (m)', fontsize=12)
+        plt.ylabel('Density', fontsize=12)
+        plt.title('Comparison of RMSE Distributions of MPC and Neural Network', fontsize=14)
+        plt.legend(fontsize=12)
+        plt.grid(True, linestyle='--', alpha=0.5)
+        plt.tight_layout()
+        plt.show()
+
+    def plot_histogram(self, dataset_path, column_1, column_2, x_label, title, legend, normalization_column = None, colors=['royalblue','darkorange']):
+
+        df = pd.read_csv(dataset_path + 'dataset_metadata.csv', sep=',')
+        data_1 = df[column_1]
+        data_2 = df[column_2]
+        
+        if normalization_column is not None:
+            if isinstance(normalization_column, str):
+                data_1 = data_1 / df[normalization_column]
+                data_2 = data_2 / df[normalization_column]
+            if isinstance(normalization_column, list) or isinstance(normalization_column, np.ndarray):
+                for column in normalization_column:
+                    data_1 = data_1 / df[column]
+                    data_2 = data_2 / df[column]
+
+        min_value = np.min([np.min(data_1), np.min(data_2)])
+        max_value = np.max([np.max(data_1), np.max(data_2)])
+        bins = np.linspace(min_value, max_value, 30)
+
+
+        plt.figure(figsize=(8,5))
+        sns.histplot(data_1, bins=bins, color=colors[0], label=legend[0], kde=True, stat='density', alpha=0.6)
+        sns.histplot(data_2, bins=bins, color=colors[1], label=legend[1], kde=True, stat='density', alpha=0.6)
+        plt.axvline(np.mean(data_1), color=colors[0], linestyle='--', linewidth=2)
+        plt.axvline(np.mean(data_2), color=colors[1], linestyle='--', linewidth=1.5)
+        if 'execution_time' in column_1 and 'num_iterations' in normalization_column:
+            from parameters.simulation_parameters import T_sample
+            plt.axvline(T_sample, color='black', linestyle='--', linewidth=2)
+            x_min, x_max = plt.xlim()
+            plt.text(T_sample + 0.01*(x_max - x_min), plt.ylim()[1]*0.9, 'Time sample', rotation=90,va='top', ha='left', color='black')
+        plt.xlabel(x_label, fontsize=12)
+        plt.ylabel('Density', fontsize=12)
+        plt.title(title, fontsize=14)
+        plt.legend(fontsize=12)
+        plt.grid(True, linestyle='--', alpha=0.5)
+        plt.tight_layout()
+        plt.show()
+    
+    def stats_simulations(self, dataset_path, mpc_column, nn_column):
+        df = pd.read_csv(dataset_path + 'dataset_metadata.csv', sep=',')
+        
+        if mpc_column == 'mpc_execution_time_per_iteration' and nn_column == 'nn_execution_time_per_iteration':
+            data_mpc = df['mpc_execution_time (s)'] / df['num_iterations']
+            data_nn = df['nn_execution_time'] / df['num_iterations']
+
+        else:
+            data_mpc = df[mpc_column]
+            data_nn = df[nn_column]
+
+        mean_mpc = data_mpc.mean()
+        std_mpc = data_mpc.std()
+        max_mpc = data_mpc.max()
+        min_mpc = data_mpc.min()
+
+        mean_nn = data_nn.mean()
+        std_nn = data_nn.std()
+        max_nn = data_nn.max()
+        min_nn = data_nn.min()
+
+        table = pd.DataFrame({
+            'Controller': ['MPC', 'Neural Network'],
+            'min': [min_mpc, min_nn],
+            'max': [max_mpc, max_nn],
+            'mean': [mean_mpc, mean_nn],
+            'std': [std_mpc, std_nn],
+        })
+        return table
         
     def RMSe(self, position, trajectory):
         '''position and trajectory dimesnions: (N_iterations, 3)'''
@@ -415,3 +500,18 @@ def quali_linear(X,t,X_lin):
 
     fig.legend(['Non-linear','Linear'])
     plt.show()
+
+if __name__ == '__main__':
+    c = DataAnalyser()
+    #c.plot_rmse_histogram('training_results\Training dataset v0 - octorotor/')
+    c.plot_histogram('training_results\Training dataset v0 - octorotor/', 'mpc_RMSe', 'nn_RMSe', 'RMSE (m)','Comparison of RMSE Distributions of MPC and Neural Network', ['MPC', 'Neural Network'])
+    #c.plot_histogram('training_results\Training dataset v0 - octorotor/', 'mpc_execution_time (s)', 'nn_execution_time', '$t_{execution}/t_{simulation}$', 'Comparison of Execution Time Distributions', ['MPC', 'Neural Network'], normalization_column='simulation_time (s)')
+
+    c.plot_histogram('training_results\Training dataset v0 - octorotor/', 'mpc_execution_time (s)', 'nn_execution_time', '$t_{execution}/iteration$', 'Comparison of Execution Time Distributions', ['MPC', 'Neural Network'], normalization_column='num_iterations')
+    #c.plot_histogram('training_results\Training dataset v0 - octorotor/', 'mpc_execution_time (s)', 'nn_execution_time', 'CPU Use Percentage', 'Comparison of CPU Use Percentage', ['MPC', 'Neural Network'], normalization_column=['time_sample (s)', 'num_iterations'])
+
+    stats_rmse = c.stats_simulations('training_results\Training dataset v0 - octorotor/', 'mpc_RMSe', 'nn_RMSe')
+    print(stats_rmse)
+
+    stats_execution_time = c.stats_simulations('training_results\Training dataset v0 - octorotor/', 'mpc_execution_time_per_iteration', 'nn_execution_time_per_iteration')
+    print(stats_execution_time)

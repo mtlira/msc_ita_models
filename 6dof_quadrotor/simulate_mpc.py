@@ -85,7 +85,7 @@ dataset_dataframe = pd.DataFrame(simulation_metadata)
 # MPC Implementation
 
 def simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions, output_weights, control_weights,\
-                  gain_scheduling, dataset_name=None, folder_name=None, disturb_input=False):
+                  gain_scheduling, dataset_name=None, folder_name=None, disturb_input=False, plot=True):
     '''
     Executes a control simulation with MPC given the time step, time sample, total simulation time and the desired trajectory.\n
     dataset_name: name of dataset folder the current simulation will belong to\n
@@ -127,7 +127,7 @@ def simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions
             Path(save_path).mkdir(parents=True, exist_ok=True)
             #np.savetxt(save_path + "dataset.csv", NN_dataset, delimiter=",")
             np.save(save_path + 'dataset.npy', NN_dataset.astype(np.float32))
-        analyser.plot_states(x_mpc_rotors, t_samples[:np.shape(x_mpc_rotors)[0]], trajectory=trajectory, u_vector=u_rotors, omega_vector=omega_vector, equal_scales=True, legend=['MPC', 'Trajectory'], save_path=save_path)
+        analyser.plot_states(x_mpc_rotors, t_samples[:np.shape(x_mpc_rotors)[0]], trajectory=trajectory, u_vector=u_rotors, omega_vector=omega_vector, equal_scales=True, legend=['MPC', 'Trajectory'], save_path=save_path, plot=plot)
         return True, metadata, simulation_data
     return False, None, None
 

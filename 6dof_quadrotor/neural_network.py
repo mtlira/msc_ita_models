@@ -370,7 +370,7 @@ class NeuralNetworkSimulator(object):
 
         metadata = {
             'num_iterations': len(t_samples)-1,    
-            'nn_execution_time': execution_time,
+            'nn_execution_time (s)': execution_time,
             'nn_RMSe': RMSe,
             'nn_min_phi': min_phi,
             'nn_max_phi': max_phi,
