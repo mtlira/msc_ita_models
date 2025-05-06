@@ -86,40 +86,75 @@ def simulate_mpc_nn(X0, multirotor_model, N, M, num_inputs, q_neuralnetwork, ome
     x_mpc, u_mpc, omega_mpc, _ = simulation_data if simulation_data is not None else [None, None, None, None]
 
     simulation_metadata = wrap_metadata(dataset_id, trajectory_type, T_simulation, T_sample, N, M, True, mpc_metadata, restriction_metadata, disturbed_inputs=disturb_input)
-    if x_nn is not None and x_mpc is not None:
-        Path(simulation_save_path).mkdir(parents=True, exist_ok=True)
-        for nn_key in list(nn_metadata.keys()):
-            if nn_key not in list(simulation_metadata.keys()):
-                simulation_metadata[nn_key] = nn_metadata[nn_key]
-        dataset_dataframe = pd.concat([dataset_dataframe, pd.DataFrame(simulation_metadata)])
-        if dataset_id % 5 == 0: dataset_dataframe.to_csv(dataset_mother_folder + 'dataset_metadata.csv', sep=',', index=False)
+    Path(simulation_save_path).mkdir(parents=True, exist_ok=True)
+    for nn_key in list(nn_metadata.keys()):
+        if nn_key not in list(simulation_metadata.keys()):
+            simulation_metadata[nn_key] = nn_metadata[nn_key]
+    dataset_dataframe = pd.concat([dataset_dataframe, pd.DataFrame(simulation_metadata)])
+    if dataset_id % 5 == 0: dataset_dataframe.to_csv(dataset_mother_folder + 'dataset_metadata.csv', sep=',', index=False)
 
-        legend = ['Neural Network', 'MPC', 'Trajectory'] if x_mpc is not None else ['Neural Network', 'Trajectory']
-        analyser.plot_states(x_nn, t_samples[:np.shape(x_nn)[0]], X_lin=x_mpc, trajectory=trajectory[:len(t_samples)], u_vector=[u_nn, u_mpc], omega_vector=[omega_nn, omega_mpc], legend=legend, equal_scales=True, save_path=simulation_save_path, plot=False)
+    legend = ['Neural Network', 'MPC', 'Trajectory'] if x_mpc is not None else ['Neural Network', 'Trajectory']
+    if x_nn is not None: analyser.plot_states(x_nn, t_samples[:np.shape(x_nn)[0]], X_lin=x_mpc, trajectory=trajectory[:len(t_samples)], u_vector=[u_nn, u_mpc], omega_vector=[omega_nn, omega_mpc], legend=legend, equal_scales=True, save_path=simulation_save_path, plot=False)
+    else: analyser.plot_states(x_mpc, t_samples[:np.shape(x_nn)[0]], trajectory=trajectory[:len(t_samples)], u_vector=[u_nn, u_mpc], omega_vector=[omega_nn, omega_mpc], legend=['MPC', 'Trajectory'], equal_scales=True, save_path=simulation_save_path, plot=False)
     
     dataset_id += 1
         
+def simulate_batch(trajectory_type, args_vector, restrictions_vector, disturb_input, checkpoint_id = None):
+    global dataset_id
+    global total_simulations
+    global failed_simulations
+    global dataset_dataframe
+    global dataset_mother_folder
+    global weights_file_name
+
+    total_simulations += len(args_vector) * len(restrictions_vector)
+    tr = trajectory_handler.TrajectoryHandler()
+    for args in args_vector:
+        for restrictions, output_weights, control_weights, restriction_metadata in restrictions_vector:
+            if checkpoint_id is None or dataset_id >= checkpoint_id:
+                trajectory = tr.generate_trajectory(trajectory_type, args)
+                #folder_name = f'{trajectory_type}/' + str(dataset_id)
+
+                # Simulation without disturbances
+                print(f'{trajectory_type} Simulation {dataset_id}/{total_simulations}')
+                T_simulation = args[-1]
+                simulate_mpc_nn(X0, multirotor_model, N, M, num_inputs, q_neuralnetwork, omega_squared_eq, dataset_mother_folder, weights_file_name, time_step, T_sample, T_simulation, trajectory, trajectory_type, restrictions, restriction_metadata, output_weights, control_weights, gain_scheduling, disturb_input, num_neurons_hidden_layers, use_optuna_model)
+
+            else:
+                dataset_id += 1
+
+
+
 
 if __name__ == '__main__':
+    nn_weights_folder = 'training_results/Training dataset v1 - octorotor/'
+    dataset_mother_folder = nn_weights_folder
+    weights_file_name = 'model_weights.pth'
     use_optuna_model = True
     disturb_input = False
-    dataset_dataframe = pd.DataFrame({})
+    if Path(dataset_mother_folder + 'dataset_metadata.csv').is_file():
+        dataset_dataframe = pd.read_csv(dataset_mother_folder + 'dataset_metadata.csv', sep=',')
+    else:
+        dataset_dataframe = pd.DataFrame({})
     dataset_id = 1
     total_simulations = 0
-    nn_weights_folder = 'training_results/Training dataset v0 - octorotor/'
-    dataset_mother_folder = nn_weights_folder
-    weights_file_name = 'model_weights_octorotor.pth'
     analyser = DataAnalyser()
     rst = restriction_handler.Restriction(multirotor_model, T_sample, N, M)
-    restriction, output_weights, control_weights, restriction_metadata = rst.restriction('normal')
-    trajectory_type = 'circle_xy'
-    if trajectory_type == 'circle_xy':
-        trajectory_vector = tr.generate_circle_xy_trajectories()
-    simulator = NeuralNetworkSimulator(multirotor_model, N, M, num_inputs, num_rotors, q_neuralnetwork, omega_squared_eq, time_step)
 
-    total_simulations += len(trajectory_vector)
-    for args in trajectory_vector:
-        trajectory = tr.generate_trajectory('circle_xy', args, include_psi_reference, include_phi_theta_reference)
-        T_simulation = args[-1]
-        print(f'{trajectory_type} Simulation {dataset_id}/{total_simulations}')
-        simulate_mpc_nn(X0, multirotor_model, N, M, num_inputs, q_neuralnetwork, omega_squared_eq, dataset_mother_folder, weights_file_name, time_step, T_sample, T_simulation, trajectory, trajectory_type, restriction, restriction_metadata, output_weights, control_weights, gain_scheduling, disturb_input, num_neurons_hidden_layers, use_optuna_model)
+    run_circle_xy = False
+    run_circle_xz = False
+    run_point = False
+    run_lissajous_xy = True
+    run_line = False
+
+    restriction_vector = [rst.restriction('normal')]
+
+    if run_circle_xy:
+        args = tr.generate_circle_xy_trajectories()
+        simulate_batch('circle_xy', args, restriction_vector, False)
+
+    if run_lissajous_xy:
+        args = tr.generate_lissajous_xy_trajectories()
+        simulate_batch('lissajous_xy', args, restriction_vector, False)
+    
+    dataset_dataframe.to_csv(dataset_mother_folder + 'dataset_metadata.csv', sep=',', index=False)

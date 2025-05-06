@@ -340,6 +340,30 @@ class NeuralNetworkSimulator(object):
             x_k = odeint(self.model.f2, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
             x_k = x_k[-1]
 
+            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 10: #or np.max(np.abs(x_k[0:2])) > 1.75:
+                print('Simulation exploded.')
+                print(f'x_{k} =',x_k)
+
+                metadata = {
+                'nn_success': False,
+                'num_iterations': len(t_samples)-1,    
+                'nn_execution_time (s)': execution_time,
+                'nn_RMSe': 'nan',
+                'nn_min_phi': 'nan',
+                'nn_max_phi': 'nan',
+                'nn_mean_phi': 'nan',
+                'nn_std_phi': 'nan',
+                'nn_min_theta': 'nan',
+                'nn_max_theta': 'nan',
+                'nn_mean_theta': 'nan',
+                'nn_std_theta': 'nan',
+                'nn_min_psi': 'nan',
+                'nn_max_psi': 'nan',
+                'nn_mean_psi': 'nan',
+                'nn_std_psi': 'nan',
+                }
+                return None, None, None, None, metadata
+
             waste_start_time = time.perf_counter()
             X_vector.append(x_k)
             u_vector.append(u_k)
@@ -369,6 +393,7 @@ class NeuralNetworkSimulator(object):
         std_psi = np.std(X_vector[:,2])
 
         metadata = {
+            'nn_success': True,
             'num_iterations': len(t_samples)-1,    
             'nn_execution_time (s)': execution_time,
             'nn_RMSe': RMSe,

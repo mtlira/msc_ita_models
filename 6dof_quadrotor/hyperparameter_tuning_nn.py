@@ -1,5 +1,5 @@
 import numpy as np
-from neural_network import NeuralNetwork, ControlAllocationDataset, EarlyStopper
+from neural_network import NeuralNetwork, ControlAllocationDataset, ControlAllocationDataset_Binary, EarlyStopper
 import matplotlib.pyplot as plt
 import torch
 import torch.optim as optim
@@ -7,45 +7,47 @@ from torch.utils.data import Dataset, DataLoader
 import optuna
 from optuna.trial import TrialState
 from torch import nn
+import os
 
 # Ignore warnings
 import warnings
 warnings.filterwarnings("ignore")
 
 # Hyperparameters
-num_epochs = 40
+num_epochs = 25
 batch_size = 128
 learning_rate = 0.001
 num_outputs = 4
 num_neurons_hiddenlayers = 128
 batches_per_epoch = 200
 
-device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
+#device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
+device = torch.device('cpu')
 print(f"Using {device} device")
 
 # Dataset path
 def load_dataset(datasets_folder):
-    train_dataset = ControlAllocationDataset(datasets_folder + 'train_dataset.csv', num_outputs)
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,num_workers=0)
-    validation_dataset = ControlAllocationDataset(datasets_folder + 'validation_dataset.csv', num_outputs)
-    validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=True,num_workers=0)
+    global_dataset = ControlAllocationDataset_Binary(datasets_folder, False, num_outputs)
+    train_size = int(0.8 * len(global_dataset))
+    val_size = int(0.2 * len(global_dataset))
+    
+    train_dataset, validation_dataset = torch.utils.data.random_split(global_dataset, [train_size, val_size])
 
-    num_inputs = validation_dataset.num_inputs
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,num_workers=0, pin_memory=True if device == 'cuda' else False)
+
+    validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=True,num_workers=0, pin_memory=True if device == 'cuda' else False)
+
+    num_inputs = global_dataset.num_inputs
 
     return train_dataloader, validation_dataloader, num_inputs
 
-# Get the datasets
-datasets_folder = 'dataset_canon/canon_N_90_M_10_hover_only/global_dataset/'
-
-train_dataloader, validation_dataloader, num_inputs = load_dataset(datasets_folder)
-
-def define_model(trial):
-    n_layers = trial.suggest_int('n_layers', 1, 3)
+def define_model(trial, num_inputs):
+    n_layers = trial.suggest_int('n_layers', 1, 4)
     leakyReLU_negative_slope = trial.suggest_float('leakyReLU_negative_slope', 0.0005, 0.1)
     layers = []
     in_features = num_inputs
     for i in range(n_layers):
-        out_features = trial.suggest_int('n_units_l{}'.format(i), 64, 256)
+        out_features = trial.suggest_int('n_units_l{}'.format(i), 64, 2048)
         layers.append(nn.Linear(in_features, out_features))
         layers.append(nn.LeakyReLU(negative_slope=leakyReLU_negative_slope))
         #dropout_percentage = trial.suggest_float('dropout_l{}'.format(i), 0.0, 0.5) # Dropout removed, at least temporarily
@@ -58,10 +60,12 @@ def define_model(trial):
 
 
 def objective(trial):
+
+    global train_dataloader
+    global validation_dataloader
     
     # Generate the model
-    num_inputs = validation_dataloader
-    model = define_model(trial).to(device)
+    model = define_model(trial, num_inputs).to(device)
 
     # Generate the optimizers
     optimizer = trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"])
@@ -80,9 +84,11 @@ def objective(trial):
         for i_batch, batch_sample in enumerate(train_dataloader):
             if i_batch + 1 >= batches_per_epoch:
                 break
+            input = batch_sample['input'].to(device, non_blocking = True)
+            output = batch_sample['output'].to(device, non_blocking = True)
             optimizer.zero_grad()
-            outputs = model(batch_sample['input'])
-            loss = criterion(outputs, batch_sample['output'])
+            outputs = model(input)
+            loss = criterion(outputs, output)
             loss.backward()
             optimizer.step()
             #running_loss += loss.item() * batch_sample['input'].size(0)
@@ -97,9 +103,11 @@ def objective(trial):
                 # Limiting validation data.
                 if i_batch + 1 >= batches_per_epoch:
                     break
-                outputs = model(batch_sample['input'])
-                loss = criterion(outputs, batch_sample['output'])
-                running_loss += loss.item() * batch_sample['input'].size(0)
+                input = batch_sample['input'].to(device, non_blocking = True)
+                output = batch_sample['output'].to(device, non_blocking = True)
+                outputs = model(input)
+                loss = criterion(outputs, output)
+                running_loss += loss.item() * input.size(0)
         val_loss = running_loss / np.min([len(validation_dataloader.dataset), batches_per_epoch*batch_size])
         #val_losses.append(val_loss)
 
@@ -112,7 +120,8 @@ def objective(trial):
     return val_loss
 
 def tune_hyperparameters():
-    study = optuna.create_study(direction='minimize')
+    os.makedirs("optuna_studies", exist_ok=True)
+    study = optuna.create_study(direction='minimize', study_name='nn_control_alloc', storage="sqlite:///optuna_studies/nn_control_alloc.db", load_if_exists=True)
     study.optimize(objective, n_trials = 100)
 
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
@@ -132,4 +141,9 @@ def tune_hyperparameters():
     for key, value in trial.params.items():
         print("    {}: {}".format(key, value))
 
-tune_hyperparameters()
+    return study
+
+if __name__ == '__main__':
+    dataset_path = '../Datasets/Training datasets - v1/'
+    train_dataloader, validation_dataloader, num_inputs = load_dataset(dataset_path)
+    study = tune_hyperparameters()

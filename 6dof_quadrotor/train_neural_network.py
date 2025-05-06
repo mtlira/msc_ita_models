@@ -24,7 +24,7 @@ print(torch.cuda.device_count())  # Should be > 0
 print(torch.cuda.get_device_name(0)) 
 
 # Dataset path
-datasets_folder = '../Datasets/'
+datasets_folder = '../Datasets/Training datasets - v1/'
 
 load_previous_model = False
 previous_model_path = ''
@@ -80,7 +80,7 @@ def train_neural_network():
     optimizer = torch.optim.RMSprop(model.parameters(), lr = 0.00016413606390770354, weight_decay=0.00010599318964659744)
 
     # Test forward
-    earlystopper = EarlyStopper(4, 15, 0.05,)
+    earlystopper = EarlyStopper(4, 15, 0.05, datasets_folder)
 
     #for i_batch, batch_sample in enumerate(train_dataloader):
         #if i_batch == 0:
@@ -132,23 +132,18 @@ def train_neural_network():
         print(f'Epoch {epoch + 1}/{num_epochs} - Train loss: {train_loss}, Validation loss: {val_loss}')
 
 
-        if earlystopper.stop_early(val_loss):
+        if earlystopper.stop_early(val_loss, model):
             print('Stopped early to avoid overfitting')
             break
 
-        torch.save(model.state_dict(), datasets_folder + 'model_weights_octorotor.pth')
-
-
-
     # TODO: diferenciar test de validation
-
-    torch.save(model.state_dict(), datasets_folder + 'model_weights_octorotor.pth')
 
 if __name__ == '__main__':
     try:
         train_neural_network()
-    except:
+    except Exception as e:
         print('An error occurred')
+        print(str(e))
     
     trim_idx = np.min([len(training_metadata['epoch']), len(training_metadata['train_loss']), len(training_metadata['validation_loss'])])
     training_dataframe = pd.DataFrame(training_metadata)
@@ -156,8 +151,8 @@ if __name__ == '__main__':
 
     fig = plt.figure()
     x = training_metadata['epoch']
-    plt.plot(x, training_metadata['train_loss'])
-    plt.plot(x, training_metadata['validation_loss'])
+    plt.plot(x, training_metadata['train_loss'][:trim_idx])
+    plt.plot(x, training_metadata['validation_loss'][:trim_idx])
     plt.ylabel('Loss')
     plt.xlabel('Epoch')
     plt.title('Train and Test Losses')

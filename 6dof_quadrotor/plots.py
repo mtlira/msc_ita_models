@@ -338,7 +338,7 @@ class DataAnalyser(object):
         
         if mpc_column == 'mpc_execution_time_per_iteration' and nn_column == 'nn_execution_time_per_iteration':
             data_mpc = df['mpc_execution_time (s)'] / df['num_iterations']
-            data_nn = df['nn_execution_time'] / df['num_iterations']
+            data_nn = df['nn_execution_time (s)'] / df['num_iterations']
 
         else:
             data_mpc = df[mpc_column]
@@ -503,15 +503,16 @@ def quali_linear(X,t,X_lin):
 
 if __name__ == '__main__':
     c = DataAnalyser()
+    path = 'training_results\Training dataset v1 - octorotor/'
     #c.plot_rmse_histogram('training_results\Training dataset v0 - octorotor/')
-    c.plot_histogram('training_results\Training dataset v0 - octorotor/', 'mpc_RMSe', 'nn_RMSe', 'RMSE (m)','Comparison of RMSE Distributions of MPC and Neural Network', ['MPC', 'Neural Network'])
+    c.plot_histogram(path, 'mpc_RMSe', 'nn_RMSe', 'RMSE (m)','Comparison of RMSE Distributions of MPC and Neural Network', ['MPC', 'Neural Network'])
     #c.plot_histogram('training_results\Training dataset v0 - octorotor/', 'mpc_execution_time (s)', 'nn_execution_time', '$t_{execution}/t_{simulation}$', 'Comparison of Execution Time Distributions', ['MPC', 'Neural Network'], normalization_column='simulation_time (s)')
 
-    c.plot_histogram('training_results\Training dataset v0 - octorotor/', 'mpc_execution_time (s)', 'nn_execution_time', '$t_{execution}/iteration$', 'Comparison of Execution Time Distributions', ['MPC', 'Neural Network'], normalization_column='num_iterations')
+    c.plot_histogram(path, 'mpc_execution_time (s)', 'nn_execution_time (s)', '$t_{execution}/iteration$', 'Comparison of Execution Time Distributions', ['MPC', 'Neural Network'], normalization_column='num_iterations')
     #c.plot_histogram('training_results\Training dataset v0 - octorotor/', 'mpc_execution_time (s)', 'nn_execution_time', 'CPU Use Percentage', 'Comparison of CPU Use Percentage', ['MPC', 'Neural Network'], normalization_column=['time_sample (s)', 'num_iterations'])
 
-    stats_rmse = c.stats_simulations('training_results\Training dataset v0 - octorotor/', 'mpc_RMSe', 'nn_RMSe')
+    stats_rmse = c.stats_simulations(path, 'mpc_RMSe', 'nn_RMSe')
     print(stats_rmse)
 
-    stats_execution_time = c.stats_simulations('training_results\Training dataset v0 - octorotor/', 'mpc_execution_time_per_iteration', 'nn_execution_time_per_iteration')
+    stats_execution_time = c.stats_simulations(path, 'mpc_execution_time_per_iteration', 'nn_execution_time_per_iteration')
     print(stats_execution_time)
