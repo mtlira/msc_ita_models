@@ -211,7 +211,7 @@ class TrajectoryHandler(object):
     
     def generate_circle_xz_trajectories(self):
         short_radius_vector = np.arange(1, 5, 1)
-        long_radius_vector = np.arange(5, 7, 1)
+        long_radius_vector = np.arange(5, 9, 1)
         short_period_vector = np.arange(2, 8, 2)
         long_period_vector = np.arange(10, 14, 2)
 
@@ -263,6 +263,15 @@ class TrajectoryHandler(object):
         num_circles = len(short_radius_vector) * len(short_period_vector) + len(long_radius_vector) * len(long_period_vector)
         print('lissajous_xy trajectories =',num_circles)
         return args
+    
+    def generate_circle_xy_performance_analysis(self):
+        period_vector = np.arange(0.5, 20, 0.5)
+        r_vector = 5*np.ones(len(period_vector))
+        T_simulation_vector = np.array([max(10, period) for period in period_vector])
+
+        args = np.concatenate(([2*np.pi/period_vector], [r_vector], [T_simulation_vector]), axis = 0).transpose()
+        return args
+        
 
 if __name__ == '__main__':
 

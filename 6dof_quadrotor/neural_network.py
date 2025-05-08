@@ -208,6 +208,23 @@ class NeuralNetwork_optuna(nn.Module):
         logits = self.layer_stack(x)
         return logits
     
+class NeuralNetwork_optuna2(nn.Module):
+    def __init__(self, num_inputs, num_outputs):
+        super().__init__()
+        self.layer_stack = nn.Sequential(
+            nn.Linear(in_features = num_inputs, out_features = 1058),
+            nn.LeakyReLU(negative_slope=0.010027561298), # before: 0.01
+            #nn.Dropout(0.09382298344626222),
+            nn.Linear(in_features = 1058, out_features = 1145),
+            nn.LeakyReLU(negative_slope=0.010027561298),
+            #nn.Dropout(0.21326313772325148),
+            nn.Linear(in_features=1145, out_features = num_outputs)
+        )
+
+    def forward(self, x):
+        logits = self.layer_stack(x)
+        return logits
+
 ### 3. Early Stopper class ###
 class EarlyStopper():
     def __init__(self, drift_patience, plateau_patience, drift_percentage, save_path):
@@ -262,7 +279,7 @@ class NeuralNetworkSimulator(object):
         #device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
         #print(f"Using {device} device")
         if use_optuna_model:
-            nn_model = NeuralNetwork_optuna(self.num_inputs, num_rotors)
+            nn_model = NeuralNetwork_optuna2(self.num_inputs, num_rotors)
         else:
             nn_model = NeuralNetwork(self.num_inputs, self.num_rotors, num_neurons_hidden_layers)
         nn_model.load_state_dict(torch.load(nn_weights_path, weights_only=True))
@@ -362,7 +379,7 @@ class NeuralNetworkSimulator(object):
                 'nn_mean_psi': 'nan',
                 'nn_std_psi': 'nan',
                 }
-                return None, None, None, None, metadata
+                return None, None, None, metadata
 
             waste_start_time = time.perf_counter()
             X_vector.append(x_k)

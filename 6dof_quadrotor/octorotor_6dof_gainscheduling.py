@@ -25,7 +25,7 @@ print('d =', d)
 
 ### SIMULATION PARAMETERS ###
 from parameters.simulation_parameters import time_step, T_sample, N, M, include_phi_theta_reference, include_psi_reference
-T_simulation = 30
+T_simulation = 10
 
 t = np.arange(0,T_simulation, time_step)
 t_samples = np.arange(0,T_simulation, T_sample)

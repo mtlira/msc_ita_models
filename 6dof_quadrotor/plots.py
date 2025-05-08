@@ -11,7 +11,7 @@ class DataAnalyser(object):
 
     def plot_states(self, X,t, X_lin = None, trajectory = None, u_vector = None, omega_vector = None, equal_scales=False, legend = [], save_path = None, plot = True):
         handles = []
-        
+        #plt.tight_layout()
         # Rotation
         fig, axs = plt.subplots(2, 3)
         axs[0,0].plot(t,X[:,0])
@@ -56,8 +56,8 @@ class DataAnalyser(object):
         axs[1,2].set_xlabel('t (s)')
         axs[1,2].set_ylabel('r (rad/s)')
         fig.legend(legend if trajectory is None else legend[:-1]) # Because there is no reference in angle values
-        plt.subplots_adjust(left=0.083, bottom=0.083, right=0.948, top=0.914, wspace=0.23, hspace=0.31)
-        
+        #plt.subplots_adjust(left=0.083, bottom=0.083, right=0.948, top=0.914, wspace=0.23, hspace=0.31)
+        fig.tight_layout()
         if save_path is not None: 
             plt.savefig(save_path + 'x_angular.png')
             for ax in axs.reshape(-1): ax.cla()
@@ -116,7 +116,8 @@ class DataAnalyser(object):
                                     label=f'c{i+1}' if i >= len(legend) else legend[i])
         
         fig.legend(handles=handles)
-        plt.subplots_adjust(left=0.083, bottom=0.083, right=0.948, top=0.914, wspace=0.23, hspace=0.31)
+        fig.tight_layout()
+        #plt.subplots_adjust(left=0.083, bottom=0.083, right=0.948, top=0.914, wspace=0.23, hspace=0.31)
 
 
         if save_path is not None: 
@@ -190,7 +191,8 @@ class DataAnalyser(object):
         
         fig.legend(handles=handles)
 
-        plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
+        fig.tight_layout()
+        #plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
 
 
         if save_path is not None: 
@@ -224,7 +226,8 @@ class DataAnalyser(object):
         
             fig.legend(handles=handles)
 
-            plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
+            fig.tight_layout()
+            #plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
             
 
             if save_path is not None: 
@@ -258,7 +261,8 @@ class DataAnalyser(object):
 
                 fig.legend(handles=handles)
 
-                plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
+                fig.tight_layout()
+                #plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
 
                 if save_path is not None: 
                     plt.savefig(save_path + 'inputs-rotors2.png')
@@ -312,7 +316,7 @@ class DataAnalyser(object):
 
         min_value = np.min([np.min(data_1), np.min(data_2)])
         max_value = np.max([np.max(data_1), np.max(data_2)])
-        bins = np.linspace(min_value, max_value, 30)
+        bins = np.linspace(min_value, max_value, 60)
 
 
         plt.figure(figsize=(8,5))
@@ -362,14 +366,95 @@ class DataAnalyser(object):
             'std': [std_mpc, std_nn],
         })
         return table
+
+
+    def plot_histogram_temp(self, dataset_path, column_1, x_label, title, normalization_column = None, colors=['royalblue','darkorange']):
+        df = pd.read_csv(dataset_path + 'dataset_metadata.csv', sep=',')
+        df = df[df['nn_RMSe'] < 1.5]
+        data_1 = df[column_1]
+        df = df.sort_values('inter_position_RMSe', axis=0, ascending=True)
         
+        p75 = round(0.75*len(df))
+        p90 = round(0.9*len(df))
+
+        x75 = df.iloc[p75]['inter_position_RMSe']
+        print('x75\n',x75)
+        x90 = df.iloc[p90]['inter_position_RMSe']
+        
+        if normalization_column is not None:
+            if isinstance(normalization_column, str):
+                data_1 = data_1 / df[normalization_column]
+            if isinstance(normalization_column, list) or isinstance(normalization_column, np.ndarray):
+                for column in normalization_column:
+                    data_1 = data_1 / df[column]
+
+        min_value = np.min(np.min(data_1))
+        max_value = np.max(np.max(data_1))
+        bins = np.linspace(min_value, max_value, 30)
+
+
+        plt.figure(figsize=(8,5))
+        sns.histplot(data_1, bins=bins, color=colors[0], kde=True, stat='density', alpha=0.6)
+        plt.axvline(np.mean(data_1), color=colors[0], linestyle='--', linewidth=2)
+        x_min, x_max = plt.xlim()
+        plt.axvline(x75, color='black', linestyle='--', linewidth=2)
+        plt.text(x75 + 0.01*(x_max - x_min), plt.ylim()[1]*0.9, 'Percentile 75%', rotation=90,va='top', ha='left', color='black')
+        plt.axvline(x90, color='black', linestyle='--', linewidth=2)
+        plt.text(x90 + 0.01*(x_max - x_min), plt.ylim()[1]*0.9, 'Percentile 90%', rotation=90,va='top', ha='left', color='black')
+
+        if 'execution_time' in column_1 and 'num_iterations' in normalization_column:
+            from parameters.simulation_parameters import T_sample
+            plt.axvline(T_sample, color='black', linestyle='--', linewidth=2)
+            x_min, x_max = plt.xlim()
+            plt.text(T_sample + 0.01*(x_max - x_min), plt.ylim()[1]*0.9, 'Time sample', rotation=90,va='top', ha='left', color='black')
+        plt.xlabel(x_label, fontsize=12)
+        plt.ylabel('Density', fontsize=12)
+        plt.title(title, fontsize=14)
+        plt.legend(fontsize=12)
+        plt.grid(True, linestyle='--', alpha=0.5)
+        plt.tight_layout()
+        plt.show()
+    
+    def stats_simulations(self, dataset_path, mpc_column, nn_column):
+        df = pd.read_csv(dataset_path + 'dataset_metadata.csv', sep=',')
+        
+        if mpc_column == 'mpc_execution_time_per_iteration' and nn_column == 'nn_execution_time_per_iteration':
+            data_mpc = df['mpc_execution_time (s)'] / df['num_iterations']
+            data_nn = df['nn_execution_time (s)'] / df['num_iterations']
+
+        else:
+            data_mpc = df[mpc_column]
+            data_nn = df[nn_column]
+
+        mean_mpc = data_mpc.mean()
+        std_mpc = data_mpc.std()
+        max_mpc = data_mpc.max()
+        min_mpc = data_mpc.min()
+
+        mean_nn = data_nn.mean()
+        std_nn = data_nn.std()
+        max_nn = data_nn.max()
+        min_nn = data_nn.min()
+
+        table = pd.DataFrame({
+            'Controller': ['MPC', 'Neural Network'],
+            'min': [min_mpc, min_nn],
+            'max': [max_mpc, max_nn],
+            'mean': [mean_mpc, mean_nn],
+            'std': [std_mpc, std_nn],
+        })
+        return table
+
+
     def RMSe(self, position, trajectory):
         '''position and trajectory dimesnions: (N_iterations, 3)'''
         delta_position = trajectory - position   # shape (N, 3)
         squared_norms = np.sum(delta_position**2, axis=1)  # Sum over x, y, z for each time step
         RMSe = np.sqrt(np.mean(squared_norms))
         return RMSe
-
+    
+    def RMSe_control(self, u1, u2):
+        return np.sqrt(np.mean((u2 - u1)**2, axis=0))
 
 def plot_delays(X_nonlinear, trajectory, t, X_linear = False):
     samples_indexes = np.rint(np.linspace(0,1,11)*(len(t)-1)).astype('int')

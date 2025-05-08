@@ -1,5 +1,5 @@
 import numpy as np
-from neural_network import NeuralNetwork, NeuralNetwork_optuna, ControlAllocationDataset, ControlAllocationDataset_Binary, EarlyStopper
+from neural_network import NeuralNetwork, NeuralNetwork_optuna2, ControlAllocationDataset, ControlAllocationDataset_Binary, EarlyStopper
 import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -13,8 +13,8 @@ from parameters.octorotor_parameters import num_rotors
 
 # Hyperparameters
 num_epochs = 1000
-batch_size = 128
-learning_rate = 0.001
+batch_size = 1024
+learning_rate = 0.0002987332997
 num_outputs = num_rotors
 num_neurons_hiddenlayers = 128
 
@@ -44,24 +44,24 @@ def train_neural_network():
     test_size = len(global_dataset) - train_size - val_size
 
     #device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
-    #device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    device = torch.device('cpu')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    #device = torch.device('cpu')
     print(f"Using {device} device")
 
     train_dataset, validation_dataset, test_dataset = torch.utils.data.random_split(global_dataset, [train_size, val_size, test_size])
 
     #train_dataset = ControlAllocationDataset(datasets_folder + 'train_dataset.csv', num_outputs)
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,num_workers=0, pin_memory=True if device == 'cuda' else False)
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,num_workers=1, pin_memory=True if device == 'cuda' else False)
 
-    validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=True,num_workers=0, pin_memory=True if device == 'cuda' else False)
+    validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=True,num_workers=1, pin_memory=True if device == 'cuda' else False)
     
     #test_dataset = ControlAllocationDataset(datasets_folder + 'validation_dataset.csv', num_outputs)
-    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True,num_workers=0, pin_memory=True if device == 'cuda' else False)
+    #test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True,num_workers=0, pin_memory=True if device == 'cuda' else False)
 
 
     ### 2. Building the Neural Network ###
     num_inputs = global_dataset.num_inputs
-    model = NeuralNetwork_optuna(num_inputs, num_outputs).to(device) # TODO: automatizar 178 e 4
+    model = NeuralNetwork_optuna2(num_inputs, num_outputs).to(device) # TODO: automatizar 178 e 4
 
     if load_previous_model:
         model.load_state_dict(torch.load(previous_model_path, weights_only=True))
@@ -77,7 +77,7 @@ def train_neural_network():
 
     criterion = torch.nn.MSELoss()
     #optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate) # Using Adam
-    optimizer = torch.optim.RMSprop(model.parameters(), lr = 0.00016413606390770354, weight_decay=0.00010599318964659744)
+    optimizer = torch.optim.Adam(model.parameters(), lr = learning_rate, weight_decay=0.00015466052)
 
     # Test forward
     earlystopper = EarlyStopper(4, 15, 0.05, datasets_folder)

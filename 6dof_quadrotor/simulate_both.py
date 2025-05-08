@@ -68,7 +68,7 @@ tr = trajectory_handler.TrajectoryHandler()
 #    r_tracking = tr.helicoidal(w,T_simulation, include_psi_reference, include_phi_theta_reference)
 
 def simulate_mpc_nn(X0, multirotor_model, N, M, num_inputs, q_neuralnetwork, omega_squared_eq, dataset_mother_folder, weights_file_name, time_step, T_sample, T_simulation, trajectory, trajectory_type, restriction, restriction_metadata, output_weights, control_weights, \
-                    gain_scheduling, disturb_input, num_neurons_hidden_layers, use_optuna_model):
+                    gain_scheduling, disturb_input, num_neurons_hidden_layers, use_optuna_model, trajectory_metadata = None):
     
     global dataset_dataframe
     global dataset_id
@@ -87,15 +87,28 @@ def simulate_mpc_nn(X0, multirotor_model, N, M, num_inputs, q_neuralnetwork, ome
 
     simulation_metadata = wrap_metadata(dataset_id, trajectory_type, T_simulation, T_sample, N, M, True, mpc_metadata, restriction_metadata, disturbed_inputs=disturb_input)
     Path(simulation_save_path).mkdir(parents=True, exist_ok=True)
+
     for nn_key in list(nn_metadata.keys()):
         if nn_key not in list(simulation_metadata.keys()):
             simulation_metadata[nn_key] = nn_metadata[nn_key]
+    simulation_metadata['radius (m)'] = trajectory_metadata['radius'] if trajectory_metadata is not None else 'nan'
+    simulation_metadata['period (s)'] = trajectory_metadata['period'] if trajectory_metadata is not None else 'nan'
+
+    if x_mpc is not None and x_nn is not None:
+        simulation_metadata['inter_position_RMSe'] = analyser.RMSe(x_nn[:,9:], x_mpc[:,9:])
+        for i, u_rmse in enumerate(analyser.RMSe_control(omega_mpc, omega_nn)):
+            simulation_metadata[f'RMSe_u{i}'] = u_rmse
+    else:
+        simulation_metadata['inter_position_RMSe'] = 'nan'  
+        for i in range(num_rotors):
+            simulation_metadata[f'RMSe_u{i}'] = 'nan'
+    
     dataset_dataframe = pd.concat([dataset_dataframe, pd.DataFrame(simulation_metadata)])
     if dataset_id % 5 == 0: dataset_dataframe.to_csv(dataset_mother_folder + 'dataset_metadata.csv', sep=',', index=False)
 
     legend = ['Neural Network', 'MPC', 'Trajectory'] if x_mpc is not None else ['Neural Network', 'Trajectory']
     if x_nn is not None: analyser.plot_states(x_nn, t_samples[:np.shape(x_nn)[0]], X_lin=x_mpc, trajectory=trajectory[:len(t_samples)], u_vector=[u_nn, u_mpc], omega_vector=[omega_nn, omega_mpc], legend=legend, equal_scales=True, save_path=simulation_save_path, plot=False)
-    else: analyser.plot_states(x_mpc, t_samples[:np.shape(x_nn)[0]], trajectory=trajectory[:len(t_samples)], u_vector=[u_nn, u_mpc], omega_vector=[omega_nn, omega_mpc], legend=['MPC', 'Trajectory'], equal_scales=True, save_path=simulation_save_path, plot=False)
+    else: analyser.plot_states(x_mpc, t_samples[:np.shape(x_mpc)[0]], trajectory=trajectory[:len(t_samples)], u_vector=[u_mpc], omega_vector=[omega_mpc], legend=['MPC', 'Trajectory'], equal_scales=True, save_path=simulation_save_path, plot=False)
     
     dataset_id += 1
         
@@ -107,29 +120,34 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, disturb_in
     global dataset_mother_folder
     global weights_file_name
 
-    total_simulations += len(args_vector) * len(restrictions_vector)
+    total_simulations = len(args_vector) * len(restrictions_vector)
     tr = trajectory_handler.TrajectoryHandler()
     for args in args_vector:
         for restrictions, output_weights, control_weights, restriction_metadata in restrictions_vector:
             if checkpoint_id is None or dataset_id >= checkpoint_id:
                 trajectory = tr.generate_trajectory(trajectory_type, args)
                 #folder_name = f'{trajectory_type}/' + str(dataset_id)
-
+                trajectory_metadata = None
+                if trajectory_type in ['circle_xy', 'circle_xz', 'lissajous_xy']:
+                    trajectory_metadata = {'radius': args[1], 'period': round(2*np.pi/args[0], 1)}
                 # Simulation without disturbances
                 print(f'{trajectory_type} Simulation {dataset_id}/{total_simulations}')
                 T_simulation = args[-1]
-                simulate_mpc_nn(X0, multirotor_model, N, M, num_inputs, q_neuralnetwork, omega_squared_eq, dataset_mother_folder, weights_file_name, time_step, T_sample, T_simulation, trajectory, trajectory_type, restrictions, restriction_metadata, output_weights, control_weights, gain_scheduling, disturb_input, num_neurons_hidden_layers, use_optuna_model)
+                simulate_mpc_nn(X0, multirotor_model, N, M, num_inputs, q_neuralnetwork, omega_squared_eq, dataset_mother_folder, weights_file_name, time_step, T_sample, T_simulation, trajectory, trajectory_type, restrictions, restriction_metadata, output_weights, control_weights, gain_scheduling, disturb_input, num_neurons_hidden_layers, use_optuna_model, trajectory_metadata)
 
             else:
                 dataset_id += 1
+    
+    # Reset id
+    dataset_id = 1
 
 
 
 
 if __name__ == '__main__':
-    nn_weights_folder = 'training_results/Training dataset v1 - octorotor/'
+    nn_weights_folder = 'training_results/reasonable_trajectories_v1/'
     dataset_mother_folder = nn_weights_folder
-    weights_file_name = 'model_weights.pth'
+    weights_file_name = 'model_weights_v2.pth'
     use_optuna_model = True
     disturb_input = False
     if Path(dataset_mother_folder + 'dataset_metadata.csv').is_file():
@@ -141,11 +159,12 @@ if __name__ == '__main__':
     analyser = DataAnalyser()
     rst = restriction_handler.Restriction(multirotor_model, T_sample, N, M)
 
-    run_circle_xy = False
-    run_circle_xz = False
+    run_circle_xy = True
+    run_circle_xz = True
     run_point = False
     run_lissajous_xy = True
-    run_line = False
+    run_line = True
+    run_circle_xy_performance = False
 
     restriction_vector = [rst.restriction('normal')]
 
@@ -153,8 +172,22 @@ if __name__ == '__main__':
         args = tr.generate_circle_xy_trajectories()
         simulate_batch('circle_xy', args, restriction_vector, False)
 
+    if run_circle_xy_performance:
+        args = tr.generate_circle_xy_performance_analysis()
+        simulate_batch('circle_xy', args, restriction_vector, False)
+
+    if run_circle_xz:
+        args = tr.generate_circle_xz_trajectories()
+        simulate_batch('circle_xz', args, restriction_vector, False)
+
     if run_lissajous_xy:
         args = tr.generate_lissajous_xy_trajectories()
         simulate_batch('lissajous_xy', args, restriction_vector, False)
-    
+
+    if run_line:
+        args = tr.generate_line_trajectories(50)
+        simulate_batch('line', args, restriction_vector, False)
+
+
+
     dataset_dataframe.to_csv(dataset_mother_folder + 'dataset_metadata.csv', sep=',', index=False)
