@@ -299,9 +299,8 @@ class DataAnalyser(object):
         plt.tight_layout()
         plt.show()
 
-    def plot_histogram(self, dataset_path, column_1, column_2, x_label, title, legend, normalization_column = None, colors=['royalblue','darkorange']):
+    def plot_histogram(self, df, column_1, column_2, x_label, title, legend, normalization_column = None, colors=['royalblue','darkorange']):
 
-        df = pd.read_csv(dataset_path + 'dataset_metadata.csv', sep=',')
         data_1 = df[column_1]
         data_2 = df[column_2]
         
@@ -316,7 +315,7 @@ class DataAnalyser(object):
 
         min_value = np.min([np.min(data_1), np.min(data_2)])
         max_value = np.max([np.max(data_1), np.max(data_2)])
-        bins = np.linspace(min_value, max_value, 60)
+        bins = np.linspace(min_value, max_value, 40)
 
 
         plt.figure(figsize=(8,5))
@@ -337,9 +336,7 @@ class DataAnalyser(object):
         plt.tight_layout()
         plt.show()
     
-    def stats_simulations(self, dataset_path, mpc_column, nn_column):
-        df = pd.read_csv(dataset_path + 'dataset_metadata.csv', sep=',')
-        
+    def stats_simulations(self, df, mpc_column, nn_column):        
         if mpc_column == 'mpc_execution_time_per_iteration' and nn_column == 'nn_execution_time_per_iteration':
             data_mpc = df['mpc_execution_time (s)'] / df['num_iterations']
             data_nn = df['nn_execution_time (s)'] / df['num_iterations']
@@ -368,9 +365,7 @@ class DataAnalyser(object):
         return table
 
 
-    def plot_histogram_temp(self, dataset_path, column_1, x_label, title, normalization_column = None, colors=['royalblue','darkorange']):
-        df = pd.read_csv(dataset_path + 'dataset_metadata.csv', sep=',')
-        df = df[df['nn_RMSe'] < 1.5]
+    def plot_histogram_temp(self, df, column_1, x_label, title, normalization_column = None, colors=['royalblue','darkorange']):
         data_1 = df[column_1]
         df = df.sort_values('inter_position_RMSe', axis=0, ascending=True)
         
@@ -415,35 +410,6 @@ class DataAnalyser(object):
         plt.tight_layout()
         plt.show()
     
-    def stats_simulations(self, dataset_path, mpc_column, nn_column):
-        df = pd.read_csv(dataset_path + 'dataset_metadata.csv', sep=',')
-        
-        if mpc_column == 'mpc_execution_time_per_iteration' and nn_column == 'nn_execution_time_per_iteration':
-            data_mpc = df['mpc_execution_time (s)'] / df['num_iterations']
-            data_nn = df['nn_execution_time (s)'] / df['num_iterations']
-
-        else:
-            data_mpc = df[mpc_column]
-            data_nn = df[nn_column]
-
-        mean_mpc = data_mpc.mean()
-        std_mpc = data_mpc.std()
-        max_mpc = data_mpc.max()
-        min_mpc = data_mpc.min()
-
-        mean_nn = data_nn.mean()
-        std_nn = data_nn.std()
-        max_nn = data_nn.max()
-        min_nn = data_nn.min()
-
-        table = pd.DataFrame({
-            'Controller': ['MPC', 'Neural Network'],
-            'min': [min_mpc, min_nn],
-            'max': [max_mpc, max_nn],
-            'mean': [mean_mpc, mean_nn],
-            'std': [std_mpc, std_nn],
-        })
-        return table
 
 
     def RMSe(self, position, trajectory):
@@ -587,17 +553,18 @@ def quali_linear(X,t,X_lin):
     plt.show()
 
 if __name__ == '__main__':
-    c = DataAnalyser()
-    path = 'training_results\Training dataset v1 - octorotor/'
-    #c.plot_rmse_histogram('training_results\Training dataset v0 - octorotor/')
-    c.plot_histogram(path, 'mpc_RMSe', 'nn_RMSe', 'RMSE (m)','Comparison of RMSE Distributions of MPC and Neural Network', ['MPC', 'Neural Network'])
-    #c.plot_histogram('training_results\Training dataset v0 - octorotor/', 'mpc_execution_time (s)', 'nn_execution_time', '$t_{execution}/t_{simulation}$', 'Comparison of Execution Time Distributions', ['MPC', 'Neural Network'], normalization_column='simulation_time (s)')
+    pass
+    # c = DataAnalyser()
+    # path = 'training_results\Training dataset v1 - octorotor/'
+    # #c.plot_rmse_histogram('training_results\Training dataset v0 - octorotor/')
+    # c.plot_histogram(path, 'mpc_RMSe', 'nn_RMSe', 'RMSE (m)','Comparison of RMSE Distributions of MPC and Neural Network', ['MPC', 'Neural Network'])
+    # #c.plot_histogram('training_results\Training dataset v0 - octorotor/', 'mpc_execution_time (s)', 'nn_execution_time', '$t_{execution}/t_{simulation}$', 'Comparison of Execution Time Distributions', ['MPC', 'Neural Network'], normalization_column='simulation_time (s)')
 
-    c.plot_histogram(path, 'mpc_execution_time (s)', 'nn_execution_time (s)', '$t_{execution}/iteration$', 'Comparison of Execution Time Distributions', ['MPC', 'Neural Network'], normalization_column='num_iterations')
-    #c.plot_histogram('training_results\Training dataset v0 - octorotor/', 'mpc_execution_time (s)', 'nn_execution_time', 'CPU Use Percentage', 'Comparison of CPU Use Percentage', ['MPC', 'Neural Network'], normalization_column=['time_sample (s)', 'num_iterations'])
+    # c.plot_histogram(path, 'mpc_execution_time (s)', 'nn_execution_time (s)', '$t_{execution}/iteration$', 'Comparison of Execution Time Distributions', ['MPC', 'Neural Network'], normalization_column='num_iterations')
+    # #c.plot_histogram('training_results\Training dataset v0 - octorotor/', 'mpc_execution_time (s)', 'nn_execution_time', 'CPU Use Percentage', 'Comparison of CPU Use Percentage', ['MPC', 'Neural Network'], normalization_column=['time_sample (s)', 'num_iterations'])
 
-    stats_rmse = c.stats_simulations(path, 'mpc_RMSe', 'nn_RMSe')
-    print(stats_rmse)
+    # stats_rmse = c.stats_simulations(path, 'mpc_RMSe', 'nn_RMSe')
+    # print(stats_rmse)
 
-    stats_execution_time = c.stats_simulations(path, 'mpc_execution_time_per_iteration', 'nn_execution_time_per_iteration')
-    print(stats_execution_time)
+    # stats_execution_time = c.stats_simulations(path, 'mpc_execution_time_per_iteration', 'nn_execution_time_per_iteration')
+    # print(stats_execution_time)
