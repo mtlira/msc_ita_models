@@ -188,8 +188,8 @@ class TrajectoryHandler(object):
     
     def generate_circle_xy_trajectories(self):
         short_radius_vector = np.arange(1, 5, 1)
-        long_radius_vector = np.arange(5, 10, 1)
-        short_period_vector = np.arange(2, 8, 1)
+        long_radius_vector = np.arange(5, 10, 0.5)
+        short_period_vector = np.arange(1, 8, 1)
         long_period_vector = np.arange(10, 15, 1)
 
         w_short_vector = 2*np.pi/short_period_vector
@@ -244,11 +244,8 @@ class TrajectoryHandler(object):
     def generate_lissajous_xy_trajectories(self):
         short_radius_vector = np.arange(1, 5, 1)
         long_radius_vector = np.arange(5, 7, 1)
-        short_period_vector = np.arange(2, 8, 2)
-        long_period_vector = np.arange(10, 14, 2)
-
-        w_short_vector = 2*np.pi/short_period_vector
-        w_long_vector = 2*np.pi/long_period_vector
+        short_period_vector = np.arange(2, 8, 1)
+        long_period_vector = np.arange(10, 14, 1)
 
         args = []
 

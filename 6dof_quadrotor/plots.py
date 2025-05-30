@@ -9,17 +9,28 @@ class DataAnalyser(object):
     def __init__(self):
         self.dataset = None
 
-    def plot_states(self, X,t, X_lin = None, trajectory = None, u_vector = None, omega_vector = None, equal_scales=False, legend = [], save_path = None, plot = True):
+    def plot_states(self, X,t, X_lin = None, trajectory = None, u_vector = None, omega_vector = None, equal_scales=False, legend = [], save_path = None, plot = True, pdf=False):
+        #temp
+        file_extension = '.pdf' if pdf else '.png'
+
+        #if X_lin is not None: self.plot_xyz(X,t,X_lin,trajectory,legend, save_path)
         handles = []
+        #plt.rcParams.update({'font.size': 8})
+        adjust_top = 0.78
         #plt.tight_layout()
         # Rotation
-        fig, axs = plt.subplots(2, 3)
+        col3_width = 7
+        col3_height = 6
+        plt.rcParams.update({'font.family': 'serif'})
+        plt.rcParams.update({'font.size': 13})
+        fig, axs = plt.subplots(2, 3, figsize=(col3_width, col3_height), sharex=True)
         axs[0,0].plot(t,X[:,0])
         if X_lin is not None: axs[0,0].plot(t,X_lin[:,0])
         if trajectory is not None: axs[0,2].plot(np.nan, np.nan, 'g--')
         axs[0,0].set_title('$\\phi(t)$')
         axs[0,0].set_xlabel('t (s)')
         axs[0,0].set_ylabel('$\\phi (rad)$')
+        axs[0,0].grid()
 
         axs[0,1].plot(t,(-1)*X[:,1])
         if X_lin is not None: axs[0,1].plot(t,(-1)*X_lin[:,1])
@@ -27,6 +38,7 @@ class DataAnalyser(object):
         axs[0,1].set_title('$\\theta(t)$')
         axs[0,1].set_xlabel('t (s)')
         axs[0,1].set_ylabel('$\\theta (rad)$')
+        axs[0,1].grid()
 
         axs[0,2].plot(t,(-1)*X[:,2])
         if X_lin is not None: axs[0,2].plot(t,(-1)*X_lin[:,2])
@@ -34,6 +46,7 @@ class DataAnalyser(object):
         axs[0,2].set_title('$\\psi(t)$')
         axs[0,2].set_xlabel('t (s)')
         axs[0,2].set_ylabel('$\\psi$ (rad)')
+        axs[0,2].grid()
 
         axs[1,0].plot(t,X[:,3])
         if X_lin is not None: axs[1,0].plot(t,X_lin[:,3])
@@ -41,6 +54,7 @@ class DataAnalyser(object):
         axs[1,0].set_title('p(t)')
         axs[1,0].set_xlabel('t (s)')
         axs[1,0].set_ylabel('p (rad/s)')
+        axs[1,0].grid()
 
         axs[1,1].plot(t,(-1)*X[:,4])
         if X_lin is not None: axs[1,1].plot(t,(-1)*X_lin[:,4])
@@ -48,6 +62,8 @@ class DataAnalyser(object):
         axs[1,1].set_title('q(t)')
         axs[1,1].set_xlabel('t (s)')
         axs[1,1].set_ylabel('q (rad/s)')
+        axs[1,1].grid()
+
 
         axs[1,2].plot(t,(-1)*X[:,5])
         if X_lin is not None: axs[1,2].plot(t,(-1)*X_lin[:,5])
@@ -55,24 +71,27 @@ class DataAnalyser(object):
         axs[1,2].set_title('r(t)')
         axs[1,2].set_xlabel('t (s)')
         axs[1,2].set_ylabel('r (rad/s)')
-        fig.legend(legend if trajectory is None else legend[:-1]) # Because there is no reference in angle values
+        axs[1,2].grid()
+        fig.legend(legend if trajectory is None else legend[:-1], loc='upper center', bbox_to_anchor=(0.5, 1)) # Because there is no reference in angle values
         #plt.subplots_adjust(left=0.083, bottom=0.083, right=0.948, top=0.914, wspace=0.23, hspace=0.31)
         fig.tight_layout()
+        fig.subplots_adjust(top=adjust_top)
         if save_path is not None: 
-            plt.savefig(save_path + 'x_angular.png')
+            plt.savefig(save_path + f'x_angular{file_extension}')
             for ax in axs.reshape(-1): ax.cla()
             plt.close(fig)
             del fig
             del axs
 
         # Translation
-        fig, axs = plt.subplots(2, 3)
+        fig, axs = plt.subplots(2, 3, figsize=(col3_width, col3_height), sharex=True)
         axs[0,0].plot(t,X[:,6])
         if X_lin is not None: axs[0,0].plot(t,X_lin[:,6])
         if trajectory is not None: axs[0,2].plot(np.nan, np.nan, 'g--')
         axs[0,0].set_title('u(t)')
         axs[0,0].set_xlabel('t (s)')
         axs[0,0].set_ylabel('u (m/s)')
+        axs[0,0].grid()
 
         axs[0,1].plot(t,(-1)*X[:,7])
         if X_lin is not None: axs[0,1].plot(t,(-1)*X_lin[:,7])
@@ -80,6 +99,7 @@ class DataAnalyser(object):
         axs[0,1].set_title('v(t)')
         axs[0,1].set_xlabel('t (s)')
         axs[0,1].set_ylabel('v (m/s)')
+        axs[0,1].grid()
 
         axs[0,2].plot(t,(-1)*X[:,8])
         if X_lin is not None: axs[0,2].plot(t,(-1)*X_lin[:,8])
@@ -87,6 +107,7 @@ class DataAnalyser(object):
         axs[0,2].set_title('w(t)')
         axs[0,2].set_xlabel('t (s)')
         axs[0,2].set_ylabel('w (m/s)')
+        axs[0,2].grid()
 
         handles.append(axs[1,0].plot(t,X[:,9])[0])
         if X_lin is not None: handles.append(axs[1,0].plot(t,X_lin[:,9])[0])
@@ -94,6 +115,7 @@ class DataAnalyser(object):
         axs[1,0].set_title('x(t)')
         axs[1,0].set_xlabel('t (s)')
         axs[1,0].set_ylabel('x (m)')
+        axs[1,0].grid()
 
         axs[1,1].plot(t,(-1)*X[:,10])
         if X_lin is not None: axs[1,1].plot(t,(-1)*X_lin[:,10])
@@ -101,6 +123,7 @@ class DataAnalyser(object):
         axs[1,1].set_title('y(t)')
         axs[1,1].set_xlabel('t (s)')
         axs[1,1].set_ylabel('y (m)')
+        axs[1,1].grid()
 
         axs[1,2].plot(t,(-1)*X[:,11])
         if X_lin is not None: axs[1,2].plot(t,(-1)*X_lin[:,11])
@@ -108,6 +131,7 @@ class DataAnalyser(object):
         axs[1,2].set_title('z(t)')
         axs[1,2].set_xlabel('t (s)')
         axs[1,2].set_ylabel('z (m)')
+        axs[1,2].grid()
 
         for i in range(len(handles)):
             handles[i] = mlines.Line2D([], [],
@@ -115,13 +139,15 @@ class DataAnalyser(object):
                                     linestyle=handles[i].get_linestyle(),
                                     label=f'c{i+1}' if i >= len(legend) else legend[i])
         
-        fig.legend(handles=handles)
+        fig.legend(handles=handles, loc='upper center', bbox_to_anchor=(0.5, 1.0))
         fig.tight_layout()
+        fig.subplots_adjust(top=adjust_top)
+        #fig.subplots_adjust(right=0.95, hspace=0.5)
         #plt.subplots_adjust(left=0.083, bottom=0.083, right=0.948, top=0.914, wspace=0.23, hspace=0.31)
 
 
         if save_path is not None: 
-            plt.savefig(save_path + 'x_linear.png')
+            plt.savefig(save_path + f'x_linear{file_extension}')
             for ax in axs.reshape(-1): ax.cla()
             plt.close(fig)
             del fig
@@ -135,24 +161,34 @@ class DataAnalyser(object):
         axs.set_xlabel('x (m)')
         axs.set_ylabel('y (m)')
         axs.set_zlabel('z (m)')
-        axs.set_title('3D Plot')
+        #axs.set_title('3D Plot')
         fig.legend(handles=handles)
+        axs.grid()
+        fig.tight_layout()
         if equal_scales: axs.set_aspect('equal', adjustable='box')
 
 
         if save_path is not None: 
-            plt.savefig(save_path + '3D.png')
+            plt.savefig(save_path + f'3D{file_extension}')
             axs.cla()
             plt.close(fig)
             del fig
             del axs
 
         if trajectory is not None: legend = legend[:-1]
-        self.plot_inputs(u_vector, t, legend, omega_vector, save_path)
+        self.plot_inputs(u_vector, t, legend, omega_vector, save_path, pdf)
         if plot: plt.show()
         plt.close('all')
 
-    def plot_inputs(self, u_vector, t, legend, omega_vector = None, save_path=None):
+    def plot_inputs(self, u_vector, t, legend, omega_vector = None, save_path=None, pdf=False):
+        file_extension = '.pdf' if pdf else '.png'
+
+        unify_omega_plots = True
+        col2_width = 7
+        col2_height = 5
+        col3_width = 7
+        col3_height = 6
+        adjust_top = 0.79
         t = t[0:-1]
         handles = []
         if len(omega_vector[0]) <= 8: # It is a single input vector
@@ -162,26 +198,30 @@ class DataAnalyser(object):
             u_list = u_vector
             omega_list = omega_vector
 
-        fig, axs = plt.subplots(2, 2)
+        fig, axs = plt.subplots(2, 2,  figsize=(col2_width, col2_height))
         for u in u_list: handles.append(axs[0,0].step(t,u[:,0])[0])
         axs[0,0].set_title('f_t (t)')
         axs[0,0].set_ylabel('f_t (N)')
         axs[0,0].set_xlabel('t (s)')
+        axs[0,0].grid()
 
         for u in u_list: axs[0,1].step(t,u[:,1])
         axs[0,1].set_title('$\\tau_x (t)$')
         axs[0,1].set_ylabel('$\\tau_x (N.m)$')
         axs[0,1].set_xlabel('t (s)')
+        axs[0,1].grid()
 
         for u in u_list: axs[1,0].step(t,u[:,2])
         axs[1,0].set_title('$\\tau_y (t)$')
         axs[1,0].set_ylabel('$\\tau_y (N.m)$')
         axs[1,0].set_xlabel('t (s)')
+        axs[1,0].grid()
 
         for u in u_list: axs[1,1].step(t,u[:,3])
         axs[1,1].set_title('$\\tau_z (t)$')
         axs[1,1].set_ylabel('$\\tau_z (N.m)$')
         axs[1,1].set_xlabel('t (s)')
+        axs[1,1].grid()
 
         for i in range(len(handles)):
             handles[i] = mlines.Line2D([], [],
@@ -189,79 +229,103 @@ class DataAnalyser(object):
                                     linestyle=handles[i].get_linestyle(),
                                     label=f'c{i+1}' if i >= len(legend) else legend[i])
         
-        fig.legend(handles=handles)
+        fig.legend(handles=handles, loc='upper center', bbox_to_anchor=(0.5, 1))
 
         fig.tight_layout()
+        fig.subplots_adjust(top=adjust_top)
+
         #plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
 
 
         if save_path is not None: 
-            plt.savefig(save_path + 'inputs-forces.png')
+            plt.savefig(save_path + f'inputs-forces{file_extension}')
             for ax in axs.reshape(-1): ax.cla()
             plt.close(fig)
             del fig
             del axs
 
-        if omega_vector is not None:
-            fig, axs = plt.subplots(2, 2)
-            for omega in omega_list: axs[0,0].step(t,omega[:,0])
-            axs[0,0].set_title('$\\omega_1 (t)$')
-            axs[0,0].set_ylabel('$\\omega_1 (rad/s)$')
-            axs[0,0].set_xlabel('t (s)')
-
-            for omega in omega_list: axs[0,1].step(t,omega[:,1])
-            axs[0,1].set_title('$\\omega_2 (t)$')
-            axs[0,1].set_ylabel('$\\omega_2 (rad/s)$')
-            axs[0,1].set_xlabel('t (s)')
-
-            for omega in omega_list: axs[1,0].step(t,omega[:,2])
-            axs[1,0].set_title('$\\omega_3 (t)$')
-            axs[1,0].set_ylabel('$\\omega_3 (rad/s)$')
-            axs[1,0].set_xlabel('t (s)')
-
-            for omega in omega_list: axs[1,1].step(t,omega[:,3])
-            axs[1,1].set_title('$\\omega_4 (t)$')
-            axs[1,1].set_ylabel('$\\omega_4 (rad/s)$')
-            axs[1,1].set_xlabel('t (s)')
-        
-            fig.legend(handles=handles)
-
+        if unify_omega_plots:
+            fig, axs = plt.subplots(4,2, figsize=(col2_width, col2_width))
+            for i, ax in enumerate(axs.flatten()):
+                for omega in omega_list: ax.step(t,omega[:,i])
+                ax.set_title(f'$\\omega_{i+1} (t)$')
+                ax.set_ylabel(f'$\\omega_{i+1} (rad/s)$')
+                ax.set_xlabel('t (s)')
+                ax.grid()
+            fig.legend(handles=handles, loc='upper center', bbox_to_anchor=(0.5, 1))
             fig.tight_layout()
-            #plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
-            
-
+            fig.subplots_adjust(top=0.85)
             if save_path is not None: 
-                plt.savefig(save_path + 'inputs-rotors1.png')
+                plt.savefig(save_path + f'inputs-rotors{file_extension}')
                 for ax in axs.reshape(-1): ax.cla()
                 plt.close(fig)
                 del fig
                 del axs
-
-            if np.shape(omega_list[0])[1] == 8:
-                fig, axs = plt.subplots(2, 2)
-                for omega in omega_list: axs[0,0].step(t,omega[:,4])
-                axs[0,0].set_title('$\\omega_5 (t)$')
-                axs[0,0].set_ylabel('$\\omega_5 (rad/s)$')
+        else:
+            if omega_vector is not None:
+                fig, axs = plt.subplots(2, 2, figsize=(col2_width, col2_height))
+                for omega in omega_list: axs[0,0].step(t,omega[:,0])
+                axs[0,0].set_title('$\\omega_1 (t)$')
+                axs[0,0].set_ylabel('$\\omega_1 (rad/s)$')
                 axs[0,0].set_xlabel('t (s)')
 
-                for omega in omega_list: axs[0,1].step(t,omega[:,5])
-                axs[0,1].set_title('$\\omega_6 (t)$')
-                axs[0,1].set_ylabel('$\\omega_6 (rad/s)$')
+                for omega in omega_list: axs[0,1].step(t,omega[:,1])
+                axs[0,1].set_title('$\\omega_2 (t)$')
+                axs[0,1].set_ylabel('$\\omega_2 (rad/s)$')
                 axs[0,1].set_xlabel('t (s)')
 
-                for omega in omega_list: axs[1,0].step(t,omega[:,6])
-                axs[1,0].set_title('$\\omega_7 (t)$')
-                axs[1,0].set_ylabel('$\\omega_7 (rad/s)$')
+                for omega in omega_list: axs[1,0].step(t,omega[:,2])
+                axs[1,0].set_title('$\\omega_3 (t)$')
+                axs[1,0].set_ylabel('$\\omega_3 (rad/s)$')
                 axs[1,0].set_xlabel('t (s)')
 
-                for omega in omega_list: axs[1,1].step(t,omega[:,7])
-                axs[1,1].set_title('$\\omega_8 (t)$')
-                axs[1,1].set_ylabel('$\\omega_8 (rad/s)$')
+                for omega in omega_list: axs[1,1].step(t,omega[:,3])
+                axs[1,1].set_title('$\\omega_4 (t)$')
+                axs[1,1].set_ylabel('$\\omega_4 (rad/s)$')
                 axs[1,1].set_xlabel('t (s)')
-
-                fig.legend(handles=handles)
+            
+                fig.legend(handles=handles, loc='upper center', bbox_to_anchor=(0.5, 1))
 
                 fig.tight_layout()
+                fig.subplots_adjust(top=adjust_top)
+
+                #plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
+                
+
+                if save_path is not None: 
+                    plt.savefig(save_path + 'inputs-rotors1.png')
+                    for ax in axs.reshape(-1): ax.cla()
+                    plt.close(fig)
+                    del fig
+                    del axs
+
+                if np.shape(omega_list[0])[1] == 8:
+                    fig, axs = plt.subplots(2, 2, figsize=(col2_width, col2_height))
+                    for omega in omega_list: axs[0,0].step(t,omega[:,4])
+                    axs[0,0].set_title('$\\omega_5 (t)$')
+                    axs[0,0].set_ylabel('$\\omega_5 (rad/s)$')
+                    axs[0,0].set_xlabel('t (s)')
+
+                    for omega in omega_list: axs[0,1].step(t,omega[:,5])
+                    axs[0,1].set_title('$\\omega_6 (t)$')
+                    axs[0,1].set_ylabel('$\\omega_6 (rad/s)$')
+                    axs[0,1].set_xlabel('t (s)')
+
+                    for omega in omega_list: axs[1,0].step(t,omega[:,6])
+                    axs[1,0].set_title('$\\omega_7 (t)$')
+                    axs[1,0].set_ylabel('$\\omega_7 (rad/s)$')
+                    axs[1,0].set_xlabel('t (s)')
+
+                    for omega in omega_list: axs[1,1].step(t,omega[:,7])
+                    axs[1,1].set_title('$\\omega_8 (t)$')
+                    axs[1,1].set_ylabel('$\\omega_8 (rad/s)$')
+                    axs[1,1].set_xlabel('t (s)')
+
+                    fig.legend(handles=handles, loc='upper center', bbox_to_anchor=(0.5, 1))
+
+                    fig.tight_layout()
+                    fig.subplots_adjust(top=adjust_top)
+
                 #plt.subplots_adjust(left=0.125, bottom=0.071, right=0.921, top=0.96, wspace=0.195, hspace=0.279)
 
                 if save_path is not None: 
@@ -270,6 +334,35 @@ class DataAnalyser(object):
                     plt.close(fig)
                     del fig
                     del axs
+
+    def plot_xyz(self, X,t, X_lin, trajectory, legend, save_path):
+        plt.rcParams.update({'font.size': 8})
+        adjust_top = 0.84
+        col3_width = 7
+        col3_height = 5
+        fig, axs = plt.subplots(1,3,figsize=(col3_width, col3_height), sharex=True)
+
+        title = ['x(t)', 'y(t)', 'z(t)']
+        ylabel = ['x (m)', 'y (m)', 'z (m)']
+
+        for i, ax in enumerate(axs.flatten()):
+            ax.plot(t,X[:,9+i])
+            ax.plot(t,X_lin[:,9+i])
+            ax.plot(t, trajectory[:,i], 'g--')
+            ax.set_title(title[i])
+            ax.set_xlabel('t (s)')
+            ax.set_ylabel(ylabel[i])
+        fig.legend(legend, loc='upper center', bbox_to_anchor=(0.5, 1.0))
+        fig.tight_layout()
+        fig.subplots_adjust(top=adjust_top)
+        if save_path is not None: 
+            plt.savefig(save_path + 'xyz.pdf')
+            for ax in axs.reshape(-1): ax.cla()
+            plt.close(fig)
+            del fig
+            del axs
+        
+
 
     def load_datasets(self, mother_folder_path):
         for subdir, _, files in os.walk(mother_folder_path):
@@ -299,10 +392,15 @@ class DataAnalyser(object):
         plt.tight_layout()
         plt.show()
 
-    def plot_histogram(self, df, column_1, column_2, x_label, title, legend, normalization_column = None, colors=['royalblue','darkorange']):
+    def plot_histogram(self, df, column_1, column_2, x_label, title, legend, normalization_column = None, colors=['royalblue','darkorange'], save_name = None, show_mean = True, percentile_2=None, gain = 1):
 
         data_1 = df[column_1]
         data_2 = df[column_2]
+
+        if percentile_2 is not None:
+            df = df.sort_values(column_2, axis=0, ascending=True)
+            p_idx_2 = round(percentile_2*len(df))
+            x_percentile_2 = df.iloc[p_idx_2][column_2]
         
         if normalization_column is not None:
             if isinstance(normalization_column, str):
@@ -312,28 +410,39 @@ class DataAnalyser(object):
                 for column in normalization_column:
                     data_1 = data_1 / df[column]
                     data_2 = data_2 / df[column]
+            
+        data_1 *= gain
+        data_2 *= gain
 
         min_value = np.min([np.min(data_1), np.min(data_2)])
         max_value = np.max([np.max(data_1), np.max(data_2)])
-        bins = np.linspace(min_value, max_value, 40)
+        bins = np.linspace(min_value, max_value, 35)
 
 
         plt.figure(figsize=(8,5))
         sns.histplot(data_1, bins=bins, color=colors[0], label=legend[0], kde=True, stat='density', alpha=0.6)
         sns.histplot(data_2, bins=bins, color=colors[1], label=legend[1], kde=True, stat='density', alpha=0.6)
-        plt.axvline(np.mean(data_1), color=colors[0], linestyle='--', linewidth=2)
-        plt.axvline(np.mean(data_2), color=colors[1], linestyle='--', linewidth=1.5)
+        if show_mean:
+            plt.axvline(np.mean(data_1), color=colors[0], linestyle='--', linewidth=2)
+            plt.axvline(np.mean(data_2), color=colors[1], linestyle='--', linewidth=1.5)
+
+        if percentile_2 is not None:
+            x_min, x_max = plt.xlim()
+            plt.axvline(x_percentile_2, color=colors[1], linestyle='--', linewidth=2)
+            plt.text(x_percentile_2 + 0.01*(x_max - x_min), plt.ylim()[1]*0.9, f'Percentile {int(100*percentile_2)}%', rotation=90,va='top', ha='left', color=colors[1], fontsize=13)
+
         if 'execution_time' in column_1 and 'num_iterations' in normalization_column:
             from parameters.simulation_parameters import T_sample
-            plt.axvline(T_sample, color='black', linestyle='--', linewidth=2)
+            plt.axvline(T_sample*gain, color='black', linestyle='--', linewidth=2)
             x_min, x_max = plt.xlim()
-            plt.text(T_sample + 0.01*(x_max - x_min), plt.ylim()[1]*0.9, 'Time sample', rotation=90,va='top', ha='left', color='black')
-        plt.xlabel(x_label, fontsize=12)
-        plt.ylabel('Density', fontsize=12)
+            plt.text(T_sample*gain + 0.01*(x_max - x_min), plt.ylim()[1]*0.9, 'Sample Time', rotation=90,va='top', ha='left', color='black', fontsize=13)
+        plt.xlabel(x_label, fontsize=14)
+        plt.ylabel('Density', fontsize=14)
         plt.title(title, fontsize=14)
-        plt.legend(fontsize=12)
+        plt.legend(fontsize=14)
         plt.grid(True, linestyle='--', alpha=0.5)
         plt.tight_layout()
+        if save_name is not None: plt.savefig(f'plots/{save_name}')
         plt.show()
     
     def stats_simulations(self, df, mpc_column, nn_column):        
@@ -365,16 +474,17 @@ class DataAnalyser(object):
         return table
 
 
-    def plot_histogram_temp(self, df, column_1, x_label, title, normalization_column = None, colors=['royalblue','darkorange']):
+    def plot_histogram_temp(self, df, column_1, x_label, title, normalization_column = None, colors=['royalblue','darkorange'], save_name = None, show_mean = True, percentile=None):
         data_1 = df[column_1]
         df = df.sort_values('inter_position_RMSe', axis=0, ascending=True)
         
-        p75 = round(0.75*len(df))
-        p90 = round(0.9*len(df))
+        #p75 = round(0.75*len(df))
+        if percentile is not None: 
+            p_idx = round(percentile*len(df))
+            x_percentile = df.iloc[p_idx]['inter_position_RMSe']
 
-        x75 = df.iloc[p75]['inter_position_RMSe']
-        print('x75\n',x75)
-        x90 = df.iloc[p90]['inter_position_RMSe']
+        #x75 = df.iloc[p75]['inter_position_RMSe']
+        #print('x75\n',x75)
         
         if normalization_column is not None:
             if isinstance(normalization_column, str):
@@ -390,12 +500,13 @@ class DataAnalyser(object):
 
         plt.figure(figsize=(8,5))
         sns.histplot(data_1, bins=bins, color=colors[0], kde=True, stat='density', alpha=0.6)
-        plt.axvline(np.mean(data_1), color=colors[0], linestyle='--', linewidth=2)
+        if show_mean: plt.axvline(np.mean(data_1), color=colors[0], linestyle='--', linewidth=2)
         x_min, x_max = plt.xlim()
-        plt.axvline(x75, color='black', linestyle='--', linewidth=2)
-        plt.text(x75 + 0.01*(x_max - x_min), plt.ylim()[1]*0.9, 'Percentile 75%', rotation=90,va='top', ha='left', color='black')
-        plt.axvline(x90, color='black', linestyle='--', linewidth=2)
-        plt.text(x90 + 0.01*(x_max - x_min), plt.ylim()[1]*0.9, 'Percentile 90%', rotation=90,va='top', ha='left', color='black')
+        #plt.axvline(x75, color='black', linestyle='--', linewidth=2)
+        #plt.text(x75 + 0.01*(x_max - x_min), plt.ylim()[1]*0.9, 'Percentile 75%', rotation=90,va='top', ha='left', color='black')
+        if percentile is not None:
+            plt.axvline(x_percentile, color='black', linestyle='--', linewidth=2)
+            plt.text(x_percentile + 0.01*(x_max - x_min), plt.ylim()[1]*0.9, f'Percentile {int(100*percentile)}%', rotation=90,va='top', ha='left', color='black')
 
         if 'execution_time' in column_1 and 'num_iterations' in normalization_column:
             from parameters.simulation_parameters import T_sample
@@ -407,7 +518,9 @@ class DataAnalyser(object):
         plt.title(title, fontsize=14)
         plt.legend(fontsize=12)
         plt.grid(True, linestyle='--', alpha=0.5)
+        plt.legend(frameon=False)
         plt.tight_layout()
+        if save_name is not None: plt.savefig(f'plots/{save_name}')
         plt.show()
     
 
@@ -478,7 +591,7 @@ def quali_shm(X,t):
     ax.set_xlabel('x (m)')
     ax.set_ylabel('y (m)')
     ax.set_zlabel('z (m)')
-    ax.set_title('3D Plot')
+    #ax.set_title('3D Plot')
     plt.show()
 
 def quali_pid(X,t):
@@ -567,4 +680,4 @@ if __name__ == '__main__':
     # print(stats_rmse)
 
     # stats_execution_time = c.stats_simulations(path, 'mpc_execution_time_per_iteration', 'nn_execution_time_per_iteration')
-    # print(stats_execution_time)
+    # print(stats_execution_ti

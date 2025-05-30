@@ -974,7 +974,7 @@ class GainSchedulingMPC(object):
         #print(closest_phi_deg, closest_theta_deg)
         return self.linear_model[(closest_phi_deg, closest_theta_deg)]
 
-    def simulate_future_rotors(self, model, X0, t_samples, trajectory, generate_dataset = False, disturb_input = False):
+    def simulate_future_rotors(self, model, X0, t_samples, trajectory, gain_scheduling, generate_dataset = False, disturb_input = False):
         """
         Output of the MPC are the angular speeds that are the input of the multirotor.
         Takes into account future trajectory reference from trajectory[k] until trajectory[k+N-1]\n
@@ -1009,7 +1009,10 @@ class GainSchedulingMPC(object):
         waste_time = 0
         start_time = time.perf_counter()
         for k in range(0, len(t_samples)-1): # TODO: confirmar se é -1 mesmo:
-            linear_model = self.choose_model(x_k[0], x_k[1])
+            if gain_scheduling:
+                linear_model = self.choose_model(x_k[0], x_k[1])
+            else:
+                linear_model = self.linear_model[(0,0)]
             ref_N = trajectory[k:k+self.N].reshape(-1) # TODO validar se termina em k+N-1 ou em k+N
             if np.shape(ref_N)[0] < q*self.N:
                 ref_N = np.concatenate((ref_N, np.tile(trajectory[-1].reshape(-1), self.N - int(np.shape(ref_N)[0]/q))), axis = 0) # padding de trajectory[-1] em ref_N quando trajectory[k+N] ultrapassa ultimo elemento
@@ -1063,7 +1066,8 @@ class GainSchedulingMPC(object):
             u_k = u_k_minus_1 + delta_u_k # TODO: confirmar se tem esse u_eq
 
             # omega**2 --> u
-            omega_squared = np.clip(u_k + linear_model.u_ref, 0, None)
+            #omega_squared = np.clip(u_k + linear_model.u_ref, 0, None)
+            omega_squared = np.clip(u_k + linear_model.u_ref, a_min=0, a_max=np.clip(restriction['u_max'] + linear_model.u_ref, 0, None))
             omega_k = np.sqrt(omega_squared)
             uu_k = model.Gama @ omega_squared
 
@@ -1095,10 +1099,10 @@ class GainSchedulingMPC(object):
 
             waste_start_time = time.perf_counter()
 
-            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 10:# or np.max(np.abs(x_k[0:2])) > 2.5: #TODO: unificar criterio de saida para todos os metodos
-                print('Simulation exploded.')
-                print(f'x_{k} =',x_k)
-                return None, None, None, None, None
+            #if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 15:# or np.max(np.abs(x_k[0:2])) > 2.5: #TODO: unificar criterio de saida para todos os metodos
+            #    print('Simulation exploded.')
+            #    print(f'x_{k} =',x_k)
+            #    return None, None, None, None, None
                   
             X_vector.append(x_k)
             u_k_minus_1 = u_k
@@ -1120,7 +1124,7 @@ class GainSchedulingMPC(object):
                 ref_N_relative = ref_N_position - position_k
 
                 # Clarification: u is actually (u - ueq) and delta_u is (u-ueq)[k] - (u-ueq)[k-1] in this MPC formulation (i.e., u is in reference to u_eq, not 0)
-                NN_sample = np.concatenate((NN_sample, x_k_old[0:9], ref_N_relative, linear_model.restrictions['u_max'] + linear_model.u_ref, u_k), axis = 0) #TODO: depois, acrescentar restrições
+                NN_sample = np.concatenate((NN_sample, x_k_old[0:9], ref_N_relative, linear_model.restrictions['u_max'] + linear_model.u_ref, omega_squared), axis = 0) #TODO: depois, acrescentar restrições
 
                 NN_dataset.append(NN_sample)
 
@@ -1136,7 +1140,7 @@ class GainSchedulingMPC(object):
         position = X_vector[:, 9:]
         #delta_position = trajectory[:len(position),:3] - position
         #RMSe = np.sqrt(np.mean(delta_position**2))
-        RMSe = analyser.RMSe(position, trajectory[:len(position),:3])
+        RMSe = analyser.RMSe(position, trajectory[:len(X_vector),:3])
 
         #print('RMSe',RMSe, '\nWrong RMSe',RMSe_wrong)
 

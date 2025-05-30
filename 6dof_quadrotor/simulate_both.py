@@ -104,11 +104,11 @@ def simulate_mpc_nn(X0, multirotor_model, N, M, num_inputs, q_neuralnetwork, ome
             simulation_metadata[f'RMSe_u{i}'] = 'nan'
     
     dataset_dataframe = pd.concat([dataset_dataframe, pd.DataFrame(simulation_metadata)])
-    if dataset_id % 5 == 0: dataset_dataframe.to_csv(dataset_mother_folder + 'dataset_metadata.csv', sep=',', index=False)
+    if dataset_id % 1 == 0: dataset_dataframe.to_csv(dataset_mother_folder + 'dataset_metadata.csv', sep=',', index=False)
 
-    legend = ['Neural Network', 'MPC', 'Trajectory'] if x_mpc is not None else ['Neural Network', 'Trajectory']
-    if x_nn is not None: analyser.plot_states(x_nn, t_samples[:np.shape(x_nn)[0]], X_lin=x_mpc, trajectory=trajectory[:len(t_samples)], u_vector=[u_nn, u_mpc], omega_vector=[omega_nn, omega_mpc], legend=legend, equal_scales=True, save_path=simulation_save_path, plot=False)
-    else: analyser.plot_states(x_mpc, t_samples[:np.shape(x_mpc)[0]], trajectory=trajectory[:len(t_samples)], u_vector=[u_mpc], omega_vector=[omega_mpc], legend=['MPC', 'Trajectory'], equal_scales=True, save_path=simulation_save_path, plot=False)
+    legend = ['MPC', 'Neural Network', 'Trajectory'] if x_mpc is not None else ['Neural Network', 'Trajectory']
+    if x_nn is not None: analyser.plot_states(x_mpc, t_samples[:np.shape(x_nn)[0]], X_lin=x_nn, trajectory=trajectory[:len(t_samples)], u_vector=[u_mpc, u_nn], omega_vector=[omega_mpc, omega_nn], legend=legend, equal_scales=True, save_path=simulation_save_path, plot=False, pdf=True)
+    else: analyser.plot_states(x_mpc, t_samples[:np.shape(x_mpc)[0]], trajectory=trajectory[:len(t_samples)], u_vector=[u_mpc], omega_vector=[omega_mpc], legend=['MPC', 'Trajectory'], equal_scales=True, save_path=simulation_save_path, plot=False, pdf=True)
     
     dataset_id += 1
         
@@ -141,11 +141,8 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, disturb_in
     # Reset id
     dataset_id = 1
 
-
-
-
 if __name__ == '__main__':
-    nn_weights_folder = 'training_results/reasonable_trajectories_v1/'
+    nn_weights_folder = 'training_results/25-05-30-optunav2-one-example/'
     dataset_mother_folder = nn_weights_folder
     weights_file_name = 'model_weights_v2.pth'
     use_optuna_model = True
@@ -159,22 +156,25 @@ if __name__ == '__main__':
     analyser = DataAnalyser()
     rst = restriction_handler.Restriction(multirotor_model, T_sample, N, M)
 
-    run_circle_xy = True
-    run_circle_xz = True
+    run_circle_xy = False
+    run_circle_xz = False
     run_point = False
-    run_lissajous_xy = True
-    run_line = True
+    run_lissajous_xy = False
+    run_line = False
     run_circle_xy_performance = False
+    aiaa_fault_2rotors = False
+    one_example = True
 
     restriction_vector = [rst.restriction('normal')]
+    restriction_fault = [rst.restriction('total_failure', [0])]
 
     if run_circle_xy:
         args = tr.generate_circle_xy_trajectories()
-        simulate_batch('circle_xy', args, restriction_vector, False)
+        simulate_batch('circle_xy', args, restriction_vector, False, checkpoint_id=38)
 
-    if run_circle_xy_performance:
-        args = tr.generate_circle_xy_performance_analysis()
-        simulate_batch('circle_xy', args, restriction_vector, False)
+    #if run_circle_xy_performance:
+    #    args = tr.generate_circle_xy_performance_analysis()
+    #    simulate_batch('circle_xy', args, restriction_vector, False)
 
     if run_circle_xz:
         args = tr.generate_circle_xz_trajectories()
@@ -186,8 +186,23 @@ if __name__ == '__main__':
 
     if run_line:
         args = tr.generate_line_trajectories(50)
-        simulate_batch('line', args, restriction_vector, False)
+        simulate_batch('line', args, restriction_vector, False, checkpoint_id=6)
 
+    if aiaa_fault_2rotors:
+        restriction_fault = [rst.restriction('total_failure', [0])]
+        args = [[0, 0, 0, 15]]
+        simulate_batch('point', args, restriction_fault, disturb_input=False)
 
+    # Simulate one example only
+    if one_example:
+        #restriction_fault = [rst.restriction('total_failure', [0])]
+        #args = [[0, 0, -5, 20]]
+        #simulate_batch('point', args, restriction_fault, disturb_input = False)
+
+        args = [[2*np.pi/10, 5, 30]]
+        simulate_batch('lissajous_xy', args, restriction_fault, disturb_input = False)
+
+        #args_circle = [[2*np.pi/10, 3, 15]]
+        #simulate_batch('circle_xy', args_circle, restriction_vector, disturb_input = False)
 
     dataset_dataframe.to_csv(dataset_mother_folder + 'dataset_metadata.csv', sep=',', index=False)

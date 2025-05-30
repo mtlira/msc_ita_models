@@ -8,6 +8,7 @@ from torch.utils.data import Dataset, DataLoader
 from plots import DataAnalyser
 import time
 from scipy.integrate import odeint
+import pickle
 
 from parameters.octorotor_parameters import num_rotors
 
@@ -60,8 +61,17 @@ class ControlAllocationDataset_Binary(Dataset):
         print(f'\tLoaded {len(self.dataset)} samples')
         print(f'\tSample length: {len(self.dataset[0])}')
         print(f'\tDataset size: {self.dataset.nbytes / 1024**2} MB')
+        print('Interity check:')
+        for i in range(len(self.dataset)):
+            if len(self.dataset[i]) != len(self.dataset[0]):
+                print(f'corrupted row: i={i}, {len(self.dataset[i])} samples')
+        print('\t There are no corrupted data')
 
         self.normalize()
+        self.dataset = self.dataset.astype(np.float32)
+
+    def get_dataset(self):
+        return self.dataset
 
     def __len__(self):
         return len(self.dataset)
@@ -89,6 +99,26 @@ class ControlAllocationDataset_Binary(Dataset):
 
         self.dataset = (self.dataset - self.mean) / self.std
         #self.dataset = np.array([(row - self.mean) / self.std for row in self.dataset])
+
+class ControlAllocationDataset_Binary_Short(Dataset):
+    '''Class to be used if the total dataset is split into multiple CSV files\n
+    mother_folder_path: Path of the folder that contains all the CSV files that make up the total dataset'''
+    def __init__(self, dataset: np.ndarray, num_outputs):
+        self.dataset = dataset
+        print('Dataset type:', type(dataset), type(dataset[0]), type(dataset[0][0]))
+
+        self.num_outputs = num_outputs
+        self.num_inputs = len(self.dataset[0]) - num_outputs
+
+    def __len__(self):
+        return len(self.dataset)
+    
+    def __getitem__(self, idx):
+        input = self.dataset[idx, :self.num_inputs]
+        output = self.dataset[idx, self.num_inputs:]
+        dict = {'input': torch.from_numpy(input),
+                'output': torch.from_numpy(output)}
+        return dict
 
 class ControlAllocationDataset_Split(Dataset):
     '''Class to be used if the total dataset is split into multiple CSV files\n
@@ -191,7 +221,7 @@ class NeuralNetwork(nn.Module):
         logits = self.layer_stack(x)
         return logits
     
-class NeuralNetwork_optuna(nn.Module):
+class NeuralNetwork_optuna0(nn.Module): # First hyperparameter tuning version
     def __init__(self, num_inputs, num_outputs):
         super().__init__()
         self.layer_stack = nn.Sequential(
@@ -208,7 +238,7 @@ class NeuralNetwork_optuna(nn.Module):
         logits = self.layer_stack(x)
         return logits
     
-class NeuralNetwork_optuna2(nn.Module):
+class NeuralNetwork_optuna1(nn.Module): # Second hyperparameter tuning version
     def __init__(self, num_inputs, num_outputs):
         super().__init__()
         self.layer_stack = nn.Sequential(
@@ -220,6 +250,24 @@ class NeuralNetwork_optuna2(nn.Module):
             #nn.Dropout(0.21326313772325148),
             nn.Linear(in_features=1145, out_features = num_outputs)
         )
+
+class NeuralNetwork_optuna2(nn.Module): # Third hyperparameter tuning version
+    def __init__(self, num_inputs, num_outputs):
+        super().__init__()
+        self.layer_stack = nn.Sequential(
+            nn.Linear(in_features = num_inputs, out_features = 1276),
+            nn.LeakyReLU(negative_slope=0.036692291), # before: 0.01
+            #nn.Dropout(0.09382298344626222),
+            nn.Linear(in_features = 1276, out_features = 482),
+            nn.LeakyReLU(negative_slope=0.036692291),
+            #nn.Dropout(0.21326313772325148),
+            nn.Linear(in_features = 482, out_features = 77),
+            nn.LeakyReLU(negative_slope=0.036692291), # before: 0.01
+            nn.Linear(in_features=77, out_features = num_outputs)
+        )
+        self.optimizer = 'RMSprop'
+        self.opt_leaning_rate = 0.0001397094036
+        self.l2_lambda = 7.55128976623e-5
 
     def forward(self, x):
         logits = self.layer_stack(x)
@@ -297,6 +345,11 @@ class NeuralNetworkSimulator(object):
         execution_time = 0
         waste_time = 0
         start_time = time.perf_counter()
+
+        ## DEBUG (REMOVE LATER) ##
+        #min_omega_squared = np.inf
+        ## DEBUG (REMOVE LATER) ##
+
         for k in range(0, len(t_samples)-1): # TODO: confirmar se é -1 mesmo:
             # Mount input tensor to feed NN
             nn_input = np.array([])
@@ -336,14 +389,20 @@ class NeuralNetworkSimulator(object):
             std = normalization_df.iloc[1, self.num_inputs:]
             delta_omega_squared = mean + std*delta_omega_squared
 
+            ## DEBUG (REMOVE LATER) ##
+            #debug_omega_squared = omega_squared_eq + delta_omega_squared
+            #if np.min(debug_omega_squared) < min_omega_squared:
+            #    min_omega_squared = np.min(debug_omega_squared)
+            ## DEBUG (REMOVE LATER) ##
+
             # Applying multirotor restrictions
-            delta_omega_squared = np.clip(delta_omega_squared, restriction['u_min'], restriction['u_max'])
+            #delta_omega_squared = np.clip(delta_omega_squared, restriction['u_min'], restriction['u_max'])
             # TODO: Add restrição de rate change (ang acceleration)
             
             omega_squared = omega_squared_eq + delta_omega_squared
 
             # Fixing infinitesimal values out that violate the constraints
-            omega_squared = np.clip(omega_squared, a_min=0, a_max=restriction['u_max'] + omega_squared_eq)
+            omega_squared = np.clip(omega_squared, a_min=0, a_max=np.clip(restriction['u_max'] + omega_squared_eq, 0, None))
 
             # omega**2 --> u
             #print('omega_squared',omega_squared)
@@ -357,7 +416,7 @@ class NeuralNetworkSimulator(object):
             x_k = odeint(self.model.f2, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
             x_k = x_k[-1]
 
-            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 10: #or np.max(np.abs(x_k[0:2])) > 1.75:
+            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 100: #or np.max(np.abs(x_k[0:2])) > 1.75:
                 print('Simulation exploded.')
                 print(f'x_{k} =',x_k)
 
@@ -389,6 +448,9 @@ class NeuralNetworkSimulator(object):
             waste_time += waste_end_time - waste_start_time
         
         end_time = time.perf_counter()
+
+        ## DEBUG (REMOVE LATER) ##
+        #print('min omega squared',min_omega_squared)
 
         X_vector = np.array(X_vector)
         RMSe = analyser.RMSe(X_vector[:, 9:], trajectory[:len(X_vector), :3])
@@ -436,7 +498,7 @@ if __name__ == '__main__':
     pass
     #Teste
     #teste = ControlAllocationDataset_Split('teste/', False, num_rotors)
-    teste = ControlAllocationDataset_Binary('simulations/04_27_00h-26m/', False, num_rotors)
+    teste = ControlAllocationDataset_Binary('../Datasets/Training datasets - v1', False, num_rotors)
     print('first sample\n',teste.__getitem__(0))
     print(teste.num_inputs,teste.num_outputs)
 
