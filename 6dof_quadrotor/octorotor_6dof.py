@@ -42,6 +42,8 @@ X_eq = np.zeros(12)
 
 trajectory_type = 'circle_xy'
 
+analyser = DataAnalyser()
+
 # Open-loop Inputs
 def u_(t):
     return [1*m*g, 0, 0, 0]
@@ -245,7 +247,7 @@ x_mpc_rotors, u_rotors, omega_vector, NN_dataset, _ = MPC2.simulate_future_rotor
 
 if x_mpc_rotors is not None:
     #plot_states(X_mpc_nonlinear_future, t_samples[:np.shape(x_mpc_rotors)[0]], x_mpc_rotors, r_tracking, u_rotors, omega_vector, equal_scales=True, legend=['Force/Moment optimization','Angular speed optimization'])
-    plot_states(x_mpc_rotors, t_samples[:len(x_mpc_rotors)], trajectory=r_tracking[:len(x_mpc_rotors)], u_vector=u_rotors, omega_vector=omega_vector, equal_scales=True, legend=['Force/Moment optimization'])
+    analyser.plot_states(x_mpc_rotors, t_samples[:len(x_mpc_rotors)], trajectory=r_tracking[:len(x_mpc_rotors)], u_vector=u_rotors, omega_vector=omega_vector, equal_scales=True, legend=['Force/Moment optimization'])
 
     save_dataset = str(input('Do you wish to save the generated simulation dataset? (y/n): '))
     if save_dataset == 'y':

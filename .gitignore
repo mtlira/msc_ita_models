@@ -5,4 +5,6 @@ simulations/
 dataset_canon/
 calculadora.py
 teste/
+**/comparative_simulations/
+aiaa_test/
 training_results/**
