@@ -42,10 +42,14 @@ class TrajectoryHandler(object):
 
         return r_line            
     
-    def circle_xy(self, w, r, T_simulation,include_psi_reference = True, include_phi_theta_reference = True):
+    def circle_xy(self, w, r, T_simulation, include_psi_reference = True, include_phi_theta_reference = True):
+        signal_r = np.random.choice([1,-1])
+        r = signal_r*r
+        signal_w = np.random.choice([1,-1])
+        w = signal_w*w
         t = np.arange(0, T_simulation, T_sample)
         r_circle_xy = np.array([r*np.sin(w*t),
-                       (r - r*np.cos(w*t)),
+                       -r + r*np.cos(w*t),
                        np.zeros(len(t)),
                        0*t,
                        0*t,
@@ -60,11 +64,15 @@ class TrajectoryHandler(object):
 
         return r_circle_xy
     
-    def circle_xz(self, w, r, T_simulation,include_psi_reference = True, include_phi_theta_reference = True):
+    def circle_xz(self, w, r, T_simulation, include_psi_reference = True, include_phi_theta_reference = True):
+        signal_r = np.random.choice([1,-1])
+        r = signal_r*r
+        signal_w = np.random.choice([1,-1])
+        w = signal_w*w
         t = np.arange(0, T_simulation, T_sample)
         r_circle_xz = np.array([r*np.sin(w*t),
                         np.zeros(len(t)),
-                        (r - r*np.cos(w*t)),
+                        -r + r*np.cos(w*t),
                         0*t,
                         0*t,
                         0*t
@@ -79,9 +87,13 @@ class TrajectoryHandler(object):
         return r_circle_xz
     
     def lissajous_xy(self, w, r, T_simulation,include_psi_reference = True, include_phi_theta_reference = True):
+        signal_r = np.random.choice([1,-1])
+        r = signal_r*r
+        signal_w = np.random.choice([1,-1])
+        w = signal_w*w
         t = np.arange(0, T_simulation, T_sample)
-        r_lissajous_xy = np.array([r*np.sin(-w*t + np.pi/2) - r,
-                       (r*np.sin(-2/3*w*t)),
+        r_lissajous_xy = np.array([r*np.sin(w*t + np.pi/2) - r,
+                       (r*np.sin(2/3*w*t)),
                        np.zeros(len(t)),
                        0*t,
                        0*t,
@@ -126,8 +138,8 @@ class TrajectoryHandler(object):
 
         return r_helicoidal
     
-    def generate_trajectory(self, trajectory_type, args, include_psi_reference = True, include_phi_theta_reference = True):
-        if trajectory_type == 'point':
+    def generate_trajectory(self, trajectory_type, args, include_psi_reference, include_phi_theta_reference):
+        if trajectory_type in ['point', 'point_failure']:
             return self.point(args[0], args[1], args[2], args[3], include_psi_reference, include_phi_theta_reference)
         
         if trajectory_type == 'line':
@@ -169,10 +181,14 @@ class TrajectoryHandler(object):
         points_vector.append(np.array([0.0,0.0,0.0, T_simulation]))
         points_vector.append(np.array([0.0,0.0,1.0, T_simulation]))
         points_vector.append(np.array([0.0,0.0,-1.0, T_simulation]))
+        points_vector.append(np.array([0.0,0.0,-5.0, T_simulation]))
+        points_vector.append(np.array([0.0,0.0,-10.0, T_simulation]))
+        points_vector.append(np.array([0.0,0.0,-20.0, T_simulation]))
+        points_vector.append(np.array([0.0,0.0,-25.0, T_simulation]))
         points_vector.append(np.array([0.0,0.0,2.0, T_simulation]))
         points_vector.append(np.array([0.0,0.0,-2.0, T_simulation]))
         points_vector.append(np.array([0.0,0.0,5.0, T_simulation]))
-        points_vector.append(np.array([0.0,0.0,-5.0, T_simulation]))
+        points_vector.append(np.array([0.0,0.0,-15.0, T_simulation]))
         points_vector.append(np.array([1.0,0.0,0.0, T_simulation]))
         points_vector.append(np.array([-1.0,0.0,0.0, T_simulation]))
         points_vector.append(np.array([0.0,1.0,0.0, T_simulation]))
@@ -180,7 +196,7 @@ class TrajectoryHandler(object):
 
         # Random points
         for i in range(point_numbers - len(points_vector)):
-            point = 6*np.random.rand(3) - 3 # Random point inside sphere of 3m radius centered in (0,0,0)
+            point = 30*np.random.rand(3) - 15 # Random point inside sphere of 15m radius centered in (0,0,0)
             point = np.concatenate((point, [T_simulation]), axis = 0)
             points_vector.append(point)
         
@@ -234,17 +250,17 @@ class TrajectoryHandler(object):
 
 
     def generate_line_trajectories(self, num_lines):
-        coefficients = 8*np.random.rand(num_lines, 3) - 4
-        clamp = 5*np.random.rand(num_lines, 1) + 10
-        T_simulation = 25*np.ones((num_lines, 1))
+        coefficients = 10*np.random.rand(num_lines, 3) - 5
+        clamp = 10*np.random.rand(num_lines, 1) + 20
+        T_simulation = 35*np.ones((num_lines, 1))
 
         args = np.concatenate((coefficients, clamp, T_simulation), axis = 1)
         return args
     
     def generate_lissajous_xy_trajectories(self):
-        short_radius_vector = np.arange(1, 5, 1)
-        long_radius_vector = np.arange(5, 7, 1)
-        short_period_vector = np.arange(2, 8, 1)
+        short_radius_vector = np.arange(1, 5, 0.5)
+        long_radius_vector = np.arange(5, 10, 1)
+        short_period_vector = np.arange(1, 9, 1)
         long_period_vector = np.arange(10, 14, 1)
 
         args = []

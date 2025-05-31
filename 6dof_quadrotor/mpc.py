@@ -33,9 +33,9 @@ class MPC(object):
         #print('flag2', restrictions['y_max'])
 
         if not include_phi_theta_reference:
-            _restrictions['y_max'] = _restrictions['y_max'][:-2]
-            _restrictions['y_min'] = _restrictions['y_min'][:-2]
-            _output_weights =  _output_weights[:-2]
+            _restrictions['y_max'] = np.delete(_restrictions['y_max'], (3,4), axis = 0)
+            _restrictions['y_min'] = np.delete(_restrictions['y_min'], (3,4), axis = 0)
+            _output_weights =  np.delete(_output_weights, (3,4), axis = 0)
             _C = np.delete(_C, (3,4), axis = 0)
         #print('flag3', restrictions['y_max'])
 
@@ -43,6 +43,10 @@ class MPC(object):
         self.control_weights = control_weights
         self.restrictions = _restrictions
         self.C = _C
+
+        #print('Check:')
+        #print('restrictions[y_max] =\n', _restrictions['y_max'])
+        #print('C =\n', _C)
 
         # p - Number of controls
         # q - Number of outputs
@@ -85,6 +89,11 @@ class MPC(object):
         for i in range(2, self.N+1):
             phi = np.concatenate((phi, C_tilda @ np.linalg.matrix_power(A_tilda, i)), axis = 0)
 
+        # 2.5 phi_state
+        phi_state = A_tilda
+        for i in range(2, self.N+1):
+            phi_state = np.concatenate((phi_state, np.linalg.matrix_power(A_tilda, i)), axis = 0)
+
         # 3. Initialize G
         # First column
         column = C_tilda @ B_tilda
@@ -97,6 +106,43 @@ class MPC(object):
             column = np.roll(column, q, axis = 0)
             column[0:q,0:p] = np.zeros((q,p))
             G = np.concatenate((G, column), axis = 1)
+
+        # 3.5 - State restriction G_state
+        # First column
+        column = B_tilda
+        for i in range(1,self.N):
+            column = np.concatenate((column, np.linalg.matrix_power(A_tilda, i) @ B_tilda), axis = 0)
+
+        # Other columns
+        G_state = np.array(column, copy = True)
+        for i in range(1, self.M):
+            column = np.roll(column, (n_x + p), axis = 0)
+            column[0:n_x + p,0:p] = np.zeros((n_x + p, p))
+            G_state = np.concatenate((G_state, column), axis = 1)
+
+        # Y_state
+        Y_state = np.zeros((3, n_x + p))
+        Y_state[0][0] = 1
+        Y_state[1][1] = 1
+        Y_state[2][2] = 1
+
+        #print('dim Y_state block = ',np.shape(Y_state))
+
+        # First column
+        column = np.zeros((3*self.N, n_x + p))
+        column[0:3,:] = np.array(Y_state, copy = True)
+
+        # Other columns
+        Y_state = np.array(column, copy = True)
+        for i in range(1, self.N):
+            column = np.roll(column, 3, axis = 0)
+            #column[0:q,0:p] = np.zeros((q,p))
+            Y_state = np.concatenate((Y_state, column), axis = 1)
+        #####
+
+        #print('dim Y_state global =',np.shape(Y_state))
+        #print('dim G_state =', np.shape(G_state))
+        #print('dim G =', np.shape(G))
 
         # 4. Initialize Q and R
         Q = np.diag(np.full(q, self.output_weights))
@@ -155,7 +201,9 @@ class MPC(object):
             T_M,
             -T_M,
             G,
-            -G
+            -G,
+            Y_state @ G_state,
+            -Y_state @ G_state
             ), axis = 0)
 
         self.Ad = Ad
@@ -164,7 +212,10 @@ class MPC(object):
         self.B_tilda = B_tilda
         self.C_tilda = C_tilda,
         self.phi = phi
+        self.phi_state = phi_state
         self.G = G
+        self.G_state = G_state
+        self.Y_state = Y_state
         self.Gn = Gn
         self.Q_super = Q_super
         self.R_super = R_super
@@ -200,6 +251,7 @@ class MPC(object):
             ref_N = np.tile(trajectory[k,:], self.N)
             epsilon_k = np.concatenate((x_k, u_k_minus_1), axis = 0)
             f = self.phi @ epsilon_k
+            f_state = self.phi_state @ epsilon_k
             fqp = 2*np.transpose(self.Gn) @ (f - ref_N)
             
             # bqp
@@ -209,7 +261,9 @@ class MPC(object):
                 np.tile(self.restrictions['u_max'] - u_k_minus_1, self.M),
                 np.tile(u_k_minus_1 - self.restrictions['u_min'], self.M),
                 np.tile(self.restrictions['y_max'], self.N) - f,
-                f - np.tile(self.restrictions['y_min'], self.N)
+                f - np.tile(self.restrictions['y_min'], self.N),
+                np.tile(self.restrictions['angle_max'], self.N) - self.Y_state @ f_state,
+                self.Y_state @ f_state - np.tile(self.restrictions['angle_min'], self.N)
             ), axis = 0)
 
             # optimization
@@ -1019,6 +1073,7 @@ class GainSchedulingMPC(object):
             #ref_N = np.tile(trajectory[k,:], self.N)
             epsilon_k = np.concatenate((x_k, u_k_minus_1), axis = 0)
             f = linear_model.phi @ epsilon_k
+            f_state = linear_model.phi_state @ epsilon_k
             fqp = 2*np.transpose(linear_model.Gn) @ (f - ref_N)
             
             # Update delta_u restrictions
@@ -1036,7 +1091,9 @@ class GainSchedulingMPC(object):
                 np.tile(linear_model.restrictions['u_max'] - u_k_minus_1, self.M),
                 np.tile(u_k_minus_1 - linear_model.restrictions['u_min'], self.M),
                 np.tile(linear_model.restrictions['y_max'], self.N) - f,
-                f - np.tile(linear_model.restrictions['y_min'], self.N)
+                f - np.tile(linear_model.restrictions['y_min'], self.N),
+                np.tile(linear_model.restrictions['angle_max'], self.N) - linear_model.Y_state @ f_state,
+                linear_model.Y_state @ f_state - np.tile(linear_model.restrictions['angle_min'], self.N)
             ), axis = 0)
 
             # optimization
@@ -1067,7 +1124,7 @@ class GainSchedulingMPC(object):
 
             # omega**2 --> u
             #omega_squared = np.clip(u_k + linear_model.u_ref, 0, None)
-            omega_squared = np.clip(u_k + linear_model.u_ref, a_min=0, a_max=np.clip(restriction['u_max'] + linear_model.u_ref, 0, None))
+            omega_squared = np.clip(u_k + linear_model.u_ref, a_min=0, a_max=np.clip(linear_model.restrictions['u_max'] + linear_model.u_ref, 0, None))
             omega_k = np.sqrt(omega_squared)
             uu_k = model.Gama @ omega_squared
 
@@ -1099,10 +1156,10 @@ class GainSchedulingMPC(object):
 
             waste_start_time = time.perf_counter()
 
-            #if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 15:# or np.max(np.abs(x_k[0:2])) > 2.5: #TODO: unificar criterio de saida para todos os metodos
-            #    print('Simulation exploded.')
-            #    print(f'x_{k} =',x_k)
-            #    return None, None, None, None, None
+            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 50 or np.max(np.abs(x_k[0:2])) > 5: #TODO: unificar criterio de saida para todos os metodos
+               print('Simulation exploded.')
+               print(f'x_{k} =',x_k)
+               return None, None, None, None, None
                   
             X_vector.append(x_k)
             u_k_minus_1 = u_k

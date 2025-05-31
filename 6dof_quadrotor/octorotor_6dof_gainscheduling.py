@@ -25,7 +25,7 @@ print('d =', d)
 
 ### SIMULATION PARAMETERS ###
 from parameters.simulation_parameters import time_step, T_sample, N, M, include_phi_theta_reference, include_psi_reference, gain_scheduling
-T_simulation = 10
+T_simulation = 30
 
 t = np.arange(0,T_simulation, time_step)
 t_samples = np.arange(0,T_simulation, T_sample)
@@ -127,10 +127,10 @@ if trajectory_type == 'circle_xz':
     r_tracking = tr.circle_xz(w, 5, T_simulation, include_psi_reference, include_phi_theta_reference)
 
 if trajectory_type == 'point':
-    r_tracking = tr.point(40, 0, 0, T_simulation,include_psi_reference, include_phi_theta_reference)
+    r_tracking = tr.point(0, 10, -15, T_simulation,include_psi_reference, include_phi_theta_reference)
 
 if trajectory_type == 'line':
-    r_tracking = tr.line(1, 1, -1, 20, T_simulation, include_psi_reference, include_phi_theta_reference)
+    r_tracking = tr.line(5, 5, -5, 30, T_simulation, include_psi_reference, include_phi_theta_reference)
 
 if trajectory_type == 'helicoidal':
     r_tracking = tr.helicoidal(w,T_simulation, include_psi_reference, include_phi_theta_reference)
@@ -186,6 +186,8 @@ restrictions = {
     "u_min": [-m*g, -m*g, -m*g, -m*g],
     "y_max": np.array([20, 20, 20, 1.4, 1.4, 1.4]),
     "y_min": np.array([-20, -20, -20, -1.4, -1.4, -1.4]),
+    "angle_max": np.array([0.785, 0.785, 1.2]),
+    "angle_min": np.array([-0.785, -0.785, -1.2])
 }
 
 #teste = np.array([1,2,3])
@@ -253,8 +255,11 @@ Bw = B @ model.Gama
 #MPC2.initialize_matrices()
 #x_mpc_rotors, u_rotors, omega_vector, NN_dataset, _ = MPC2.simulate_future_rotors(model, X0, t_samples, r_tracking, omega_eq**2, generate_dataset=False, disturb_input=False)
 
-phi_grid = np.array([-75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75])
-theta_grid = np.array([-75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75])
+#phi_grid = np.array([-75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75])
+#theta_grid = np.array([-75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75])
+phi_grid = np.array([0])
+theta_grid = np.array([0])
+
 #output_weights2[3:5] *= 4
 gain_mpc = mpc.GainSchedulingMPC(model, phi_grid, theta_grid, M, N, time_step, T_sample, output_weights2, control_weights2,\
         restrictions2, include_psi_reference=include_psi_reference, include_phi_theta_reference=include_phi_theta_reference)
