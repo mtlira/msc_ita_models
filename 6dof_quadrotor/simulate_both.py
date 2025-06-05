@@ -68,7 +68,7 @@ tr = trajectory_handler.TrajectoryHandler()
 #    r_tracking = tr.helicoidal(w,T_simulation, include_psi_reference, include_phi_theta_reference)
 
 def simulate_mpc_nn(X0, multirotor_model, N, M, num_inputs, q_neuralnetwork, omega_squared_eq, dataset_mother_folder, weights_file_name, time_step, T_sample, T_simulation, trajectory, trajectory_type, restriction, restriction_metadata, output_weights, control_weights, \
-                    gain_scheduling, disturb_input, num_neurons_hidden_layers, use_optuna_model, trajectory_metadata = None):
+                    gain_scheduling, disturb_input, num_neurons_hidden_layers, optuna_version, trajectory_metadata = None):
     
     global dataset_dataframe
     global dataset_id
@@ -78,7 +78,7 @@ def simulate_mpc_nn(X0, multirotor_model, N, M, num_inputs, q_neuralnetwork, ome
 
     simulator = NeuralNetworkSimulator(multirotor_model, N, M, num_inputs, num_rotors, q_neuralnetwork, omega_squared_eq, time_step)
 
-    x_nn, u_nn, omega_nn, nn_metadata = simulator.simulate_neural_network(X0, dataset_mother_folder, weights_file_name, t_samples, trajectory, use_optuna_model=use_optuna_model,\
+    x_nn, u_nn, omega_nn, nn_metadata = simulator.simulate_neural_network(X0, dataset_mother_folder, weights_file_name, t_samples, trajectory, optuna_version=optuna_version,\
                                 num_neurons_hidden_layers=num_neurons_hidden_layers, restriction=restriction)
     
     _, mpc_metadata, simulation_data = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restriction, output_weights, control_weights, gain_scheduling,\
@@ -125,7 +125,7 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, disturb_in
     for args in args_vector:
         for restrictions, output_weights, control_weights, restriction_metadata in restrictions_vector:
             if checkpoint_id is None or dataset_id >= checkpoint_id:
-                trajectory = tr.generate_trajectory(trajectory_type, args)
+                trajectory = tr.generate_trajectory(trajectory_type, args, include_psi_reference, include_phi_theta_reference)
                 #folder_name = f'{trajectory_type}/' + str(dataset_id)
                 trajectory_metadata = None
                 if trajectory_type in ['circle_xy', 'circle_xz', 'lissajous_xy']:
@@ -133,7 +133,7 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, disturb_in
                 # Simulation without disturbances
                 print(f'{trajectory_type} Simulation {dataset_id}/{total_simulations}')
                 T_simulation = args[-1]
-                simulate_mpc_nn(X0, multirotor_model, N, M, num_inputs, q_neuralnetwork, omega_squared_eq, dataset_mother_folder, weights_file_name, time_step, T_sample, T_simulation, trajectory, trajectory_type, restrictions, restriction_metadata, output_weights, control_weights, gain_scheduling, disturb_input, num_neurons_hidden_layers, use_optuna_model, trajectory_metadata)
+                simulate_mpc_nn(X0, multirotor_model, N, M, num_inputs, q_neuralnetwork, omega_squared_eq, dataset_mother_folder, weights_file_name, time_step, T_sample, T_simulation, trajectory, trajectory_type, restrictions, restriction_metadata, output_weights, control_weights, gain_scheduling, disturb_input, num_neurons_hidden_layers, optuna_version, trajectory_metadata)
 
             else:
                 dataset_id += 1
@@ -142,10 +142,10 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, disturb_in
     dataset_id = 1
 
 if __name__ == '__main__':
-    nn_weights_folder = 'training_results/25-05-30-optunav2-one-example/'
+    nn_weights_folder = 'training_results/temp/v3/'
     dataset_mother_folder = nn_weights_folder
-    weights_file_name = 'model_weights_v2.pth'
-    use_optuna_model = True
+    weights_file_name = 'model_weights_v3.pth'
+    optuna_version = 'v3'
     disturb_input = False
     if Path(dataset_mother_folder + 'dataset_metadata.csv').is_file():
         dataset_dataframe = pd.read_csv(dataset_mother_folder + 'dataset_metadata.csv', sep=',')
@@ -170,7 +170,7 @@ if __name__ == '__main__':
 
     if run_circle_xy:
         args = tr.generate_circle_xy_trajectories()
-        simulate_batch('circle_xy', args, restriction_vector, False, checkpoint_id=38)
+        simulate_batch('circle_xy', args, restriction_vector, False)
 
     #if run_circle_xy_performance:
     #    args = tr.generate_circle_xy_performance_analysis()
@@ -186,7 +186,7 @@ if __name__ == '__main__':
 
     if run_line:
         args = tr.generate_line_trajectories(50)
-        simulate_batch('line', args, restriction_vector, False, checkpoint_id=6)
+        simulate_batch('line', args, restriction_vector, False)
 
     if aiaa_fault_2rotors:
         restriction_fault = [rst.restriction('total_failure', [0])]
@@ -200,9 +200,13 @@ if __name__ == '__main__':
         #simulate_batch('point', args, restriction_fault, disturb_input = False)
 
         args = [[2*np.pi/10, 5, 30]]
-        simulate_batch('lissajous_xy', args, restriction_fault, disturb_input = False)
+        #simulate_batch('lissajous_xy', args, restriction_fault, disturb_input = False)
 
-        #args_circle = [[2*np.pi/10, 3, 15]]
-        #simulate_batch('circle_xy', args_circle, restriction_vector, disturb_input = False)
+        args_circle = [[2*np.pi/10, 5, 30]]
+        simulate_batch('circle_xy', args_circle, restriction_fault, disturb_input = False)
+
+        # x, y, z, 
+        args_point = [[0, 0, -45, 60]]
+        simulate_batch('point', args_point, restriction_vector, disturb_input = False)
 
     dataset_dataframe.to_csv(dataset_mother_folder + 'dataset_metadata.csv', sep=',', index=False)

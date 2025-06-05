@@ -20,7 +20,7 @@ def train_neural_network():
     #learning_rate = 0
     num_outputs = num_rotors
     #num_neurons_hiddenlayers = 128
-    optuna_version = 'v2'
+    optuna_version = 'v3'
 
     print('CUDA:', torch.cuda.is_available(), torch.accelerator.is_available())
     print(torch.cuda.is_available())  # Should print True
@@ -28,7 +28,7 @@ def train_neural_network():
     print(torch.cuda.get_device_name(0)) 
 
     # Dataset path
-    datasets_folder = '../Datasets/Training datasets - v2/'
+    datasets_folder = '../Datasets/Training datasets - v3/'
 
     load_previous_model = False
     previous_model_path = ''
@@ -55,9 +55,9 @@ def train_neural_network():
     train_dataset, validation_dataset, test_dataset = torch.utils.data.random_split(global_dataset, [train_size, val_size, test_size])
 
     #train_dataset = ControlAllocationDataset(datasets_folder + 'train_dataset.csv', num_outputs)
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,num_workers=1, pin_memory=True if device == 'cuda' else False)
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,num_workers=0, pin_memory=True if device == 'cuda' else False)
 
-    validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=True,num_workers=1, pin_memory=True if device == 'cuda' else False)
+    validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=True,num_workers=0, pin_memory=True if device == 'cuda' else False)
 
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True,num_workers=0, pin_memory=True if device == 'cuda' else False)
     
@@ -69,6 +69,8 @@ def train_neural_network():
     num_inputs = global_dataset.num_inputs
     if optuna_version == 'v2':
         model = NeuralNetwork_optuna2(num_inputs, num_outputs).to(device) # TODO: automatizar 178 e 4
+    if optuna_version == 'v3':
+        model = NeuralNetwork_optuna3(num_inputs, num_outputs).to(device) # TODO: automatizar 178 e 4
     else:
         raise Exception("Fix code to consider other optuna versions.")
 
@@ -149,6 +151,8 @@ def train_neural_network():
     # Test loss
     if optuna_version == 'v2': 
         model = NeuralNetwork_optuna2(num_inputs, num_rotors).to(device)
+    if optuna_version == 'v3':
+        model = NeuralNetwork_optuna3(num_inputs, num_rotors).to(device)
         model.load_state_dict(torch.load(datasets_folder + 'model_weights.pth', weights_only=True))
         model.eval()
         test_loss = 0.0

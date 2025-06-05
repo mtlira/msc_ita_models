@@ -14,9 +14,9 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # Hyperparameters
-num_epochs = 35
+num_epochs = 70
 batch_size = 128
-learning_rate = 0.001
+#learning_rate = 0.001
 num_outputs = 4
 num_neurons_hiddenlayers = 128
 batches_per_epoch = 300
@@ -43,7 +43,7 @@ def load_dataset(datasets_folder):
     return train_dataloader, validation_dataloader, num_inputs
 
 def define_model(trial, num_inputs):
-    n_layers = trial.suggest_int('n_layers', 1, 4)
+    n_layers = trial.suggest_int('n_layers', 1, 5)
     leakyReLU_negative_slope = trial.suggest_float('leakyReLU_negative_slope', 0.0005, 0.1)
     layers = []
     in_features = num_inputs
@@ -122,8 +122,8 @@ def objective(trial):
 
 def tune_hyperparameters():
     os.makedirs("optuna_studies", exist_ok=True)
-    study = optuna.create_study(direction='minimize', study_name='nn_control_alloc', storage="sqlite:///optuna_studies/nn_control_alloc_v2.db", load_if_exists=True)
-    study.optimize(objective, n_trials = 200)
+    study = optuna.create_study(direction='minimize', study_name='nn_control_alloc', storage="sqlite:///optuna_studies/nn_control_alloc_v3.db", load_if_exists=True)
+    study.optimize(objective, n_trials = 500)
 
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
@@ -145,6 +145,6 @@ def tune_hyperparameters():
     return study
 
 if __name__ == '__main__':
-    dataset_path = '../Datasets/Training datasets - v2/'
+    dataset_path = '../Datasets/Training datasets - v3/'
     train_dataloader, validation_dataloader, num_inputs = load_dataset(dataset_path)
     study = tune_hyperparameters()

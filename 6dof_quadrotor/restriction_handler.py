@@ -118,8 +118,8 @@ class Restriction(object):
             restrictions.append(self.restriction('total_failure', combination))
 
         # 4 total failures of all rotors
-        for combination in itertools.combinations(range(self.model.num_rotors), 4):
-            restrictions.append(self.restriction('total_failure', combination))
+        #for combination in itertools.combinations(range(self.model.num_rotors), 4):
+        #    restrictions.append(self.restriction('total_failure', combination))
         
         return restrictions
 

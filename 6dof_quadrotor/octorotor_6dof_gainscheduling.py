@@ -40,7 +40,7 @@ X_eq = np.zeros(12)
 
 # f_t está no eixo do corpo
 
-trajectory_type = 'lissajous_xy'
+trajectory_type = 'circle_xy'
 
 analyser = DataAnalyser()
 
@@ -113,7 +113,7 @@ u_max = [
 ########################################################################################
 # LQR - tracking
 
-w = 2*np.pi*1/10
+w = 2*np.pi*1/1
 tr = trajectory_handler.TrajectoryHandler()
 
 r_tracking = None

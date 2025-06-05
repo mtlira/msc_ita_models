@@ -196,7 +196,7 @@ class TrajectoryHandler(object):
 
         # Random points
         for i in range(point_numbers - len(points_vector)):
-            point = 30*np.random.rand(3) - 15 # Random point inside sphere of 15m radius centered in (0,0,0)
+            point = 6*np.random.rand(3) - 3 # Random point inside sphere of 15m radius centered in (0,0,0)
             point = np.concatenate((point, [T_simulation]), axis = 0)
             points_vector.append(point)
         

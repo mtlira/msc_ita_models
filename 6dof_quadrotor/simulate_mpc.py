@@ -98,18 +98,18 @@ def simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restrictions
     t_samples = np.arange(0,T_simulation, T_sample)
 
     Bw = B @ model.Gama
-    #try:
-    phi_grid = np.array([0])
-    theta_grid = np.array([0])
-    gain_MPC = mpc.GainSchedulingMPC(model, phi_grid, theta_grid, M, N, time_step, T_sample, output_weights, \
-        control_weights, restrictions, include_psi_reference, include_phi_theta_reference)
-    x_mpc_rotors, u_rotors, omega_vector, NN_dataset, metadata = \
-        gain_MPC.simulate_future_rotors(model, X0, t_samples, trajectory, gain_scheduling, generate_dataset=generate_dataset, \
-                                        disturb_input=disturb_input)
+    try:
+        phi_grid = np.array([0])
+        theta_grid = np.array([0])
+        gain_MPC = mpc.GainSchedulingMPC(model, phi_grid, theta_grid, M, N, time_step, T_sample, output_weights, \
+            control_weights, restrictions, include_psi_reference, include_phi_theta_reference)
+        x_mpc_rotors, u_rotors, omega_vector, NN_dataset, metadata = \
+            gain_MPC.simulate_future_rotors(model, X0, t_samples, trajectory, gain_scheduling, generate_dataset=generate_dataset, \
+                                            disturb_input=disturb_input)
                     
-    #except Exception as error:
-    #    x_mpc_rotors, u_rotors, omega_vector, NN_dataset, metadata = None, None, None, None, None
-    #    print('exception:', error)
+    except Exception as error:
+        x_mpc_rotors, u_rotors, omega_vector, NN_dataset, metadata = None, None, None, None, None
+        print('exception:', error)
 
     simulation_data = (x_mpc_rotors, u_rotors, omega_vector, NN_dataset)
     if x_mpc_rotors is not None:
@@ -200,11 +200,11 @@ def generate_dataset(dataset_name = None):
     dataset_save_path = f'simulations/{dataset_name}/dataset_metadata.csv'
     
     generate_point = True
-    generate_circle_xy = True
-    generate_circle_xz = True
-    generate_line = True
-    generate_lissajous_xy = True
-    simulate_fault_tolerance = True
+    generate_circle_xy = False
+    generate_circle_xz = False
+    generate_line = False
+    generate_lissajous_xy = False
+    simulate_fault_tolerance = False
     
     rst = Restriction(model, T_sample, N, M)
 
@@ -219,7 +219,7 @@ def generate_dataset(dataset_name = None):
         T_simulation_point = 10
         num_points = 120
         points_args = tr.generate_point_trajectories(num_points, T_simulation_point)
-        simulate_batch('point', points_args, restrictions_performance, simulate_disturbances = True,dataset_save_path=dataset_save_path,)
+        simulate_batch('point', points_args, restrictions_performance, simulate_disturbances = True,dataset_save_path=dataset_save_path,checkpoint_id=37)
     
     if generate_circle_xy:
         circle_xy_args = tr.generate_circle_xy_trajectories()
@@ -240,7 +240,7 @@ def generate_dataset(dataset_name = None):
 
     if simulate_fault_tolerance:
         fault_tolerance_args = [[0, 0, 0, 20], [0,0,1,20],[0,0,-1, 20], [0, 0.5, 0.5, 20]]
-        simulate_batch('point_failure', fault_tolerance_args, restrictions_fault_tolerance, simulate_disturbances = True, dataset_save_path = dataset_save_path)
+        simulate_batch('point_failure', fault_tolerance_args, restrictions_fault_tolerance, simulate_disturbances = True, dataset_save_path = dataset_save_path, checkpoint_id=6)
 
     # Save dataset
     if len(dataset_dataframe) > 2:
@@ -282,14 +282,14 @@ def wrap_metadata(dataset_id, trajectory_type, T_simulation, T_sample, N, M, sim
     return simulation_metadata
 
 if __name__ == '__main__':
-    #try:
-    now = datetime.now()
-    current_time = now.strftime("%m_%d_%Hh-%Mm")
-    dataset_name = current_time
-    generate_dataset(dataset_name)
-    #except Exception as error:
-    #    print('There was an error:', error)
-    #    save_path = f'simulations/{dataset_name}/'
-    #    Path(save_path).mkdir(parents=True, exist_ok=True)
-    #    dataset_dataframe.to_csv(save_path + '/dataset_metadata.csv', sep=',', index = False)
+    try:
+        now = datetime.now()
+        current_time = now.strftime("%m_%d_%Hh-%Mm")
+        dataset_name = current_time
+        generate_dataset(dataset_name)
+    except Exception as error:
+        print('There was an error:', error)
+        save_path = f'simulations/{dataset_name}/'
+        Path(save_path).mkdir(parents=True, exist_ok=True)
+        dataset_dataframe.to_csv(save_path + '/dataset_metadata.csv', sep=',', index = False)
  

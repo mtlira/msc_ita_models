@@ -104,7 +104,7 @@ class ControlAllocationDataset_Binary_Short(Dataset):
     '''Class to be used if the total dataset is split into multiple CSV files\n
     mother_folder_path: Path of the folder that contains all the CSV files that make up the total dataset'''
     def __init__(self, dataset: np.ndarray, num_outputs):
-        self.dataset = dataset
+        self.dataset = dataset.astype(np.float32)
         print('Dataset type:', type(dataset), type(dataset[0]), type(dataset[0][0]))
 
         self.num_outputs = num_outputs
@@ -272,6 +272,30 @@ class NeuralNetwork_optuna2(nn.Module): # Third hyperparameter tuning version
     def forward(self, x):
         logits = self.layer_stack(x)
         return logits
+    
+class NeuralNetwork_optuna3(nn.Module): # Third hyperparameter tuning version
+    def __init__(self, num_inputs, num_outputs):
+        super().__init__()
+        self.layer_stack = nn.Sequential(
+            nn.Linear(in_features = num_inputs, out_features = 1363),
+            nn.LeakyReLU(negative_slope=0.0108732857), # before: 0.01
+            #nn.Dropout(0.09382298344626222),
+            nn.Linear(in_features = 1363, out_features = 1205),
+            nn.LeakyReLU(negative_slope=0.0108732857),
+            #nn.Dropout(0.21326313772325148),
+            nn.Linear(in_features = 1205, out_features = 252),
+            nn.LeakyReLU(negative_slope=0.0108732857),
+            nn.Linear(in_features = 252, out_features = 1502),
+            nn.LeakyReLU(negative_slope=0.0108732857), # before: 0.01
+            nn.Linear(in_features=1502, out_features = num_outputs)
+        )
+        self.optimizer = 'RMSprop'
+        self.opt_leaning_rate = 0.0001001708
+        self.l2_lambda = 1.49497837616e-6
+
+    def forward(self, x):
+        logits = self.layer_stack(x)
+        return logits
 
 ### 3. Early Stopper class ###
 class EarlyStopper():
@@ -318,7 +342,7 @@ class NeuralNetworkSimulator(object):
         self.u_ref = u_ref # input around which the model was linearized (omega_squared_eq)
         self.time_step = time_step
 
-    def simulate_neural_network(self, X0, nn_weights_folder, file_name, t_samples, trajectory, use_optuna_model, num_neurons_hidden_layers, restriction):
+    def simulate_neural_network(self, X0, nn_weights_folder, file_name, t_samples, trajectory, optuna_version, num_neurons_hidden_layers, restriction):
         analyser = DataAnalyser()
         nn_weights_path = nn_weights_folder + file_name
         omega_squared_eq = self.u_ref
@@ -326,10 +350,13 @@ class NeuralNetworkSimulator(object):
         # 1. Load Neural Network model
         #device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
         #print(f"Using {device} device")
-        if use_optuna_model:
+        
+        if optuna_version == 'v2':
             nn_model = NeuralNetwork_optuna2(self.num_inputs, num_rotors)
+        if optuna_version == 'v3':
+            nn_model = NeuralNetwork_optuna3(self.num_inputs, num_rotors)
         else:
-            nn_model = NeuralNetwork(self.num_inputs, self.num_rotors, num_neurons_hidden_layers)
+            raise Exception("Incorrect optuna version")
         nn_model.load_state_dict(torch.load(nn_weights_path, weights_only=True))
         nn_model.eval()
 
@@ -378,7 +405,7 @@ class NeuralNetworkSimulator(object):
             nn_input = nn_input.astype('float32')
 
             # Get NN output
-            delta_omega_squared = nn_model(torch.from_numpy(nn_input)).detach().numpy()
+            omega_squared = nn_model(torch.from_numpy(nn_input)).detach().numpy()
 
             # De-normalization of the output
             #for i_output in range(num_outputs):
@@ -387,7 +414,7 @@ class NeuralNetworkSimulator(object):
             #    delta_omega_squared[i_output] = mean + std*delta_omega_squared[i_output]
             mean = normalization_df.iloc[0, self.num_inputs:]
             std = normalization_df.iloc[1, self.num_inputs:]
-            delta_omega_squared = mean + std*delta_omega_squared
+            omega_squared = mean + std*omega_squared
 
             ## DEBUG (REMOVE LATER) ##
             #debug_omega_squared = omega_squared_eq + delta_omega_squared
@@ -399,10 +426,10 @@ class NeuralNetworkSimulator(object):
             #delta_omega_squared = np.clip(delta_omega_squared, restriction['u_min'], restriction['u_max'])
             # TODO: Add restrição de rate change (ang acceleration)
             
-            omega_squared = omega_squared_eq + delta_omega_squared
+            #omega_squared = omega_squared_eq + delta_omega_squared (Not necessary anymore)
 
             # Fixing infinitesimal values out that violate the constraints
-            omega_squared = np.clip(omega_squared, a_min=0, a_max=np.clip(restriction['u_max'] + omega_squared_eq, 0, None))
+            #omega_squared = np.clip(omega_squared, a_min=0, a_max=np.clip(restriction['u_max'] + omega_squared_eq, 0, None))
 
             # omega**2 --> u
             #print('omega_squared',omega_squared)

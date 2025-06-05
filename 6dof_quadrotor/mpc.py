@@ -200,8 +200,8 @@ class MPC(object):
             -np.eye(p*self.M),
             T_M,
             -T_M,
-            G,
-            -G,
+            #G,
+            #-G,
             Y_state @ G_state,
             -Y_state @ G_state
             ), axis = 0)
@@ -260,8 +260,8 @@ class MPC(object):
                 - np.tile(self.restrictions['delta_u_min'], self.M), # -delta_u_min_M
                 np.tile(self.restrictions['u_max'] - u_k_minus_1, self.M),
                 np.tile(u_k_minus_1 - self.restrictions['u_min'], self.M),
-                np.tile(self.restrictions['y_max'], self.N) - f,
-                f - np.tile(self.restrictions['y_min'], self.N),
+                #np.tile(self.restrictions['y_max'], self.N) - f,
+                #f - np.tile(self.restrictions['y_min'], self.N),
                 np.tile(self.restrictions['angle_max'], self.N) - self.Y_state @ f_state,
                 self.Y_state @ f_state - np.tile(self.restrictions['angle_min'], self.N)
             ), axis = 0)
@@ -1090,8 +1090,8 @@ class GainSchedulingMPC(object):
                 - np.tile(linear_model.restrictions['delta_u_min'], self.M), # -delta_u_min_M
                 np.tile(linear_model.restrictions['u_max'] - u_k_minus_1, self.M),
                 np.tile(u_k_minus_1 - linear_model.restrictions['u_min'], self.M),
-                np.tile(linear_model.restrictions['y_max'], self.N) - f,
-                f - np.tile(linear_model.restrictions['y_min'], self.N),
+                #np.tile(linear_model.restrictions['y_max'], self.N) - f,
+                #f - np.tile(linear_model.restrictions['y_min'], self.N),
                 np.tile(linear_model.restrictions['angle_max'], self.N) - linear_model.Y_state @ f_state,
                 linear_model.Y_state @ f_state - np.tile(linear_model.restrictions['angle_min'], self.N)
             ), axis = 0)
