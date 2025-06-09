@@ -9,8 +9,12 @@ from plots import DataAnalyser
 import time
 from scipy.integrate import odeint
 import pickle
+import multirotor
 
 from parameters.octorotor_parameters import num_rotors
+from parameters.octorotor_parameters import m, g, I_x, I_y, I_z, l, b, d, thrust_to_weight, num_rotors
+
+model = multirotor.Multirotor(m, g, I_x, I_y, I_z, b, l, d, num_rotors, thrust_to_weight)
 
 ### 1. Dataset class ###
 
@@ -84,6 +88,9 @@ class ControlAllocationDataset_Binary(Dataset):
         return dict
     
     def normalize(self):
+        # TEMP - REMOVER DEPOIS
+        #self.dataset[:,196:] -= model.get_omega_eq_hover()[0]**2
+
         print('Normalizing the Dataset...')
         if not os.path.isfile(self.mother_folder_path + self.normalization_file_name):
             self.mean = np.mean(self.dataset, axis = 0)
@@ -98,6 +105,12 @@ class ControlAllocationDataset_Binary(Dataset):
             self.std = np.array([normalization_df.iloc[1, :]])
 
         self.dataset = (self.dataset - self.mean) / self.std
+
+        # TEMP - REMOVER DEPOIS!!!!!!
+        #print('Fixing the binary mask of u_max and u_min')
+        #u_max = np.max(self.dataset[0][189:189+8])
+        #self.dataset[:,189:189+8] = (np.abs(self.dataset[:,189:189+8] - u_max) < 0.01).astype(int)
+        
         #self.dataset = np.array([(row - self.mean) / self.std for row in self.dataset])
 
 class ControlAllocationDataset_Binary_Short(Dataset):
@@ -297,6 +310,70 @@ class NeuralNetwork_optuna3(nn.Module): # Third hyperparameter tuning version
         logits = self.layer_stack(x)
         return logits
 
+class NeuralNetwork_optuna4(nn.Module):
+    def __init__(self, num_inputs, num_outputs):
+        super().__init__()
+        self.layer_stack = nn.Sequential(
+            nn.Linear(in_features = num_inputs, out_features = 1276),
+            nn.LeakyReLU(negative_slope=0.036692291), # before: 0.01
+            #nn.Dropout(0.09382298344626222),
+            nn.Linear(in_features = 1276, out_features = 482),
+            nn.LeakyReLU(negative_slope=0.036692291),
+            #nn.Dropout(0.21326313772325148),
+            nn.Linear(in_features = 482, out_features = 77),
+            nn.LeakyReLU(negative_slope=0.036692291), # before: 0.01
+            nn.Linear(in_features=77, out_features = num_outputs)
+        )
+        self.optimizer = 'RMSprop'
+        self.opt_leaning_rate = 0.0001397094036
+        self.l2_lambda = 7.55128976623e-5
+
+    def forward(self, x):
+        logits = self.layer_stack(x)
+        return logits
+    
+class NeuralNetwork_optuna_temp(nn.Module): # Third hyperparameter tuning version
+    def __init__(self, num_inputs, num_outputs):
+        super().__init__()
+        self.layer_stack = nn.Sequential(
+            nn.Linear(in_features = num_inputs, out_features = 1363),
+            nn.LeakyReLU(negative_slope=0.0108732857), # before: 0.01
+            #nn.Dropout(0.09382298344626222),
+            nn.Linear(in_features = 1363, out_features = 1205),
+            nn.LeakyReLU(negative_slope=0.0108732857),
+            #nn.Dropout(0.21326313772325148),
+            nn.Linear(in_features = 1205, out_features = 252),
+            nn.LeakyReLU(negative_slope=0.0108732857),
+            nn.Linear(in_features = 252, out_features = 1502),
+            nn.LeakyReLU(negative_slope=0.0108732857), # before: 0.01
+            nn.Linear(in_features=1502, out_features = num_outputs)
+        )
+        self.optimizer = 'RMSprop'
+        self.opt_leaning_rate = 0.0001001708
+        self.l2_lambda = 1.49497837616e-6
+
+    def forward(self, x):
+        logits = self.layer_stack(x)
+        return logits
+    
+
+
+# class NeuralNetwork_optuna4(nn.Module): # Third hyperparameter tuning version
+#     def __init__(self, num_inputs, num_outputs):
+#         super().__init__()
+#         self.layer_stack = nn.Sequential(
+#             nn.Linear(in_features = num_inputs, out_features = 1091),
+#             nn.LeakyReLU(negative_slope=0.002659013240432082), # before: 0.01
+#             nn.Linear(in_features=1091, out_features = num_outputs)
+#         )
+#         self.optimizer = 'SGD'
+#         self.opt_leaning_rate = 0.07800883793474282
+#         self.l2_lambda = 2.3974151389151172e-5
+
+#     def forward(self, x):
+#         logits = self.layer_stack(x)
+#         return logits
+
 ### 3. Early Stopper class ###
 class EarlyStopper():
     def __init__(self, drift_patience, plateau_patience, drift_percentage, save_path):
@@ -353,8 +430,12 @@ class NeuralNetworkSimulator(object):
         
         if optuna_version == 'v2':
             nn_model = NeuralNetwork_optuna2(self.num_inputs, num_rotors)
-        if optuna_version == 'v3':
+        elif optuna_version == 'v3':
             nn_model = NeuralNetwork_optuna3(self.num_inputs, num_rotors)
+        elif optuna_version == 'v4':
+            nn_model = NeuralNetwork_optuna4(self.num_inputs, num_rotors)
+        elif optuna_version == 'temp':
+            nn_model = NeuralNetwork_optuna_temp(self.num_inputs, num_rotors)
         else:
             raise Exception("Incorrect optuna version")
         nn_model.load_state_dict(torch.load(nn_weights_path, weights_only=True))
@@ -426,10 +507,11 @@ class NeuralNetworkSimulator(object):
             #delta_omega_squared = np.clip(delta_omega_squared, restriction['u_min'], restriction['u_max'])
             # TODO: Add restrição de rate change (ang acceleration)
             
-            #omega_squared = omega_squared_eq + delta_omega_squared (Not necessary anymore)
+            #omega_squared = omega_squared_eq + delta_omega_squared
 
             # Fixing infinitesimal values out that violate the constraints
-            #omega_squared = np.clip(omega_squared, a_min=0, a_max=np.clip(restriction['u_max'] + omega_squared_eq, 0, None))
+            omega_squared = np.clip(omega_squared, a_min=0, a_max=np.clip(restriction['u_max'] + omega_squared_eq, 0, None))
+            #omega_squared = np.clip(omega_squared, a_min=0, a_max=None) #POIS QUERO VER SE A REDE LIMITA MANUALMENTE A TRAÇÃO
 
             # omega**2 --> u
             #print('omega_squared',omega_squared)
@@ -443,7 +525,7 @@ class NeuralNetworkSimulator(object):
             x_k = odeint(self.model.f2, x_k, t_simulation, args = (f_t_k, t_x_k, t_y_k, t_z_k))
             x_k = x_k[-1]
 
-            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 100: #or np.max(np.abs(x_k[0:2])) > 1.75:
+            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 60 or np.max(np.abs(x_k[0:2])) > 5: #or np.max(np.abs(x_k[0:2])) > 1.75:
                 print('Simulation exploded.')
                 print(f'x_{k} =',x_k)
 
@@ -525,7 +607,7 @@ if __name__ == '__main__':
     pass
     #Teste
     #teste = ControlAllocationDataset_Split('teste/', False, num_rotors)
-    teste = ControlAllocationDataset_Binary('../Datasets/Training datasets - v1', False, num_rotors)
+    teste = ControlAllocationDataset_Binary('../Datasets/Training datasets - v3', False, num_rotors)
     print('first sample\n',teste.__getitem__(0))
     print(teste.num_inputs,teste.num_outputs)
 

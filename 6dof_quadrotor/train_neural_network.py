@@ -20,15 +20,15 @@ def train_neural_network():
     #learning_rate = 0
     num_outputs = num_rotors
     #num_neurons_hiddenlayers = 128
-    optuna_version = 'v3'
+    optuna_version = 'v4'
+    # Dataset path
+    datasets_folder = f'../Datasets/Training datasets - {optuna_version}/'
 
     print('CUDA:', torch.cuda.is_available(), torch.accelerator.is_available())
     print(torch.cuda.is_available())  # Should print True
     print(torch.cuda.device_count())  # Should be > 0
     print(torch.cuda.get_device_name(0)) 
 
-    # Dataset path
-    datasets_folder = '../Datasets/Training datasets - v3/'
 
     load_previous_model = False
     previous_model_path = ''
@@ -71,6 +71,8 @@ def train_neural_network():
         model = NeuralNetwork_optuna2(num_inputs, num_outputs).to(device) # TODO: automatizar 178 e 4
     if optuna_version == 'v3':
         model = NeuralNetwork_optuna3(num_inputs, num_outputs).to(device) # TODO: automatizar 178 e 4
+    if optuna_version == 'v4':
+        model = NeuralNetwork_optuna4(num_inputs, num_outputs).to(device) # TODO: automatizar 178 e 4
     else:
         raise Exception("Fix code to consider other optuna versions.")
 
@@ -90,6 +92,7 @@ def train_neural_network():
     #optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate) # Using Adam
     if model.optimizer == "Adam": optimizer = optimizer = torch.optim.Adam(model.parameters(), lr = model.opt_leaning_rate, weight_decay=model.l2_lambda)
     if model.optimizer == "RMSprop": optimizer = torch.optim.RMSprop(model.parameters(), lr = model.opt_leaning_rate, weight_decay=model.l2_lambda)
+    if model.optimizer == "SGD": optimizer = torch.optim.SGD(model.parameters(), lr = model.opt_leaning_rate, weight_decay=model.l2_lambda)
 
     # Test forward
     earlystopper = EarlyStopper(4, 15, 0.05, datasets_folder)
@@ -149,10 +152,12 @@ def train_neural_network():
             break
 
     # Test loss
-    if optuna_version == 'v2': 
+    if optuna_version == 'v2':
         model = NeuralNetwork_optuna2(num_inputs, num_rotors).to(device)
     if optuna_version == 'v3':
         model = NeuralNetwork_optuna3(num_inputs, num_rotors).to(device)
+    if optuna_version == 'v4':
+        model = NeuralNetwork_optuna4(num_inputs, num_rotors).to(device)
         model.load_state_dict(torch.load(datasets_folder + 'model_weights.pth', weights_only=True))
         model.eval()
         test_loss = 0.0

@@ -203,10 +203,16 @@ class TrajectoryHandler(object):
         return points_vector
     
     def generate_circle_xy_trajectories(self):
-        short_radius_vector = np.arange(1, 5, 1)
+        short_radius_vector = np.arange(4, 6, 1)
         long_radius_vector = np.arange(5, 10, 0.5)
         short_period_vector = np.arange(1, 8, 1)
         long_period_vector = np.arange(10, 15, 1)
+
+        # Parametros do dataset v3
+        # short_radius_vector = np.arange(1, 5, 1)
+        # long_radius_vector = np.arange(5, 10, 0.5)
+        # short_period_vector = np.arange(1, 8, 1)
+        # long_period_vector = np.arange(10, 15, 1)
 
         w_short_vector = 2*np.pi/short_period_vector
         w_long_vector = 2*np.pi/long_period_vector
@@ -226,10 +232,10 @@ class TrajectoryHandler(object):
         return args
     
     def generate_circle_xz_trajectories(self):
-        short_radius_vector = np.arange(1, 5, 1)
-        long_radius_vector = np.arange(5, 9, 1)
-        short_period_vector = np.arange(2, 8, 2)
-        long_period_vector = np.arange(10, 14, 2)
+        short_radius_vector = np.arange(3, 5, 1) # Aggressive (1,5,1)
+        long_radius_vector = np.arange(4, 7, 1) # Aggressive (5,9,1)
+        short_period_vector = np.arange(5, 8, 1) # Aggressive (2,8,2)
+        long_period_vector = np.arange(10, 14, 2) # Aggressive (10,14,2)
 
         w_short_vector = 2*np.pi/short_period_vector
         w_long_vector = 2*np.pi/long_period_vector
@@ -250,31 +256,29 @@ class TrajectoryHandler(object):
 
 
     def generate_line_trajectories(self, num_lines):
-        coefficients = 10*np.random.rand(num_lines, 3) - 5
+        coefficients = 6*np.random.rand(num_lines, 3) - 3 # Aggressive: [-5,5]
         clamp = 10*np.random.rand(num_lines, 1) + 20
-        T_simulation = 35*np.ones((num_lines, 1))
+        T_simulation = 30*np.ones((num_lines, 1))
 
         args = np.concatenate((coefficients, clamp, T_simulation), axis = 1)
         return args
     
     def generate_lissajous_xy_trajectories(self):
-        short_radius_vector = np.arange(1, 5, 0.5)
-        long_radius_vector = np.arange(5, 10, 1)
-        short_period_vector = np.arange(1, 9, 1)
-        long_period_vector = np.arange(10, 14, 1)
+        short_radius_vector = np.arange(0.5, 4, 0.5) # aggressive (1, 5, 0.5)
+        long_radius_vector = np.arange(5, 7, 1) # aggressive (5, 10, 1)
+        short_period_vector = np.arange(5, 9, 1) # aggressive (1, 9, 1)
+        long_period_vector = np.arange(10, 12, 1) # Aggresive (10, 14, 1)
 
         args = []
 
         for period in short_period_vector:
             for radius in short_radius_vector:
-                #args = np.concatenate((args, [[2*np.pi/period, radius, 3*period]]), axis = 0)
                 args.append([2*np.pi/period, radius, 3*period])
-        for period in long_period_vector:
-            for radius in long_radius_vector:
-                #args = np.concatenate((args, [[2*np.pi/period, radius, 1.3*period]]), axis = 0)
-                args.append([2*np.pi/period, radius, 3*period])
-        num_circles = len(short_radius_vector) * len(short_period_vector) + len(long_radius_vector) * len(long_period_vector)
-        print('lissajous_xy trajectories =',num_circles)
+        #for period in long_period_vector:
+        #    for radius in long_radius_vector:
+                #args.append([2*np.pi/period, radius, 3*period])
+        #num_circles = len(short_radius_vector) * len(short_period_vector) + len(long_radius_vector) * len(long_period_vector)
+        #print('lissajous_xy trajectories =',num_circles)
         return args
     
     def generate_circle_xy_performance_analysis(self):

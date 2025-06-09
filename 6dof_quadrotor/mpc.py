@@ -1156,7 +1156,7 @@ class GainSchedulingMPC(object):
 
             waste_start_time = time.perf_counter()
 
-            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 50 or np.max(np.abs(x_k[0:2])) > 5: #TODO: unificar criterio de saida para todos os metodos
+            if np.linalg.norm(x_k[9:12] - trajectory[k, :3]) > 60 or np.max(np.abs(x_k[0:2])) > 5: #TODO: unificar criterio de saida para todos os metodos
                print('Simulation exploded.')
                print(f'x_{k} =',x_k)
                return None, None, None, None, None

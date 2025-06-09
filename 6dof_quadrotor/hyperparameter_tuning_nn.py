@@ -122,7 +122,7 @@ def objective(trial):
 
 def tune_hyperparameters():
     os.makedirs("optuna_studies", exist_ok=True)
-    study = optuna.create_study(direction='minimize', study_name='nn_control_alloc', storage="sqlite:///optuna_studies/nn_control_alloc_v3.db", load_if_exists=True)
+    study = optuna.create_study(direction='minimize', study_name='nn_control_alloc', storage="sqlite:///optuna_studies/nn_control_alloc_v5.db", load_if_exists=True)
     study.optimize(objective, n_trials = 500)
 
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
@@ -145,6 +145,6 @@ def tune_hyperparameters():
     return study
 
 if __name__ == '__main__':
-    dataset_path = '../Datasets/Training datasets - v3/'
+    dataset_path = '../Datasets/Training datasets - v5/'
     train_dataloader, validation_dataloader, num_inputs = load_dataset(dataset_path)
     study = tune_hyperparameters()

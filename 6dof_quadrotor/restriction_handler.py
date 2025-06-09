@@ -123,6 +123,14 @@ class Restriction(object):
         
         return restrictions
 
+    def restrictions_2_rotor_faults(self):
+            restrictions = []
+
+            # 2 total failures of all rotors
+            for combination in itertools.combinations(range(self.model.num_rotors), 2):
+                restrictions.append(self.restriction('total_failure', combination))
+            return restrictions
+
     
     # def generate_restrictions(self):
 

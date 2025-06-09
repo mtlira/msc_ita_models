@@ -199,11 +199,11 @@ def generate_dataset(dataset_name = None):
         dataset_name = current_time
     dataset_save_path = f'simulations/{dataset_name}/dataset_metadata.csv'
     
-    generate_point = True
+    generate_point = False
     generate_circle_xy = False
     generate_circle_xz = False
     generate_line = False
-    generate_lissajous_xy = False
+    generate_lissajous_xy = True
     simulate_fault_tolerance = False
     
     rst = Restriction(model, T_sample, N, M)
@@ -213,20 +213,21 @@ def generate_dataset(dataset_name = None):
     # 1. Restrictions vector
     restrictions_performance = rst.restrictions_performance()
     restrictions_fault_tolerance = rst.restrictions_fault_tolerance()
+    restriction_normal = [rst.restriction('normal')]
 
     # 2. Generation of trajectory batches and simulation of batches
     if generate_point:
         T_simulation_point = 10
-        num_points = 120
+        num_points = 45
         points_args = tr.generate_point_trajectories(num_points, T_simulation_point)
-        simulate_batch('point', points_args, restrictions_performance, simulate_disturbances = True,dataset_save_path=dataset_save_path,checkpoint_id=37)
+        simulate_batch('point', points_args, restrictions_performance, simulate_disturbances = True,dataset_save_path=dataset_save_path,checkpoint_id=10)
     
     if generate_circle_xy:
         circle_xy_args = tr.generate_circle_xy_trajectories()
         simulate_batch('circle_xy', circle_xy_args, restrictions_performance, simulate_disturbances = True, dataset_save_path=dataset_save_path)
 
     if generate_line:
-        num_lines = 120
+        num_lines = 40
         line_args = tr.generate_line_trajectories(num_lines)
         simulate_batch('line', line_args, restrictions_performance, simulate_disturbances = True, dataset_save_path=dataset_save_path)
 
@@ -236,7 +237,7 @@ def generate_dataset(dataset_name = None):
 
     if generate_lissajous_xy:
         lissajous_xy_args = tr.generate_lissajous_xy_trajectories()
-        simulate_batch('lissajous_xy', lissajous_xy_args, restrictions_performance, simulate_disturbances = False, dataset_save_path=dataset_save_path)
+        simulate_batch('lissajous_xy', lissajous_xy_args, restriction_normal, simulate_disturbances = False, dataset_save_path=dataset_save_path)
 
     if simulate_fault_tolerance:
         fault_tolerance_args = [[0, 0, 0, 20], [0,0,1,20],[0,0,-1, 20], [0, 0.5, 0.5, 20]]

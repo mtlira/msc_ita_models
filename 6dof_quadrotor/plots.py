@@ -153,6 +153,7 @@ class DataAnalyser(object):
             del fig
             del axs
 
+       #fig = plt.figure(figsize=(6,7.5)) # Figsize customized for 2 rotor failure
         fig = plt.figure()
         axs = plt.axes(projection='3d')
         axs.plot3D(X[:,9], X[:,10]*(-1), X[:,11]*(-1))
@@ -162,11 +163,15 @@ class DataAnalyser(object):
         axs.set_ylabel('y (m)')
         axs.set_zlabel('z (m)')
         #axs.set_title('3D Plot')
-        fig.legend(handles=handles)
+        fig.legend(handles=handles, loc='upper right')
         axs.grid()
         fig.tight_layout()
         if equal_scales: axs.set_aspect('equal', adjustable='box')
 
+        # Remover depois################
+        #axs.set_xticks([1.5, -2]) 
+        #axs.set_yticks([-2, 0])  
+        #axs.set_zticks([0,-5,-10,-15,-17.5])
 
         if save_path is not None: 
             plt.savefig(save_path + f'3D{file_extension}')
@@ -392,10 +397,15 @@ class DataAnalyser(object):
         plt.tight_layout()
         plt.show()
 
-    def plot_histogram(self, df, column_1, column_2, x_label, title, legend, normalization_column = None, colors=['royalblue','darkorange'], save_name = None, show_mean = True, percentile_2=None, gain = 1):
+    def plot_histogram(self, df, column_1, column_2, x_label, title, legend, normalization_column = None, colors=['royalblue','darkorange'], save_name = None, show_mean = True, percentile_1=None, percentile_2=None, gain = 1):
 
         data_1 = df[column_1]
         data_2 = df[column_2]
+
+        if percentile_1 is not None:
+            df = df.sort_values(column_1, axis=0, ascending=True)
+            p_idx_1 = round(percentile_1*len(df))
+            x_percentile_1 = df.iloc[p_idx_1][column_1]
 
         if percentile_2 is not None:
             df = df.sort_values(column_2, axis=0, ascending=True)
@@ -426,10 +436,15 @@ class DataAnalyser(object):
             plt.axvline(np.mean(data_1), color=colors[0], linestyle='--', linewidth=2)
             plt.axvline(np.mean(data_2), color=colors[1], linestyle='--', linewidth=1.5)
 
+        if percentile_1 is not None:
+            x_min, x_max = plt.xlim()
+            plt.axvline(x_percentile_1, color=colors[0], linestyle='--', linewidth=2)
+            plt.text(x_percentile_1 + 0.01*(x_max - x_min), plt.ylim()[1]*0.9, f'MPC Percentile {int(100*percentile_1)}%', rotation=90,va='top', ha='left', color=colors[0], fontsize=13)
+
         if percentile_2 is not None:
             x_min, x_max = plt.xlim()
             plt.axvline(x_percentile_2, color=colors[1], linestyle='--', linewidth=2)
-            plt.text(x_percentile_2 + 0.01*(x_max - x_min), plt.ylim()[1]*0.9, f'Percentile {int(100*percentile_2)}%', rotation=90,va='top', ha='left', color=colors[1], fontsize=13)
+            plt.text(x_percentile_2 + 0.01*(x_max - x_min), plt.ylim()[1]*0.9, f'NN Percentile {int(100*percentile_2)}%', rotation=90,va='top', ha='left', color=colors[1], fontsize=13)
 
         if 'execution_time' in column_1 and 'num_iterations' in normalization_column:
             from parameters.simulation_parameters import T_sample
@@ -439,7 +454,7 @@ class DataAnalyser(object):
         plt.xlabel(x_label, fontsize=14)
         plt.ylabel('Density', fontsize=14)
         plt.title(title, fontsize=14)
-        plt.legend(fontsize=14)
+        plt.legend(fontsize=14, loc='upper center')
         plt.grid(True, linestyle='--', alpha=0.5)
         plt.tight_layout()
         if save_name is not None: plt.savefig(f'plots/{save_name}')

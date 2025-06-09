@@ -81,11 +81,12 @@ def simulate_mpc_nn(X0, multirotor_model, N, M, num_inputs, q_neuralnetwork, ome
     x_nn, u_nn, omega_nn, nn_metadata = simulator.simulate_neural_network(X0, dataset_mother_folder, weights_file_name, t_samples, trajectory, optuna_version=optuna_version,\
                                 num_neurons_hidden_layers=num_neurons_hidden_layers, restriction=restriction)
     
-    _, mpc_metadata, simulation_data = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restriction, output_weights, control_weights, gain_scheduling,\
+    mpc_success, mpc_metadata, simulation_data = simulate_mpc(X0, time_step, T_sample, T_simulation, trajectory, restriction, output_weights, control_weights, gain_scheduling,\
                                 disturb_input=disturb_input, plot=False)
     x_mpc, u_mpc, omega_mpc, _ = simulation_data if simulation_data is not None else [None, None, None, None]
 
-    simulation_metadata = wrap_metadata(dataset_id, trajectory_type, T_simulation, T_sample, N, M, True, mpc_metadata, restriction_metadata, disturbed_inputs=disturb_input)
+
+    simulation_metadata = wrap_metadata(dataset_id, trajectory_type, T_simulation, T_sample, N, M, mpc_success, mpc_metadata, restriction_metadata, disturbed_inputs=disturb_input)
     Path(simulation_save_path).mkdir(parents=True, exist_ok=True)
 
     for nn_key in list(nn_metadata.keys()):
@@ -107,9 +108,9 @@ def simulate_mpc_nn(X0, multirotor_model, N, M, num_inputs, q_neuralnetwork, ome
     if dataset_id % 1 == 0: dataset_dataframe.to_csv(dataset_mother_folder + 'dataset_metadata.csv', sep=',', index=False)
 
     legend = ['MPC', 'Neural Network', 'Trajectory'] if x_mpc is not None else ['Neural Network', 'Trajectory']
-    if x_nn is not None: analyser.plot_states(x_mpc, t_samples[:np.shape(x_nn)[0]], X_lin=x_nn, trajectory=trajectory[:len(t_samples)], u_vector=[u_mpc, u_nn], omega_vector=[omega_mpc, omega_nn], legend=legend, equal_scales=True, save_path=simulation_save_path, plot=False, pdf=True)
-    else: analyser.plot_states(x_mpc, t_samples[:np.shape(x_mpc)[0]], trajectory=trajectory[:len(t_samples)], u_vector=[u_mpc], omega_vector=[omega_mpc], legend=['MPC', 'Trajectory'], equal_scales=True, save_path=simulation_save_path, plot=False, pdf=True)
-    
+    if x_nn is not None and x_mpc is not None: analyser.plot_states(x_mpc, t_samples[:np.shape(x_nn)[0]], X_lin=x_nn, trajectory=trajectory[:len(t_samples)], u_vector=[u_mpc, u_nn], omega_vector=[omega_mpc, omega_nn], legend=legend, equal_scales=True, save_path=simulation_save_path, plot=False, pdf=True)
+    elif x_mpc is not None: analyser.plot_states(x_mpc, t_samples[:np.shape(x_mpc)[0]], trajectory=trajectory[:len(t_samples)], u_vector=[u_mpc], omega_vector=[omega_mpc], legend=['MPC', 'Trajectory'], equal_scales=True, save_path=simulation_save_path, plot=False, pdf=True)
+    elif x_nn is not None:  analyser.plot_states(x_nn, t_samples[:np.shape(x_nn)[0]], trajectory=trajectory[:len(t_samples)], u_vector=[u_nn], omega_vector=[omega_nn], legend=['NN', 'Trajectory'], equal_scales=True, save_path=simulation_save_path, plot=False, pdf=True)
     dataset_id += 1
         
 def simulate_batch(trajectory_type, args_vector, restrictions_vector, disturb_input, checkpoint_id = None):
@@ -142,10 +143,10 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, disturb_in
     dataset_id = 1
 
 if __name__ == '__main__':
-    nn_weights_folder = 'training_results/temp/v3/'
+    nn_weights_folder = 'training_results/temp/v4_2/'
     dataset_mother_folder = nn_weights_folder
-    weights_file_name = 'model_weights_v3.pth'
-    optuna_version = 'v3'
+    weights_file_name = 'model_weights.pth'
+    optuna_version = 'v4'
     disturb_input = False
     if Path(dataset_mother_folder + 'dataset_metadata.csv').is_file():
         dataset_dataframe = pd.read_csv(dataset_mother_folder + 'dataset_metadata.csv', sep=',')
@@ -162,11 +163,12 @@ if __name__ == '__main__':
     run_lissajous_xy = False
     run_line = False
     run_circle_xy_performance = False
-    aiaa_fault_2rotors = False
+    fault_2rotors = False
     one_example = True
 
     restriction_vector = [rst.restriction('normal')]
     restriction_fault = [rst.restriction('total_failure', [0])]
+    restriction_fault_2 = [rst.restriction('total_failure', [0,3])]
 
     if run_circle_xy:
         args = tr.generate_circle_xy_trajectories()
@@ -188,25 +190,25 @@ if __name__ == '__main__':
         args = tr.generate_line_trajectories(50)
         simulate_batch('line', args, restriction_vector, False)
 
-    if aiaa_fault_2rotors:
-        restriction_fault = [rst.restriction('total_failure', [0])]
-        args = [[0, 0, 0, 15]]
-        simulate_batch('point', args, restriction_fault, disturb_input=False)
+    if fault_2rotors:
+        restrictions_2failures = rst.restrictions_2_rotor_faults()
+        args = [[0, 0, 0, 20]]
+        simulate_batch('point_failure', args, restrictions_2failures, disturb_input=False)
 
     # Simulate one example only
     if one_example:
         #restriction_fault = [rst.restriction('total_failure', [0])]
-        #args = [[0, 0, -5, 20]]
-        #simulate_batch('point', args, restriction_fault, disturb_input = False)
+        #args = [[0, 0, -20, 20]]
+        #simulate_batch('point', args, restriction_vector, disturb_input = False)
 
-        args = [[2*np.pi/10, 5, 30]]
+        #args = [[2*np.pi/10, 3, 30]]
         #simulate_batch('lissajous_xy', args, restriction_fault, disturb_input = False)
 
-        args_circle = [[2*np.pi/10, 5, 30]]
-        simulate_batch('circle_xy', args_circle, restriction_fault, disturb_input = False)
+        #args_circle = [[2*np.pi/10, 5, 30]]
+        #simulate_batch('circle_xy', args_circle, restriction_fault, disturb_input = False)
 
         # x, y, z, 
-        args_point = [[0, 0, -45, 60]]
-        simulate_batch('point', args_point, restriction_vector, disturb_input = False)
+        args_point = [[0, 0, 0, 20]]
+        simulate_batch('point', args_point, restriction_fault_2, disturb_input = False)
 
     dataset_dataframe.to_csv(dataset_mother_folder + 'dataset_metadata.csv', sep=',', index=False)
