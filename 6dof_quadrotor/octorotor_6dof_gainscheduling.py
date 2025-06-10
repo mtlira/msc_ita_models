@@ -40,7 +40,7 @@ X_eq = np.zeros(12)
 
 # f_t está no eixo do corpo
 
-trajectory_type = 'circle_xy'
+trajectory_type = 'helicoidal'
 
 analyser = DataAnalyser()
 
@@ -113,12 +113,15 @@ u_max = [
 ########################################################################################
 # LQR - tracking
 
-w = 2*np.pi*1/1
+w = 2*np.pi*1/10
 tr = trajectory_handler.TrajectoryHandler()
 
 r_tracking = None
 if trajectory_type == 'circle_xy':
     r_tracking = tr.circle_xy(w, 5, T_simulation,include_psi_reference, include_phi_theta_reference)
+
+if trajectory_type == 'lissajous_3d':
+    r_tracking = tr.lissajous_3d(w, 2.5, T_simulation,include_psi_reference, include_phi_theta_reference)
 
 if trajectory_type == 'lissajous_xy':
     r_tracking = tr.lissajous_xy(w, 2, T_simulation,include_psi_reference, include_phi_theta_reference)
@@ -133,7 +136,7 @@ if trajectory_type == 'line':
     r_tracking = tr.line(5, 5, -5, 30, T_simulation, include_psi_reference, include_phi_theta_reference)
 
 if trajectory_type == 'helicoidal':
-    r_tracking = tr.helicoidal(w,T_simulation, include_psi_reference, include_phi_theta_reference)
+    r_tracking = tr.helicoidal(w,0, 0.25,0.5,T_simulation, include_psi_reference, include_phi_theta_reference, extend=True)
 
 #r_tracking = tr.point(0, 0, -1, t_samples)
 #r_tracking = tr.helicoidal(w,t_samples)

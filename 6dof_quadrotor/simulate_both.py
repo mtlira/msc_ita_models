@@ -143,7 +143,7 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, disturb_in
     dataset_id = 1
 
 if __name__ == '__main__':
-    nn_weights_folder = 'training_results/temp/v4_2/'
+    nn_weights_folder = 'training_results/1-generalization-test/'
     dataset_mother_folder = nn_weights_folder
     weights_file_name = 'model_weights.pth'
     optuna_version = 'v4'
@@ -167,7 +167,7 @@ if __name__ == '__main__':
     one_example = True
 
     restriction_vector = [rst.restriction('normal')]
-    restriction_fault = [rst.restriction('total_failure', [0])]
+    restriction_fault = [rst.restriction('total_failure', [1])]
     restriction_fault_2 = [rst.restriction('total_failure', [0,3])]
 
     if run_circle_xy:
@@ -195,6 +195,7 @@ if __name__ == '__main__':
         args = [[0, 0, 0, 20]]
         simulate_batch('point_failure', args, restrictions_2failures, disturb_input=False)
 
+
     # Simulate one example only
     if one_example:
         #restriction_fault = [rst.restriction('total_failure', [0])]
@@ -208,7 +209,15 @@ if __name__ == '__main__':
         #simulate_batch('circle_xy', args_circle, restriction_fault, disturb_input = False)
 
         # x, y, z, 
-        args_point = [[0, 0, 0, 20]]
-        simulate_batch('point', args_point, restriction_fault_2, disturb_input = False)
+        #args_point = [[0, 0, 0, 20]]
+        #simulate_batch('point', args_point, restriction_fault_2, disturb_input = False)
+
+        #args = [[2*np.pi/25, 2.5, 50]]
+        #simulate_batch('lissajous_3d', args, restriction_vector, disturb_input = False)
+
+        args = [[2*np.pi/10 , 0, 0.25, 0.5, 30]]
+        simulate_batch('helicoidal', args, restriction_fault, disturb_input = False)
+
+
 
     dataset_dataframe.to_csv(dataset_mother_folder + 'dataset_metadata.csv', sep=',', index=False)

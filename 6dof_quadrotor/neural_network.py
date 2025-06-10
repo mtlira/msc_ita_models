@@ -429,16 +429,16 @@ class NeuralNetworkSimulator(object):
         #print(f"Using {device} device")
         
         if optuna_version == 'v2':
-            nn_model = NeuralNetwork_optuna2(self.num_inputs, num_rotors)
+            nn_model = NeuralNetwork_optuna2(self.num_inputs, num_rotors).to('cpu')
         elif optuna_version == 'v3':
-            nn_model = NeuralNetwork_optuna3(self.num_inputs, num_rotors)
+            nn_model = NeuralNetwork_optuna3(self.num_inputs, num_rotors).to('cpu')
         elif optuna_version == 'v4':
-            nn_model = NeuralNetwork_optuna4(self.num_inputs, num_rotors)
+            nn_model = NeuralNetwork_optuna4(self.num_inputs, num_rotors).to('cpu')
         elif optuna_version == 'temp':
-            nn_model = NeuralNetwork_optuna_temp(self.num_inputs, num_rotors)
+            nn_model = NeuralNetwork_optuna_temp(self.num_inputs, num_rotors).to('cpu')
         else:
             raise Exception("Incorrect optuna version")
-        nn_model.load_state_dict(torch.load(nn_weights_path, weights_only=True))
+        nn_model.load_state_dict(torch.load(nn_weights_path, weights_only=True, map_location=torch.device('cpu')))
         nn_model.eval()
 
         x_k = X0

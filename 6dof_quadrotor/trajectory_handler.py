@@ -57,7 +57,7 @@ class TrajectoryHandler(object):
                        ]).transpose()
         
         if not include_psi_reference:
-            r_circle_xy = r_circle_xy[:, :-1]
+            r_circle_xy = r_circle_xy[:, :-1] #TODO: CORRIGIR ISSO AQUI, ESTA ERRADO.
         
         if not include_phi_theta_reference:
             r_circle_xy = r_circle_xy[:, :-2]
@@ -108,11 +108,33 @@ class TrajectoryHandler(object):
 
         return r_lissajous_xy
     
-    def helicoidal(self, w, T_simulation, include_psi_reference = True, include_phi_theta_reference = True):
+    def lissajous_3d(self, w, r, T_simulation,include_psi_reference = True, include_phi_theta_reference = True):
         t = np.arange(0, T_simulation, T_sample)
-        r_helicoidal = np.array([5*(1 + 0.1*t)*np.sin(w*t),
-                       (5 - 5*(1 + 0.1*t)*np.cos(w*t)),
-                       -1*t,
+        r_ = np.array([r*np.sin(3*w*t),
+                       r*np.sin(2*w*t),
+                       r*np.sin(w*t),
+                       0*t,
+                       0*t,
+                       0*t
+                       ]).transpose()
+        
+        if not include_psi_reference:
+            r_ = r_[:, :-1]
+        
+        if not include_phi_theta_reference:
+            r_ = r_[:, :-2]
+
+        return r_
+    
+    def helicoidal(self, w, r0, alpha, beta, T_simulation, include_psi_reference, include_phi_theta_reference, extend=False):
+        if extend: t = np.arange(0, 2*T_simulation, T_sample)
+        else: t = np.arange(0, T_simulation, T_sample)
+        r_helicoidal = np.array([(r0 + alpha*t)*np.sin(w*t),
+                       (-r0 + (r0 + alpha*t)*np.cos(w*t)),
+                       -beta*t,
+                       0*t,
+                       0*t,
+                       0*t
                        ]).transpose()
         
         if not include_psi_reference:
@@ -155,10 +177,14 @@ class TrajectoryHandler(object):
             return self.circle_xz(args[0], args[1], args[2], include_psi_reference, include_phi_theta_reference)
         
         if trajectory_type == 'helicoidal':
-            return self.helicoidal(args[0], args[1], include_psi_reference, include_phi_theta_reference)
+            # w, r0, alpha, beta, T_simulation
+            return self.helicoidal(args[0], args[1], args[2], args[3], args[4], include_psi_reference, include_phi_theta_reference, extend=True)
         
         if trajectory_type == 'helicoidal_znegative':
             return self.helicoidal_znegative(args[0], args[1], include_psi_reference, include_phi_theta_reference)
+    
+        if trajectory_type == 'lissajous_3d':
+            return self.lissajous_3d(args[0], args[1], args[2], include_psi_reference, include_phi_theta_reference)
         
         raise ValueError('Trajectory type not compatible')
     

@@ -13,6 +13,8 @@ class DataAnalyser(object):
         #temp
         file_extension = '.pdf' if pdf else '.png'
 
+        if trajectory is not None: trajectory = trajectory[:len(X)]
+
         #if X_lin is not None: self.plot_xyz(X,t,X_lin,trajectory,legend, save_path)
         handles = []
         #plt.rcParams.update({'font.size': 8})
