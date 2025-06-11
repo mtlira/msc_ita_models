@@ -308,7 +308,7 @@ class TrajectoryHandler(object):
         return args
     
     def generate_circle_xy_performance_analysis(self):
-        period_vector = np.arange(0.5, 20, 0.5)
+        period_vector = np.arange(0.5, 20, 0.25)
         r_vector = 5*np.ones(len(period_vector))
         T_simulation_vector = np.array([max(10, period) for period in period_vector])
 

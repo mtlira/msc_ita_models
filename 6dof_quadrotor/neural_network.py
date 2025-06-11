@@ -599,7 +599,10 @@ class NeuralNetworkSimulator(object):
             'nn_std_psi': std_psi,
         }
 
-        return np.array(X_vector), np.array(u_vector), np.array(omega_vector), metadata
+        omega_vector = np.array(omega_vector)
+        for i in range(num_rotors): exec(f'metadata[\'nn_max_omega{i}\'] = np.max(omega_vector[:,{i}])')
+
+        return np.array(X_vector), np.array(u_vector), omega_vector, metadata
 
 
 

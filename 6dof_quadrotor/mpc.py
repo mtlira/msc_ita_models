@@ -9,6 +9,8 @@ import time
 from linearize import *
 from plots import DataAnalyser
 
+from parameters.octorotor_parameters import num_rotors
+
 class MPC(object):
     def __init__(self, M, N, A, B, C, time_step, T_sample, output_weights, control_weights, restrictions, u_ref,\
                   include_psi_reference = True, include_phi_theta_reference = True):
@@ -1234,8 +1236,10 @@ class GainSchedulingMPC(object):
             'mpc_std_psi': std_psi,
         }
 
+        omega_vector = np.array(omega_vector)
+        for i in range(num_rotors): exec(f'metadata[\'mpc_max_omega{i}\'] = np.max(omega_vector[:,{i}])')
 
-        return np.array(X_vector), np.array(u_vector), np.array(omega_vector), np.asarray(NN_dataset), metadata
+        return np.array(X_vector), np.array(u_vector), omega_vector, np.asarray(NN_dataset), metadata
 
 if __name__ == '__main__':
     ## TESTE - DELETAR DEPOIS ###########################################################################

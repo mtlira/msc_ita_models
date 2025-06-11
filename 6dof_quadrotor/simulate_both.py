@@ -143,7 +143,7 @@ def simulate_batch(trajectory_type, args_vector, restrictions_vector, disturb_in
     dataset_id = 1
 
 if __name__ == '__main__':
-    nn_weights_folder = 'training_results/1-generalization-test/'
+    nn_weights_folder = 'training_results/2-performance-analysis/'
     dataset_mother_folder = nn_weights_folder
     weights_file_name = 'model_weights.pth'
     optuna_version = 'v4'
@@ -162,9 +162,9 @@ if __name__ == '__main__':
     run_point = False
     run_lissajous_xy = False
     run_line = False
-    run_circle_xy_performance = False
+    run_circle_xy_performance = True
     fault_2rotors = False
-    one_example = True
+    one_example = False
 
     restriction_vector = [rst.restriction('normal')]
     restriction_fault = [rst.restriction('total_failure', [1])]
@@ -174,9 +174,9 @@ if __name__ == '__main__':
         args = tr.generate_circle_xy_trajectories()
         simulate_batch('circle_xy', args, restriction_vector, False)
 
-    #if run_circle_xy_performance:
-    #    args = tr.generate_circle_xy_performance_analysis()
-    #    simulate_batch('circle_xy', args, restriction_vector, False)
+    if run_circle_xy_performance:
+        args = tr.generate_circle_xy_performance_analysis()
+        simulate_batch('circle_xy', args, restriction_vector, False)
 
     if run_circle_xz:
         args = tr.generate_circle_xz_trajectories()
