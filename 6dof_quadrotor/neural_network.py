@@ -43,8 +43,8 @@ class ControlAllocationDataset(Dataset):
         return sample
 
 class ControlAllocationDataset_Binary(Dataset):
-    '''Class to be used if the total dataset is split into multiple CSV files\n
-    mother_folder_path: Path of the folder that contains all the CSV files that make up the total dataset'''
+    '''Class to be used if the total dataset is split into multiple npy files\n
+    mother_folder_path: Path of the folder that contains all the npy files that make up the total dataset'''
     def __init__(self, mother_folder_path, has_header, num_outputs):
         self.normalization_file_name = 'normalization_data.csv'
         self.mother_folder_path = mother_folder_path
@@ -376,7 +376,7 @@ class NeuralNetwork_optuna_temp(nn.Module): # Third hyperparameter tuning versio
 
 ### 3. Early Stopper class ###
 class EarlyStopper():
-    def __init__(self, drift_patience, plateau_patience, drift_percentage, save_path):
+    def __init__(self, drift_patience, plateau_patience, drift_percentage, save_path=None):
         self.drift_patience = drift_patience
         self.plateau_patience = plateau_patience
         self.drift_percentage = drift_percentage
@@ -395,7 +395,8 @@ class EarlyStopper():
             self.minimum_loss = loss
 
             # Save model's weights in save_path
-            torch.save(model.state_dict(), self.save_path + 'model_weights.pth')
+            if self.save_path is not None:
+                torch.save(model.state_dict(), self.save_path + 'model_weights.pth')
             
         elif loss > self.minimum_loss*(1 + self.drift_percentage):
             self.tolerance_break_counter += 1

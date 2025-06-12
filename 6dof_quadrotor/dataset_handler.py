@@ -1,10 +1,52 @@
 import os
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import train_test_split
 
 'Group individual datasets, split dataset into training and test'
 
-def group_datasets(folder_path):
+def group_and_split_datasets_npy(folder_path):
+    '''
+    Groups all the npy dataset files inside folder_path and splits it into training and test datasets. The training set is normalized and the normalization data is saved in a csv
+    '''
+    #https://www.geeksforgeeks.org/how-to-iterate-over-files-in-directory-using-python/
+
+    global_dataset = []
+
+    print('Loading dataset indexes...')
+    for subdir, _, files in os.walk(folder_path):
+        for file in files:
+            if file == 'dataset.npy':
+                #self.npy_files.append(os.path.join(subdir, file))
+                global_dataset.append(np.load(os.path.join(subdir, file)))
+    global_dataset = np.concatenate(global_dataset, axis = 0)
+    #num_inputs = len(global_dataset[0]) - num_outputs
+    
+    print(f'\tLoaded {len(global_dataset)} samples')
+    print(f'\tSample length: {len(global_dataset[0])}')
+    print(f'\tDataset size: {global_dataset.nbytes / 1024**2} MB')
+    print('Interity check:')
+    for i in range(len(global_dataset)):
+        if len(global_dataset[i]) != len(global_dataset[0]):
+            print(f'corrupted row: i={i}, {len(global_dataset[i])} samples')
+    print('\t There are no corrupted data')
+
+    # Spliting into train and test (obs: validation happens inside the training dataset)
+    training_dataset, test_dataset = train_test_split(global_dataset, test_size=0.1, random_state=50)
+
+    # Normalization of the training dataset ONLY
+    mean = np.mean(training_dataset, axis = 0)
+    std = np.std(training_dataset, axis = 0)
+
+    training_dataset = (training_dataset - mean) / std
+
+    np.save('training_split_normalized.npy', training_dataset)
+    np.save('test_split_not_normalized.npy', test_dataset)
+
+    data = np.concatenate(([mean], [std]), axis = 0)
+    np.savetxt(folder_path + 'normalization_data.csv', data, delimiter=",")
+
+def group_datasets_csv(folder_path):
     '''
     Groups several csv datasets contained in a folder path into a single file.\n
     folder_path: folder path where all the csv's to be grouped are located
