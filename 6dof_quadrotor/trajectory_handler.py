@@ -290,10 +290,10 @@ class TrajectoryHandler(object):
         return args
     
     def generate_lissajous_xy_trajectories(self):
-        short_radius_vector = np.arange(0.5, 4, 0.5) # aggressive (1, 5, 0.5)
-        long_radius_vector = np.arange(5, 7, 1) # aggressive (5, 10, 1)
-        short_period_vector = np.arange(5, 9, 1) # aggressive (1, 9, 1)
-        long_period_vector = np.arange(10, 12, 1) # Aggresive (10, 14, 1)
+        short_radius_vector = np.arange(0.25, 4, 0.25) # aggressive (1, 5, 0.5)
+        long_radius_vector = np.arange(5, 8, 0.5) # aggressive (5, 10, 1)
+        short_period_vector = np.arange(5, 8, 0.5) # aggressive (1, 9, 1)
+        long_period_vector = np.arange(10, 12, 0.5) # Aggresive (10, 14, 1)
 
         args = []
 

@@ -9,7 +9,7 @@ class DataAnalyser(object):
     def __init__(self):
         self.dataset = None
 
-    def plot_states(self, X,t, X_lin = None, trajectory = None, u_vector = None, omega_vector = None, equal_scales=False, legend = [], save_path = None, plot = True, pdf=False):
+    def plot_states(self, X,t, X_lin = None, trajectory = None, u_vector = None, omega_vector = None, equal_scales=False, legend = [], save_path = None, plot = True, pdf=False, z_ticks_3d = None):
         #temp
         file_extension = '.pdf' if pdf else '.png'
 
@@ -155,7 +155,7 @@ class DataAnalyser(object):
             del fig
             del axs
 
-       #fig = plt.figure(figsize=(6,7.5)) # Figsize customized for 2 rotor failure
+        #fig = plt.figure(figsize=(6,7.5)) # Figsize customized for 2 rotor failure
         fig = plt.figure()
         axs = plt.axes(projection='3d')
         axs.plot3D(X[:,9], X[:,10]*(-1), X[:,11]*(-1))
@@ -170,10 +170,10 @@ class DataAnalyser(object):
         fig.tight_layout()
         if equal_scales: axs.set_aspect('equal', adjustable='box')
 
-        # Remover depois################
+        #Remover depois################
         #axs.set_xticks([1.5, -2]) 
         #axs.set_yticks([-2, 0])  
-        #axs.set_zticks([0,-5,-10,-15,-17.5])
+        #axs.set_zticks([0])
 
         if save_path is not None: 
             plt.savefig(save_path + f'3D{file_extension}')

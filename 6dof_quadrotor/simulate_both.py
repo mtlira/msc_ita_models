@@ -168,7 +168,7 @@ if __name__ == '__main__':
 
     restriction_vector = [rst.restriction('normal')]
     restriction_mixed = [rst.restriction('normal'), rst.restriction('total_failure', [0])]
-    restriction_fault = [rst.restriction('total_failure', [1])]
+    restriction_fault = [rst.restriction('total_failure', [0])]
     restriction_fault_2 = [rst.restriction('total_failure', [0,1])]
 
     if run_circle_xy:
@@ -193,7 +193,7 @@ if __name__ == '__main__':
 
     if fault_2rotors:
         restrictions_2failures = rst.restrictions_2_rotor_faults()
-        args = [[0, 0, 0, 20]]
+        args = [[0, 0, 0, 30]]
         simulate_batch('point_failure', args, restrictions_2failures, disturb_input=False)
 
 
@@ -204,7 +204,7 @@ if __name__ == '__main__':
         #simulate_batch('point', args, restriction_fault, disturb_input = False)
 
         #args = [[2*np.pi/10, 3, 30]]
-        #simulate_batch('lissajous_xy', args, restriction_mixed, disturb_input = False)
+        #simulate_batch('lissajous_xy', args, restriction_fault, disturb_input = False)
 
         #args_circle = [[2*np.pi/10, 5, 30]]
         #simulate_batch('circle_xy', args_circle, restriction_mixed, disturb_input = False)
